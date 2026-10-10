@@ -1,6 +1,42 @@
-# 知识库智能体（rag-kb）与产品门户
+# 无线网优助手与 ECHO-Mem 工作台
 
-基于 DeepSeek Harness SDK（npm 包 `@deepseek-ai/dsh-sdk-client`）的知识库智能体适配层，外加蓝白视觉的产品门户（Vite + React 前端、轻量门户认证适配和 Nginx 静态服务）。自包含仓库：不依赖 DeepSeek Harness 源码仓。
+基于 DeepSeek Harness SDK（npm 包 `@deepseek-ai/dsh-sdk-client`）的无线网优工作台，连接 ECHO-Mem 原理与编译机制，配有蓝白视觉的产品门户（Vite + React 前端、轻量门户认证适配和 Nginx 静态服务）。自包含仓库：不依赖 DeepSeek Harness 源码仓。
+
+## 阿里云知识服务模式（当前默认）
+
+无线网优助手连接阿里云上的 LightRAG 与 MinerU，用于网优文档解析与补充检索。配置集中在 `backend/.env`：文本模型 `qwen3.8-flash`、图片模型 `qwen3.8-omni-flash`、模型兼容地址和密钥、LightRAG 地址与 `X-API-Key`、MinerU 地址与 Bearer key。密钥文件不进 Git 或镜像。首次配置见 `backend/.env.example` 与 [QUICK_START.md](QUICK_START.md)。
+
+```bash
+docker compose -f docker-compose.app.yml --env-file backend/.env up -d --build
+```
+
+访问 `http://localhost:<WEB_PORT>/chat`（模板默认 8080，本机配置 8086）。默认只启动前后端；本地 LightRAG 放入关闭的 `local-engines` profile，MinerU 由阿里云运行。PDF 上传经过「本地后端 → LightRAG → MinerU 适配器 → MinerU」解析入库；聊天图片附件调用多模态模型后交给问答模型。集成状态可查看 `/api/integrations/health`。
+
+会话、知识注册表、意图与审计账本保存在 `rag-kb-runtime` 卷，附件保存在 `rag-kb-spool` 卷。SDK 的运行配置由 `.env` 在启动时生成到 `.runtime/dsh-home`，`dsh/home` 继续作为插件模板。
+
+远程 REST 模式支持知识检索、文档管理与图谱增删改查。`KB_RAG_STORAGE` 和 `KB_LIGHTRAG_INPUTS_DIR` 留空时，依赖共享文件的 GraphML 重复实体分析和原文图片回溯自动降级；PDF 解析与图片附件识别仍可用。
+
+## 通用 Harness 更新
+
+已接入项目级网优 Skill 目录，显式固定 `workspace-write` 文件沙箱和业务审批策略；知识问答采用简洁回复、证据复用与完成即停止的规则。运行配置按 profile manifest 连接插件，内容不变时不重复写入。
+
+通用经验、适用边界、可复制提示词与验证方式见 [可复用的 Harness 执行规范](docs/harness/README.md)。`GET /api/skills` 返回 SDK 实际发现的项目能力；本地检查运行 `cd backend && npm run test:harness`。
+
+## 网优与 ECHO-Mem 能力
+
+默认 `rag-kb` profile 专注历史驱动的网优分析，安装 13 个网优 Skill，分为两条路径：**分析回答**消费 ECHO-Mem 历史案例和已沉淀经验，对照当前数据做根因、参数与方案分析；**工单记忆工程**保存工单、方案与实际反馈，评价效果并编译本地经验版本。普通分析无需先保存工单；工程分析复用同一套历史方法。LightRAG/MinerU 用于网优资料补充，`wireless-echo-mem` 保留原理与源码问答。
+
+根因、方案与评估 Skills 共用 [ECHO-Mem 历史决策方法](skills/wireless-workorder-orchestrator/references/echo-decision-workflow.md)：从历史标签提出可区分的当前假设，从历史动作/组合生成适配候选，执行前评价历史支持和反证，执行后比较真实效果与业务判据。每项原则有固定源实现对应关系；普通评估可直接回答，需要保存或沉淀时再进入工程流程。
+
+Harness 按目标自由组合 [ECHO 能力](skills/wireless-workorder-orchestrator/references/echo-capabilities.md)，不要求固定工单阶段顺序。根因采用源问题框架与多维证据，固定候选采用源 Shadow 约束；源排序与值适配通过 `wireless_echo_decision` 按需独立执行。
+
+根因、数据、参数应用与方案分析先调用 `wireless_history_search`，自动检索固定案例、参数经验、研究结论及本地冻结包中的六类记忆，返回命中/未命中、读取不完整与生产数据源未接入状态。已有经验保留；语义或研究结论不冒充实测工单。回答保留简短案例标识、历史动作/结果和当前适用差异。执行方法见 [ECHO-Mem 分析契约](skills/wireless-workorder-orchestrator/references/echo-analysis-method.md)，工程步骤见 [工单记忆工程](skills/wireless-memory-engineering/SKILL.md)。
+
+部署携带固定版本的参数语义快照（279 个签名映射）、4 个混合类型案例条目、3 条研究经验摘要、ECHO-Mem 158 份复现文本、10 份源 Skill/Shadow/选择提示文本及源规则编译器，不依赖临时研究目录。9 个领域工具支持统一历史检索、源状态候选分池、原理检索、工单/方案/反馈记录、观测对齐、根因引用核对、参数约束、源候选排序/受限选择/值适配、效果比较和源规则编译。新编译的本地历史包自动进入后续检索，旧版本保留；演示包默认排除，跨包重复 Trace 不累加效果统计。全量生产库、现场采集/下发、完整结构导航、校准 gate、线上发布与完整时序回放尚未连接。材料与范围见 [网优语料](docs/wireless-network-optimization/available-corpus.md)。
+
+本机编译依赖首次安装：`python3 -m venv backend/.runtime/wireless-python`，然后 `backend/.runtime/wireless-python/bin/pip install -r backend/dsh/dsh-wireless/compiler-requirements.txt`；Docker 镜像安装到 `/opt/wireless-python`。可用 `WIRELESS_PYTHON` 覆盖解释器，使用源项目要求的 Python 3.12 验证。
+
+离线检查：`cd backend && npm run test:harness`。启动后运行 `node dev/smoke-wireless.mjs` 检查问答，或 `node dev/smoke-wireless-workflow.mjs` 检查模拟工单、效果评估和演示编译；`node dev/smoke-wireless-focus.mjs` 检查专用定位、ECHO 原理和方案/反馈/记录链（均调用所配置模型）；`HARNESS_TEST_BASE_URL` 指定入口。工单与版本包保存到 DSH_HOME 的 `storages/dsh-wireless`，可用 `WIRELESS_DATA_DIR` 覆盖。
 
 ## 目录结构
 
@@ -14,6 +50,7 @@ rag-harness-sdk/
 │   └── dsh/                    # dsh 运行时与插件
 │       ├── home/               #     DSH_HOME：settings、profiles/rag-kb、.env（模板 .env.example）
 │       ├── dsh-knowledge/      #     知识库插件（LightRAG 适配、/kb/* REST、kb_* 模型工具）
+│       ├── dsh-wireless/       #     ECHO 来源问答、网优阶段、方案/反馈记录、效果评估与规则编译
 │       └── plugin-approval-bridge/ # 审批桥接插件（/approvals/* HTTP 面）
 ├── frontend/                   # 前端：React 门户与首页 Nginx
 ├── gateway/                    # 网关 Nginx 路由

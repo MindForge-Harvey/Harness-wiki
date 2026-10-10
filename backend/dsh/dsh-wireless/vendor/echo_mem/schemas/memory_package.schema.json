@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory_package.schema.json",
+  "title": "MemoryPackage",
+  "description": "Memory Package 元信息 manifest。Package 是无侵入式影子系统加载的最小单位。",
+  "type": "object",
+  "required": [
+    "package_id",
+    "package_name",
+    "version",
+    "source",
+    "stats",
+    "files",
+    "created_at"
+  ],
+  "properties": {
+    "package_id": {"type": "string"},
+    "package_name": {"type": "string"},
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "source": {
+      "type": "object",
+      "required": ["dataset", "trace_count", "sampled"],
+      "properties": {
+        "dataset": {"type": "string"},
+        "trace_count": {"type": "integer"},
+        "sampled": {"type": "boolean"},
+        "sampling_strategy": {"type": "string"},
+        "compile_backend": {
+          "type": "string",
+          "enum": ["rule_v1", "llm_v1", "hybrid_v1"]
+        },
+        "eval_split_id": {"type": "string", "description": "关联 data/compiled/eval_split.json"}
+      }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "case_memory_count": {"type": "integer"},
+        "rca_memory_count": {"type": "integer"},
+        "strategy_memory_count": {"type": "integer"},
+        "risk_memory_count": {"type": "integer"},
+        "counter_evidence_count": {"type": "integer"},
+        "validated_count": {"type": "integer"},
+        "reusable_count": {"type": "integer"},
+        "restricted_count": {"type": "integer"},
+        "counter_evidence_state_count": {"type": "integer"},
+        "deprecated_count": {"type": "integer"},
+        "average_overall_score": {"type": "number"},
+        "case_episode_candidate_count": {"type": "integer"},
+        "case_episode_semantic_count": {"type": "integer"}
+      }
+    },
+    "knowledge_layers": {
+      "type": "array",
+      "description": "影子系统默认加载分层；semantic 必须与 episode_rules 按 episode_id 绑定",
+      "items": {"type": "object"}
+    },
+    "files": {
+      "type": "object",
+      "description": "包内文件相对路径",
+      "properties": {
+        "memory_objects": {"type": "string"},
+        "state_transitions": {"type": "string"},
+        "memory_scores": {"type": "string"},
+        "evidence_units": {"type": "string", "description": "可选：脱敏证据明细"},
+        "index": {"type": "string", "description": "issue_type → memory_id 倒排索引"},
+        "case_episode_candidates": {"type": "string"},
+        "case_episodes": {"type": "string"},
+        "episodes_index": {"type": "string", "description": "episode_id 绑定索引"}
+      }
+    },
+    "applicability_index": {
+      "type": "object",
+      "description": "issue_type 到 memory_id 列表的倒排索引摘要"
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "checksum": {
+      "type": "object",
+      "properties": {
+        "algo": {"type": "string", "enum": ["sha256"]},
+        "manifest_excluded": {"type": "boolean"},
+        "values": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        }
+      }
+    }
+  }
+}

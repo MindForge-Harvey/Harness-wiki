@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trace_record.schema.json",
+  "title": "TraceRecord",
+  "description": "标准化的无线优化闭环 trace，1 工单对应 1 条 TraceRecord，内部包含多个参数下发 action。",
+  "type": "object",
+  "required": ["trace_id", "ticket", "actions", "source"],
+  "properties": {
+    "trace_id": {
+      "type": "string",
+      "description": "TraceRecord 唯一 id（默认与 ticket.id 一致）"
+    },
+    "source": {
+      "type": "object",
+      "required": ["dataset", "ingested_at"],
+      "properties": {
+        "dataset": {"type": "string", "description": "数据集名（多文件 ingest 时为各 dataset 用 '+' 拼接，如 shanxi_2026+icos_4g_202511）"},
+        "datasets": {
+          "type": "array",
+          "description": "多文件 ingest 时该 trace 跨越的所有 dataset 列表；单文件不写",
+          "items": {"type": "string"}
+        },
+        "source_files": {
+          "type": "array",
+          "description": "多文件 ingest 时记录每条 trace 的原始 xlsx 文件名（不含路径）",
+          "items": {"type": "string"}
+        },
+        "row_offsets": {
+          "type": "array",
+          "description": "原始 xlsx 行号（去掉表头后从 0 开始），用于反查；多文件时为各文件原始行号的并集",
+          "items": {"type": "integer"}
+        },
+        "ingested_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ticket": {
+      "type": "object",
+      "required": ["id", "primary_issue_type"],
+      "properties": {
+        "id": {"type": "string", "description": "工单编号（脱敏后）"},
+        "issued_at": {"type": ["string", "null"]},
+        "state": {"type": ["string", "null"], "description": "工单流转状态，例如 闭环；部分数据源（如 icos 导出）无此字段，会为 null"},
+        "ticket_category": {"type": ["string", "null"], "description": "工单大类，例如 内部工单/外部工单"},
+        "ticket_type": {"type": ["string", "null"], "description": "工单类型，例如 非实时工单/路测工单/KQI工单/IDS-干扰工单/无线节假日保障性能监控告警工单"},
+        "primary_issue_type": {"type": "string", "description": "问题类型"},
+        "province_issue_type": {"type": "string", "description": "省端问题类型，带场景标签例如 VIP场景/一般场景"},
+        "cell_name": {"type": ["string", "null"], "description": "小区名（网元名称）"},
+        "network_element_name": {"type": ["string", "null"], "description": "网元名称"},
+        "cell_id": {"type": ["string", "null"], "description": "tci 或 ECI"},
+        "eci": {"type": ["string", "null"]},
+        "site_name": {"type": ["string", "null"]},
+        "antenna_rx_ports": {"type": ["string", "null"], "description": "天线接收端口数量"},
+        "aau_antenna_info": {"type": ["string", "null"], "description": "AAU设备型号/天线信息"},
+        "antenna_type": {"type": ["string", "null"], "description": "天线类型，例如 64T64R；推荐前可见的硬件上下文"},
+        "cover_area": {"type": ["string", "null"], "description": "覆盖场景/区域，来自 cover_area；推荐前可见，但源值需进一步清洗"},
+        "region": {"type": ["string", "null"]},
+        "vendor": {"type": ["string", "null"]},
+        "is_indoor": {"type": ["string", "null"], "description": "是否室分；新 ingest 归一为 室内/室外，旧 trace 可能仍保留 是/否"},
+        "band": {"type": ["string", "null"]},
+        "system": {"type": ["string", "null"], "description": "LTE/NR"}
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/Action"}
+    },
+    "aggregate": {
+      "type": "object",
+      "description": "工单粒度聚合：动作数 / 各类状态计数 / 长评估结论",
+      "properties": {
+        "action_count": {"type": "integer"},
+        "issued_success": {"type": "integer"},
+        "exec_success": {"type": "integer"},
+        "exec_failed": {"type": "integer"},
+        "exec_skipped": {"type": "integer"},
+        "long_eval_pass": {"type": "integer"},
+        "long_eval_fail": {"type": "integer"},
+        "long_eval_unknown": {"type": "integer"},
+        "ticket_outcome": {
+          "type": "string",
+          "enum": [
+            "long_eval_pass",
+            "long_eval_fail",
+            "long_eval_mixed",
+            "long_eval_unknown",
+            "execution_blocked",
+            "manual_handoff",
+            "audit_timeout",
+            "issued_failed",
+            "exec_failed"
+          ],
+          "description": "工单整体结局：通过/混合/受阻/未知/转人工/审核超时/下发失败/执行失败；long_eval_fail 为历史兼容"
+        },
+        "maximum_attribution_scope": {
+          "type": "string",
+          "enum": ["bundle_direct", "unresolved"]
+        },
+        "outcome_role": {
+          "type": "string",
+          "enum": ["support", "counter", "conflict", "unresolved"]
+        },
+        "result_evidence_eligible": {"type": "boolean"},
+        "evidence_authority_basis": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "$defs": {
+    "Action": {
+      "type": "object",
+      "required": ["action_id", "scheme_id"],
+      "properties": {
+        "action_id": {"type": "string", "description": "trace 内 action 序号（工单内唯一）"},
+        "exec_id": {"type": ["string", "null"], "description": "原始 执行编号"},
+        "param_exec_id": {"type": ["string", "null"], "description": "原始 参数执行id（脚本批次号）"},
+        "param_object": {
+          "type": ["string", "null"],
+          "description": "分册参数对象（Excel 分册参数对象；方案级）"
+        },
+        "param_en_name": {
+          "type": ["string", "null"],
+          "description": "分册 OMC 英文参数名（Excel 分册OMC英文参数名称；方案级）"
+        },
+        "site_param_object": {
+          "type": ["string", "null"],
+          "description": "单站参数对象（Excel 单站参数对象；方案级）"
+        },
+        "site_param_en_name": {
+          "type": ["string", "null"],
+          "description": "单站 OMC 英文参数名（Excel 单站OMC英文参数名称；方案级）"
+        },
+        "param_cn_name": {"type": ["string", "null"]},
+        "parameter_group": {
+          "type": ["string", "null"],
+          "description": "参数组/MO 分组，来自 paragroup；动作地址/分组证据，不作为推荐前工单输入"
+        },
+        "before_value": {"type": ["string", "null"]},
+        "after_value": {"type": ["string", "null"]},
+        "value_rule": {"type": ["string", "null"], "description": "参数值的规则描述（例如 <-60、+2 等）"},
+        "adjustment_rule": {"type": ["string", "null"], "description": "规则范围"},
+        "final_ratio": {
+          "type": ["string", "null"],
+          "description": "源系统动作辅助比例，业务语义待校准；当前仅保留原值，不能作为 holdout-time 输入特征"
+        },
+        "scheme_id": {"type": ["string", "null"]},
+        "scheme_group": {"type": ["string", "null"], "description": "兼容旧字段：type2，现语义为二级根因/方案族入口，例如 低切换方案组"},
+        "param_kind": {"type": ["string", "null"], "description": "兼容旧字段：type1，现语义为一级根因，例如 参数通用/资源/干扰/覆盖"},
+        "root_cause_l1": {"type": ["string", "null"], "description": "type1：一级根因"},
+        "root_cause_l2": {"type": ["string", "null"], "description": "type2：二级根因"},
+        "root_cause_key": {"type": ["string", "null"], "description": "type1 + type2 拼接后的根因键，例如 参数通用 / 低切换方案组"},
+        "scheme_type3": {"type": ["string", "null"], "description": "type3（Excel）：根因/归类后供方案生成与参数下发的操作参考，按参数×方案挂在动作上；非执行后语言描述"},
+        "scheme_desc": {"type": ["string", "null"]},
+        "operation_summary": {
+          "type": ["string", "null"],
+          "description": "操作族/操作摘要，来自 operate；历史动作证据，只能由 train 编译为候选动作说明"
+        },
+        "operation_detail": {
+          "type": ["string", "null"],
+          "description": "具体操作说明，来自 concrete_operate；历史动作证据，只能由 train 编译为候选动作说明"
+        },
+        "operation_delta_hint": {
+          "type": ["string", "null"],
+          "description": "替换/调整提示，来自 rep_operate；历史动作证据，只能由 train 编译为候选动作说明"
+        },
+        "verbal_desc": {"type": ["string", "null"], "description": "语言描述：调整 X 从 a 改为 b"},
+        "issued_state": {
+          "type": ["string", "null"],
+          "description": "参数下发状态：下发成功/下发失败/(null=未下发)"
+        },
+        "issued_at": {"type": ["string", "null"]},
+        "issued_detail": {
+          "type": ["string", "null"],
+          "description": "参数下发详情/平台返回；过程结果证据，不是推荐前场景输入"
+        },
+        "exec_state": {
+          "type": "string",
+          "enum": [
+            "exec_success",
+            "exec_failed",
+            "no_exec_needed",
+            "audit_timeout",
+            "issued_failed",
+            "unknown"
+          ]
+        },
+        "exec_at": {"type": ["string", "null"]},
+        "exec_detail": {"type": ["string", "null"]},
+        "exec_failure_reason": {"type": ["string", "null"]},
+        "rollback_state": {"type": ["string", "null"]},
+        "rollback_at": {"type": ["string", "null"]},
+        "rollback_detail": {"type": ["string", "null"]},
+        "short_eval_result": {"type": ["string", "null"]},
+        "long_eval_result": {
+          "type": "string",
+          "enum": ["long_eval_pass", "long_eval_fail", "long_eval_unknown"]
+        },
+        "maximum_attribution_scope": {
+          "type": "string",
+          "enum": ["action_direct", "component_associated", "unresolved"]
+        },
+        "outcome_role": {
+          "type": "string",
+          "enum": ["support", "counter", "conflict", "unresolved"]
+        },
+        "result_evidence_eligible": {"type": "boolean"},
+        "evidence_authority_basis": {"type": ["string", "null"]},
+        "associated_bundle_outcome": {"type": ["string", "null"]},
+        "associated_bundle_outcome_role": {
+          "type": ["string", "null"],
+          "enum": ["support", "counter", "conflict", "unresolved", null]
+        },
+        "improvement_result": {
+          "type": ["string", "null"],
+          "description": "参数改善结果，来自 para_improvement；当前保留源枚举，如 改善/恶化/无变化/无指标。该字段是 outcome 辅助信号，暂不等同于 long_eval_result。"
+        },
+        "platform_task_id": {
+          "type": ["string", "null"],
+          "description": "平台 taskid；仅用于追踪/审计，不作语义特征"
+        },
+        "raw_row_index": {"type": "integer", "description": "原始 xlsx 行号"}
+      }
+    }
+  }
+}

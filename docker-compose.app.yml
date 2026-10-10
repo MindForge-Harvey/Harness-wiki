@@ -1,12 +1,14 @@
-# rag-kb 应用栈：LightRAG 引擎 + 后端（适配层/dsh）+ 前端。
+# llm_wiki 应用栈：本地前后端连接阿里云 LightRAG + MinerU。
 # 启动：docker compose -f docker-compose.app.yml --env-file backend/.env up -d --build
 # 停止：docker compose -f docker-compose.app.yml --env-file backend/.env down
-# 说明：backend/.env 同时承担容器环境与卷路径插值；模型 key 等经 backend 服务注入。
+# 默认只启动 backend/frontend；本地 LightRAG 归入 local-engines profile。
+# MinerU 使用阿里云服务，本项目不启动本地 MinerU。
 name: rag-kb
 
 services:
   lightrag:
-    image: hkuds/lightrag:latest
+    profiles: [local-engines]
+    image: ghcr.io/hkuds/lightrag:1.5.6
     container_name: lightrag-docker-0.6B
     restart: unless-stopped
     ports:
@@ -21,11 +23,10 @@ services:
       NO_PROXY: "*"
       no_proxy: "*"
     volumes:
-      - ${KB_RAG_STORAGE}:/app/data/rag_storage
-      - ${KB_LIGHTRAG_INPUTS_DIR}:/app/data/inputs
-      # 引擎自身配置：模型 key 等在 .env 文件；prompts 为可自定义提示词目录（路径须在 backend/.env 配置，缺失启动即报错）
-      - ${LIGHTRAG_DOTENV:?请在 backend/.env 配置 LIGHTRAG_DOTENV（LightRAG 引擎 .env 文件路径）}:/app/.env
-      - ${LIGHTRAG_PROMPTS_DIR:?请在 backend/.env 配置 LIGHTRAG_PROMPTS_DIR（LightRAG prompts 目录）}:/app/data/prompts
+      - ${KB_RAG_STORAGE:-./.local-data/rag_storage}:/app/data/rag_storage
+      - ${KB_LIGHTRAG_INPUTS_DIR:-./.local-data/inputs}:/app/data/inputs
+      - ${LIGHTRAG_DOTENV:-./backend/.env}:/app/.env:ro
+      - ${LIGHTRAG_PROMPTS_DIR:-./.local-data/prompts}:/app/data/prompts
 
   backend:
     build:
@@ -36,30 +37,29 @@ services:
     env_file:
       - backend/.env
     environment:
-      # 容器内路径覆盖 .env 的宿主机路径；引擎走 compose 网络服务名（内部端口 9621）
-      LIGHTRAG_BASE_URL: http://lightrag:9621
-      KB_RAG_STORAGE: /data/rag_storage
-      KB_LIGHTRAG_INPUTS_DIR: /data/inputs
+      HOST: 0.0.0.0
+      DSH_HOME_DIR: .runtime/dsh-home
     ports:
-      - "3088:3088"
+      - "127.0.0.1:3088:3088"
     volumes:
-      - ${KB_RAG_STORAGE}:/data/rag_storage
-      - ${KB_LIGHTRAG_INPUTS_DIR}:/data/inputs
-      # 会话历史与审批附件跨镜像升级持久化
-      - rag-kb-sessions:/app/backend/dsh/home/sessions
+      # 会话、注册表、审计、意图账本与审批附件跨镜像升级持久化。
+      - rag-kb-runtime:/app/backend/.runtime
       - rag-kb-spool:/app/backend/.spool
-    depends_on:
-      - lightrag
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3088/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build: ./frontend
     container_name: rag-kb-frontend
     restart: unless-stopped
     ports:
-      - "8080:80" # 浏览器访问 http://<host>:8080
+      - "127.0.0.1:${WEB_PORT:-8080}:80" # WEB_PORT 在 backend/.env 配置
     depends_on:
       - backend
 
 volumes:
-  rag-kb-sessions:
+  rag-kb-runtime:
   rag-kb-spool:

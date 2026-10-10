@@ -1,0 +1,85 @@
+[
+  {
+    "lesson_id": "sample-provenance-not-selector",
+    "evidence_type": "research_dev_conclusion",
+    "title": "历史案例来源与当前参数快照的作用",
+    "keywords": [
+      "历史案例",
+      "经验",
+      "当前值",
+      "参数快照",
+      "调多少",
+      "strategy",
+      "snapshot",
+      "选择器"
+    ],
+    "finding": "样本 case/episode 关联补齐了候选来源，但这次 dev smoke 没有修复 Top-1 选择问题；缺少干净的决策前参数快照时，历史子项统计不能决定当前具体调多少。",
+    "application": "用案例解释候选和边界；适配目标值仍需当前值、厂家口径、范围与步长。",
+    "limitations": [
+      "结论针对该次开发集实验，不能视为所有场景的效果结论。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-strategy-sampled-evidence-dev-20260627.md",
+        "section": "目的；结论",
+        "source_path": "docs/experiments/echo-mem-strategy-sampled-evidence-dev-20260627.md"
+      }
+    ]
+  },
+  {
+    "lesson_id": "counter-boundary-before-relaxation",
+    "evidence_type": "research_dev_conclusion",
+    "title": "风险边界不能用全局放松门限代替",
+    "keywords": [
+      "经验",
+      "反证",
+      "风险",
+      "失败",
+      "门限",
+      "direction",
+      "counter",
+      "放行"
+    ],
+    "finding": "方向约束审计中的全局放松会同时释放正向支持样本和已知失败样本；需要按具体动作、方向、数值及场景区分支持与反证。",
+    "application": "对比具体参数和动作，保留条件不匹配及反证；不要把同方案族或父级支持当作当前动作的放行依据。",
+    "limitations": [
+      "开发集审计；当前工具没有加载其失败队列或冻结 gate。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-direction-guard-badcase-audit-dev-20260709.md",
+        "section": "What-If Ledger",
+        "source_path": "docs/experiments/echo-mem-direction-guard-badcase-audit-dev-20260709.md"
+      }
+    ]
+  },
+  {
+    "lesson_id": "separate-execution-and-proposal",
+    "evidence_type": "research_construction_conclusion",
+    "title": "实际动作、未执行方案与流程约束分开使用",
+    "keywords": [
+      "经验",
+      "归因",
+      "未执行",
+      "执行",
+      "方案",
+      "回退",
+      "效果",
+      "证据",
+      "proposal",
+      "bundle"
+    ],
+    "finding": "实际执行且可归因的动作才能进入效果证据；未执行行保留为候选或方案结构，失败/超时等进入流程约束，不能继承所在工单的效果标签。",
+    "application": "区分推荐与执行记录，多动作工单的整体 Pass 不广播到每个参数；回退缺失不当成正证据。",
+    "limitations": [
+      "这是构建方法与数据审计经验，当前全量源表没有接入。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/raw-source-field-opportunity-audit-20260711.md",
+        "section": "结论先行；回退链路",
+        "source_path": "docs/experiments/raw-source-field-opportunity-audit-20260711.md"
+      }
+    ]
+  }
+]

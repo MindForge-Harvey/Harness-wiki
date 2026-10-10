@@ -35,7 +35,7 @@ export const name = 'dsh-knowledge'
 export const inject = ['webServer', 'tools', 'approval']
 
 const KBS = {
-  company: { id: 'company', name: '公司知识库', default: true },
+  company: { id: 'company', name: '网优资料库', default: true },
 }
 
 function requireKb(kb) {
@@ -1447,7 +1447,7 @@ export function apply(ctx) {
 
   registerTool({
     name: 'kb_ingest',
-    description: '将知识沉淀到 LightRAG 知识库（异步处理，完成后可用 kb_status 查询）。三种来源：file（工作区文件路径，支持 docx/md/txt/xlsx/pptx 等；当前 MinerU 异常，PDF 暂时不建议）、text（直接提供的文本）、conversation（会话产出的结论，正文必须是结论化表达，不要包含闲聊）。同一来源重复沉淀会被拒绝，更新请用 kb_update。',
+    description: '将知识沉淀到 LightRAG 知识库（异步处理，完成后可用 kb_status 查询）。三种来源：file（工作区文件路径，支持 pdf/docx/md/txt/xlsx/pptx 等，具体格式以引擎支持列表为准；PDF 经 LightRAG 的文档解析链路处理）、text（直接提供的文本）、conversation（会话产出的结论，正文必须是结论化表达，不要包含闲聊）。同一来源重复沉淀会被拒绝，更新请用 kb_update。',
     parameters: {
       type: 'object',
       properties: {
@@ -1605,7 +1605,7 @@ export function apply(ctx) {
 
   registerTool({
     name: 'kb_update',
-    description: '更新知识库内容（模型发起的所有变更都会请求人工审批一次，通过后才执行）。文档操作：replace（用新文件替换文档，先删旧再插新，全程走意图账本可恢复）、delete（退役文档）、retry（重试失败文档，免审批）。图谱操作：entity_create / entity_edit / entity_merge / entity_delete / relation_create / relation_edit / relation_delete。所有操作都会写入审计日志。',
+    description: '更新知识库内容（文档替换、退役和图谱变更先请求人工审批，通过后才执行；失败文档重试免审批）。文档操作：replace（用新文件替换文档，先删旧再插新，全程走意图账本可恢复）、delete（退役文档）、retry（重试失败文档）。图谱操作：entity_create / entity_edit / entity_merge / entity_delete / relation_create / relation_edit / relation_delete。所有操作都会写入审计日志。',
     parameters: {
       type: 'object',
       properties: {

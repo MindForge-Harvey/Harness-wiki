@@ -6,7 +6,7 @@
  *  - HTTP 127.0.0.1:3090：/kb/*（dsh-knowledge）与 /approvals/*（审批桥接）
  *
  * 路由：
- *  - POST /api/chat/stream        SSE 聊天（session 事件原样转发，idle 结束）
+ *  - POST /api/chat/stream        SSE 聊天（展示投影不包含原始推理文本，idle 结束）
  *  - POST /api/approvals/:id/decision  审批决定转发到子进程
  *  - ALL  /api/kb/*               透传子进程 /kb/* REST（反馈/健康/图片等）
  *  - GET  /api/health             适配层自身健康
@@ -21,6 +21,10 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
+import { prepareHarnessHome, integrationHealth, analyzeImageAttachments, textReasoningEffort } from './integrations.js'
+import { plainAssistantText } from './harness/narrative.mjs'
+import { skillDirectories, listProjectSkills } from './harness/skills.mjs'
+import { presentNotification, projectHistory } from './harness/presentation.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -31,12 +35,13 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 try { process.loadEnvFile(path.join(here, '.env')) } catch { /* 缺 backend/.env：沿用下方内置默认值 */ }
 
 const PORT = Number(process.env.PORT) || 3088
-const HOST = '127.0.0.1'
+const HOST = process.env.HOST || '127.0.0.1'
 const CHILD_HTTP = `http://127.0.0.1:${process.env.DSH_CHILD_HTTP_PORT || 3090}`
 const PROFILE = process.env.DSH_PROFILE || 'rag-kb'
 const WORKSPACE_CWD = path.resolve(here, '..') // 工作区根：kb_ingest file_path 边界与 {{cwd}}
 const SPOOL_DIR = path.join(here, '.spool')
-const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || 'dsh/home') // settings/profiles/sessions
+const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || '.runtime/dsh-home')
+const runtimePatch = prepareHarnessHome(DSH_HOME, here)
 
 function log(msg) { console.log('[rag-kb-server] ' + msg) }
 
@@ -49,15 +54,20 @@ function getHarness() {
     const harness = new DeepSeekHarness({
       profile: PROFILE,
       cwd: WORKSPACE_CWD,
+      // SDK 启动目录不选 backend：该目录的统一 .env 含适配层启动配置，
+      // dsh 自身禁止从项目 .env 读取 DSH_*；已通过下方 env 显式透传。
+      processCwd: WORKSPACE_CWD,
       dshHome: DSH_HOME,
+      patches: [runtimePatch],
       // 模型路由与 key 均来自 backend/.env（provider 对应 dsh/home/settings.yaml 的 providers 项）
-      provider: process.env.LLM_PROVIDER || 'qwen-token-plan',
-      model: process.env.LLM_MODEL || 'glm-5.2',
-      // 与宿主 GUI 的 agent-default-model.reasoningEffort 保持一致：没有它模型不回传思考（reasoning 块）
-      reasoningEffort: process.env.LLM_REASONING_EFFORT || 'max',
+      provider: process.env.LLM_PROVIDER || 'aliyun',
+      model: process.env.LLM_MODEL || 'qwen3.8-flash',
+      ...(textReasoningEffort() ? { reasoningEffort: textReasoningEffort() } : {}),
+      maxTokens: Number(process.env.LLM_MAX_TOKENS) || 8192,
       env: {
         ...process.env,
         KB_ALLOWED_PATHS: SPOOL_DIR,
+        HARNESS_SKILL_DIRS: JSON.stringify(skillDirectories(WORKSPACE_CWD)),
       },
     })
     await harness.start()
@@ -158,7 +168,7 @@ async function handleChatStream(req, res) {
   if (activeRuns.has(sessionId)) return json(res, 409, { ok: false, error: '该会话正在处理上一条消息，请稍候' })
 
   const attachmentPaths = saveAttachments(body.attachments)
-  const prompt = attachmentPaths.length
+  let prompt = attachmentPaths.length
     ? message + '\n\n（用户随消息上传了 ' + attachmentPaths.length + ' 个文件，已保存到本地：'
       + attachmentPaths.join('；') + '。若用户想将其加入知识库，请用 kb_ingest 处理。）'
     : message
@@ -174,25 +184,27 @@ async function handleChatStream(req, res) {
   try {
     session = await getSession(sessionId)
   } catch (e) {
-    return send('error', { message: 'dsh 子进程启动失败：' + (e && e.message ? e.message : e) })
+    send('error', { message: 'dsh 子进程启动失败：' + (e && e.message ? e.message : e) })
+    return res.end()
   }
   send('start', { sessionId })
 
   activeRuns.add(sessionId)
   let closed = false
-  req.on('close', () => { closed = true })
+  res.on('close', () => { closed = true })
 
   const runOnce = async (handle, id) => {
     const result = await handle.run(prompt, {
       onNotification: (n) => {
-        if (!closed) send('notification', n)
+        if (!closed) send('notification', presentNotification(n))
       },
     })
-    if (!closed) send('done', { sessionId: id, finalResponse: result.finalResponse })
+    if (!closed) send('done', { sessionId: id, finalResponse: plainAssistantText(result.finalResponse) })
     log('run 完成 ' + id + '（' + result.events.length + ' 事件）')
   }
 
   try {
+    prompt += await analyzeImageAttachments(attachmentPaths, message)
     await runOnce(session, sessionId)
   } catch (e) {
     const msg = String(e && e.message ? e.message : e)
@@ -263,64 +275,6 @@ async function readSessionEvents(sessionId) {
     .map((line) => JSON.parse(line))
 }
 
-/** 把会话日志投影为前端可渲染的展示事件（user/assistant/thinking/tool/approval/error）。 */
-function projectHistory(events) {
-  const toolIndexByCall = new Map()
-  const pendingApprovals = []
-  const out = []
-  const textOf = (blocks) => (blocks || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('')
-
-  for (const e of events) {
-    const d = e.data || {}
-    switch (e.type) {
-      case 'user/message': {
-        if (d.source?.kind !== 'user') break
-        out.push({ seq: e.seq, time: e.time, kind: 'user', text: textOf(d.content) })
-        break
-      }
-      case 'assistant/message': {
-        const blocks = d.message?.content || []
-        const reasoning = blocks.filter((b) => b && b.type === 'reasoning').map((b) => b.text).join('\n\n')
-        const text = textOf(blocks)
-        if (reasoning) out.push({ seq: e.seq, time: e.time, kind: 'thinking', text: reasoning })
-        if (text) out.push({ seq: e.seq, time: e.time, kind: 'assistant', text })
-        break
-      }
-      case 'tool/call': {
-        toolIndexByCall.set(d.callId, out.length)
-        out.push({ seq: e.seq, time: e.time, kind: 'tool', callId: d.callId, name: d.name || '', argsText: String(d.arguments || ''), status: 'running' })
-        break
-      }
-      case 'tool/result': {
-        const block = d.message?.content?.find?.((b) => b && b.type === 'tool-result')
-        const idx = block?.toolCallId ? toolIndexByCall.get(block.toolCallId) : undefined
-        if (idx === undefined) break
-        out[idx].status = block?.isError ? 'error' : 'done'
-        out[idx].resultText = textOf(block?.content).slice(0, 4000)
-        break
-      }
-      case 'approval/asked': {
-        out.push({ seq: e.seq, time: e.time, kind: 'approval', approvalKey: `approval-${e.seq}`, toolName: d.toolName || '', callId: d.callId || '', reason: d.reason || '', status: 'pending' })
-        pendingApprovals.push(out.length - 1)
-        break
-      }
-      case 'approval/decided': {
-        const idx = pendingApprovals.shift()
-        if (idx !== undefined) out[idx].status = d.outcome === 'allowed-once' ? 'allowed' : 'rejected'
-        break
-      }
-      case 'turn/end': {
-        if (d.reason?.kind === 'error') {
-          out.push({ seq: e.seq, time: e.time, kind: 'error', message: d.reason?.error?.message || '本轮执行失败' })
-        }
-        break
-      }
-      default:
-        break
-    }
-  }
-  return out
-}
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x')
@@ -357,6 +311,16 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && p === '/api/health') {
       return json(res, 200, { ok: true, child: activeRuns.size + ' active / ' + sessions.size + ' sessions' })
+    }
+
+    if (req.method === 'GET' && p === '/api/skills') {
+      const skills = await listProjectSkills(WORKSPACE_CWD)
+      return json(res, 200, { skills: skills.map(({ name, description }) => ({ name, description })) })
+    }
+
+    if (req.method === 'GET' && p === '/api/integrations/health') {
+      const health = await integrationHealth()
+      return json(res, health.ok ? 200 : 503, health)
     }
 
     json(res, 404, { ok: false, error: 'not found' })

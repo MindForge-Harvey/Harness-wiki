@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory_object.schema.json",
+  "title": "MemoryObject",
+  "description": "编译后的运维知识对象。Case / RCA / Strategy / Playbook / Risk / CounterEvidence。",
+  "type": "object",
+  "required": [
+    "memory_id",
+    "memory_type",
+    "trace_ids",
+    "title",
+    "summary",
+    "state",
+    "applicability",
+    "evidence_ids",
+    "produced_by",
+    "produced_at"
+  ],
+  "properties": {
+    "memory_id": {"type": "string"},
+    "memory_type": {
+      "type": "string",
+      "enum": [
+        "case_memory",
+        "rca_memory",
+        "strategy_memory",
+        "playbook_memory",
+        "risk_memory",
+        "counter_evidence_memory"
+      ]
+    },
+    "trace_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "title": {"type": "string"},
+    "summary": {"type": "string", "description": "面向人类阅读的简短总结"},
+    "applicability": {
+      "type": "object",
+      "description": "适用边界。影子系统在线匹配时按此过滤。",
+      "properties": {
+        "issue_types": {"type": "array", "items": {"type": "string"}},
+        "root_causes": {
+          "type": "array",
+          "description": "根因标签。当前主口径为 type1+type2；旧产物可能仍为 scheme_group/type2 映射代理。",
+          "items": {"type": "string"}
+        },
+        "solution_proxy_root_causes": {
+          "type": "array",
+          "description": "兼容字段。旧产物中表示由历史方案组/type2 反推的处理方向代理；新产物可与 root_causes 同步填充。",
+          "items": {"type": "string"}
+        },
+        "scheme_groups": {"type": "array", "items": {"type": "string"}},
+        "scheme_ids": {"type": "array", "items": {"type": "string"}},
+        "vendors": {"type": "array", "items": {"type": "string"}},
+        "regions": {"type": "array", "items": {"type": "string"}},
+        "indoor_outdoor": {"type": "array", "items": {"type": "string"}},
+        "bands": {"type": "array", "items": {"type": "string"}},
+        "systems": {"type": "array", "items": {"type": "string"}},
+        "exclusions": {
+          "type": "array",
+          "description": "明确不适用的边界（来自 counter evidence 收缩）",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "description": "随 memory_type 不同而结构不同；详见 docs/architecture/data-contracts.md"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "unverified",
+        "validated",
+        "reusable",
+        "restricted",
+        "counter_evidence",
+        "deprecated"
+      ],
+      "description": "初始 draft；经过 evaluation-driven transition 后落到终态"
+    },
+    "metrics": {
+      "type": "object",
+      "description": "支撑 state 的关键统计量",
+      "properties": {
+        "support_count": {"type": "integer", "description": "支持该 memory 的 trace 数量"},
+        "long_eval_pass_count": {"type": "integer"},
+        "long_eval_fail_count": {"type": "integer"},
+        "long_eval_mixed_count": {"type": "integer"},
+        "long_eval_unknown_count": {"type": "integer"},
+        "action_direct_evidence_count": {"type": "integer"},
+        "component_associated_count": {"type": "integer"},
+        "unresolved_relation_count": {"type": "integer"},
+        "exec_fail_count": {"type": "integer"},
+        "audit_timeout_count": {"type": "integer"},
+        "pass_rate": {"type": "number", "description": "长评估通过率，[0,1]"}
+      }
+    },
+    "score_ref": {
+      "type": ["string", "null"],
+      "description": "对应 MemoryScore.score_id"
+    },
+    "produced_by": {
+      "type": "string",
+      "enum": ["rule_v1", "llm_v1", "hybrid_v1"]
+    },
+    "produced_at": {"type": "string", "format": "date-time"},
+    "schema_version": {"type": "string", "default": "1.0"}
+  }
+}

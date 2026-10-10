@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authority_audit_record.schema.json",
+  "title": "AuthorityAuditRecord",
+  "description": "Deterministic audit projection for one materialized action-direct or bundle-direct outcome claim. This is a derived audit record, not a compiler-native receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_id",
+    "version_id",
+    "visible_at",
+    "source",
+    "evidence_subject",
+    "observed_outcome",
+    "authority",
+    "contract",
+    "materialization"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "authority_audit_record.v1"
+    },
+    "record_id": {
+      "type": "string",
+      "pattern": "^aar_[0-9a-f]{20}$"
+    },
+    "version_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "visible_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "provenance", "authority_trace_semantic_sha256"],
+      "properties": {
+        "trace_id": {"type": "string", "minLength": 1},
+        "provenance": {"type": "object"},
+        "authority_trace_semantic_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "evidence_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "subject_id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["action", "realized_bundle"]
+        },
+        "subject_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "observed_outcome": {
+      "type": "string",
+      "enum": [
+        "long_eval_pass",
+        "long_eval_fail",
+        "long_eval_mixed"
+      ]
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_role", "basis"],
+      "properties": {
+        "evidence_role": {
+          "type": "string",
+          "enum": ["action_direct", "bundle_direct"]
+        },
+        "basis": {"type": "string", "minLength": 1}
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority_schema", "theta_hash"],
+      "properties": {
+        "authority_schema": {"type": "string", "minLength": 1},
+        "theta_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "materialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memory_id", "memory_type"],
+      "properties": {
+        "memory_id": {"type": "string", "minLength": 1},
+        "memory_type": {
+          "type": "string",
+          "enum": ["strategy_memory", "playbook_memory"]
+        }
+      }
+    }
+  }
+}

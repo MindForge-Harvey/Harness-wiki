@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory_score.schema.json",
+  "title": "MemoryScore",
+  "description": "MemoryObject 的六维评分。所有维度归一化到 [0,1]，越大越好（risk 也归一为「越大越优=风险越低」）。",
+  "type": "object",
+  "required": [
+    "score_id",
+    "memory_id",
+    "evidence_completeness",
+    "evaluation_credibility",
+    "strategy_effectiveness",
+    "risk_intensity",
+    "boundary_clarity",
+    "reusability",
+    "overall",
+    "scored_by",
+    "scored_at"
+  ],
+  "properties": {
+    "score_id": {"type": "string"},
+    "memory_id": {"type": "string"},
+    "evidence_completeness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "证据完整度：5 类证据齐全度 + 关键字段非空率"
+    },
+    "evaluation_credibility": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "评估可信度：长评估有效占比（评估通过/不通过 vs 空）"
+    },
+    "strategy_effectiveness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "策略有效性：Beta-Binomial 后验 LCB（long_eval pass/fail），非裸 pass_rate"
+    },
+    "bayesian_credibility": {
+      "type": "object",
+      "description": "ECHO-Mem 校准明细（可选，rule_v1+bayesian_v1 起产出）",
+      "properties": {
+        "posterior_mean": {"type": "number"},
+        "credibility_lcb": {"type": "number"},
+        "raw_pass_rate": {"type": ["number", "null"]},
+        "success_count": {"type": "integer"},
+        "failure_count": {"type": "integer"},
+        "lcb_quantile": {"type": "number"}
+      }
+    },
+    "credibility": {
+      "type": "object",
+      "description": "可组合可信度评分明细；默认推荐档为 bayesian_lcb=0.7 + wilson_lcb=0.3，也可使用 pure bayesian/raw/support 等组合",
+      "properties": {
+        "method": {"type": "string"},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "weights": {"type": "object"},
+        "components": {"type": "object"},
+        "success_count": {"type": "integer"},
+        "failure_count": {"type": "integer"},
+        "eval_total": {"type": "integer"},
+        "raw_pass_rate": {"type": ["number", "null"]}
+      }
+    },
+    "risk_intensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "风险强度（已反向归一）：执行失败率 + 长评估失败率 + 失败原因严重度 → 越大表示风险越低"
+    },
+    "boundary_clarity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "适用边界清晰度：issue_types / vendors / regions / bands 是否聚拢"
+    },
+    "reusability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "可复用性：支撑 trace 数（log scale） + 多场景命中"
+    },
+    "overall": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "六维加权综合分"
+    },
+    "weights": {
+      "type": "object",
+      "description": "本次评分使用的权重，留痕便于复现",
+      "properties": {
+        "evidence_completeness": {"type": "number"},
+        "evaluation_credibility": {"type": "number"},
+        "strategy_effectiveness": {"type": "number"},
+        "risk_intensity": {"type": "number"},
+        "boundary_clarity": {"type": "number"},
+        "reusability": {"type": "number"}
+      }
+    },
+    "scored_by": {"type": "string", "enum": ["rule_v1", "rule_v1+bayesian_v1", "rule_v1+scoring_v2"]},
+    "scored_at": {"type": "string", "format": "date-time"}
+  }
+}

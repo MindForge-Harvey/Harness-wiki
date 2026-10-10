@@ -18,4 +18,4 @@ for name in web server; do
   fi
   rm -f "$pidfile"
 done
-echo "提示: LightRAG 引擎按需停止 → docker stop lightrag-docker-0.6B"
+echo "阿里云 LightRAG / MinerU 独立运行。"

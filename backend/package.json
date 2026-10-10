@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=22.19"
   },
+  "scripts": {
+    "test:harness": "node --test dev/contract-harness.mjs dev/contract-wireless.mjs dev/contract-wireless-history.mjs dev/contract-wireless-decision.mjs dev/contract-wireless-workflow.mjs dev/contract-presentation.mjs"
+  },
   "dependencies": {
     "@deepseek-ai/dsh-sdk-client": "0.1.6-alpha.1"
   },

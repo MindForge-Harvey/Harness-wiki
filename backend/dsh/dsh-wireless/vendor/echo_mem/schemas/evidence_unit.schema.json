@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence_unit.schema.json",
+  "title": "EvidenceUnit",
+  "description": "从 TraceRecord 抽取的证据单元。一条 trace 至少抽取出 5 类证据；同一类型可能多条。",
+  "type": "object",
+  "required": ["evidence_id", "trace_id", "evidence_type", "payload", "extracted_by", "extracted_at"],
+  "properties": {
+    "evidence_id": {"type": "string"},
+    "trace_id": {"type": "string", "description": "对应 TraceRecord.trace_id"},
+    "ticket_id": {"type": "string"},
+    "action_id": {
+      "type": ["string", "null"],
+      "description": "如果证据绑定到某个 action（例如执行证据/评估证据），填上；否则为空"
+    },
+    "evidence_type": {
+      "type": "string",
+      "enum": [
+        "identification_evidence",
+        "root_cause_evidence",
+        "strategy_evidence",
+        "execution_evidence",
+        "evaluation_evidence"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["direct", "inferred", "weak"],
+      "description": "证据置信度：direct=trace 直接给出；inferred=规则推断；weak=数据缺失靠默认值"
+    },
+    "payload": {
+      "type": "object",
+      "description": "证据内容，结构随 evidence_type 而变；详见 docs/architecture/data-contracts.md"
+    },
+    "narrative": {
+      "type": "string",
+      "description": "一句话总结，便于 demo 展示与下游 prompt 装配"
+    },
+    "extracted_by": {
+      "type": "string",
+      "enum": ["rule", "llm", "hybrid"]
+    },
+    "extracted_at": {"type": "string", "format": "date-time"}
+  }
+}

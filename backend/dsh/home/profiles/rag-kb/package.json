@@ -3,7 +3,8 @@
   "private": true,
   "dependencies": {
     "dsh-knowledge": "link:../../../dsh-knowledge",
-    "kb-approval-bridge": "link:../../../plugin-approval-bridge"
+    "kb-approval-bridge": "link:../../../plugin-approval-bridge",
+    "dsh-wireless": "link:../../../dsh-wireless"
   },
   "dsh": {
     "profile": {
@@ -11,7 +12,8 @@
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-sdk-app",
         "dsh-knowledge",
-        "kb-approval-bridge"
+        "kb-approval-bridge",
+        "dsh-wireless"
       ]
     }
   }

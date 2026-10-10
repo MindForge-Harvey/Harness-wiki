@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory_evidence_profile.schema.json",
+  "title": "MemoryEvidenceProfile",
+  "description": "运行态可消费的记忆证据画像：support / counter / conflict / sparse。",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "parent_memory_id",
+    "parent_memory_type",
+    "profile_type",
+    "key_family",
+    "outcome_statistics",
+    "feature_manifest",
+    "recommended_routing",
+    "produced_by",
+    "produced_at"
+  ],
+  "properties": {
+    "profile_id": {"type": "string"},
+    "parent_memory_id": {"type": "string"},
+    "parent_memory_type": {"type": "string"},
+    "profile_type": {
+      "type": "string",
+      "enum": ["support_profile", "counter_profile", "conflict_profile", "sparse_profile"]
+    },
+    "key_family": {"type": "string"},
+    "key_values": {"type": "object"},
+    "runtime_visible_fields": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "outcome_statistics": {"type": "object"},
+    "boundary_context": {"type": "object"},
+    "action_semantics": {"type": "object"},
+    "value_delta_distribution": {"type": "object"},
+    "sample_evidence_refs": {"type": "object"},
+    "conflict_reason": {"type": "string"},
+    "recommended_routing": {"type": "string"},
+    "feature_manifest": {"type": "object"},
+    "child_profiles": {
+      "type": "array",
+      "description": "C6c hierarchical refinement children, when generated.",
+      "items": {"type": "object"}
+    },
+    "produced_by": {"type": "string"},
+    "produced_at": {"type": "string", "format": "date-time"},
+    "schema_version": {"type": "string"}
+  }
+}

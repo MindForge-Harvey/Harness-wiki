@@ -1,0 +1,152 @@
+[
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "8ee0f3d0b2461f",
+    "right_signature_id": "def954d8f50e92",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins decrease and increase; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "cfcbb85bb18b68",
+    "right_signature_id": "f15034a579c260",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins increase and decrease; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "37c028f5512706",
+    "right_signature_id": "c9c2c785b2fdb2",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins unchanged and increase; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "35b78ef89cffc7",
+    "right_signature_id": "37c028f5512706",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins increase and unchanged; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "345b6c3d0cc5e7",
+    "right_signature_id": "35b78ef89cffc7",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins decrease and increase; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "111f28c6a3cb51",
+    "right_signature_id": "e3ef8707656e16",
+    "draft_equivalence_level": "conflict",
+    "expert_proposed_equivalence_level": "conflict",
+    "hard_aggregation_policy": "blocked",
+    "decision": "mark_conflict",
+    "notes": "exact link joins decrease and increase; remove hard link"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "2e7ee5163f0602",
+    "right_signature_id": "6095221d7780e6",
+    "draft_equivalence_level": "semantic",
+    "expert_proposed_equivalence_level": "semantic_soft",
+    "hard_aggregation_policy": "blocked",
+    "decision": "accept_soft_only",
+    "notes": "same shrink label can be used for retrieval/ranking; target bitmap missing so no hard aggregation"
+  },
+  {
+    "bundle_id": "B01_CORESET_SPLIT",
+    "left_signature_id": "853cfae27412c9",
+    "right_signature_id": "6095221d7780e6",
+    "draft_equivalence_level": "semantic",
+    "expert_proposed_equivalence_level": "semantic_soft",
+    "hard_aggregation_policy": "blocked",
+    "decision": "accept_soft_only",
+    "notes": "same shrink label can be used for retrieval/ranking; target bitmap missing so no hard aggregation"
+  },
+  {
+    "bundle_id": "B02_TRAFFIC_STRATEGY_CONSERVATIVE",
+    "left_signature_id": "065ca1d84bf720",
+    "right_signature_id": "bd24b32086c429",
+    "draft_equivalence_level": "semantic",
+    "expert_proposed_equivalence_level": "semantic_soft",
+    "hard_aggregation_policy": "blocked",
+    "decision": "accept_soft_only",
+    "notes": "target 0/off and null-to-0 semantics unavailable; keep as soft relation"
+  },
+  {
+    "bundle_id": "B02_TRAFFIC_STRATEGY_CONSERVATIVE",
+    "left_signature_id": "065ca1d84bf720",
+    "right_signature_id": "33c549c10ad535",
+    "draft_equivalence_level": "semantic",
+    "expert_proposed_equivalence_level": "semantic_soft",
+    "hard_aggregation_policy": "blocked",
+    "decision": "accept_soft_only",
+    "notes": "target 0/off and null-to-0 semantics unavailable; keep as soft relation"
+  },
+  {
+    "bundle_id": "B02_TRAFFIC_STRATEGY_CONSERVATIVE",
+    "left_signature_id": "bd24b32086c429",
+    "right_signature_id": "33c549c10ad535",
+    "draft_equivalence_level": "exact",
+    "expert_proposed_equivalence_level": "exact",
+    "hard_aggregation_policy": "conditional",
+    "decision": "accept_conditional",
+    "notes": "same enum switch rows; hard aggregation only after target value map confirms both are same close/off target"
+  },
+  {
+    "bundle_id": "B09_SSS_POWER_OFFSET_SOFT_CONTEXT",
+    "left_signature_id": "6a33ce37e8b8ee",
+    "right_signature_id": "cc855cf822479b",
+    "draft_equivalence_level": "related",
+    "expert_proposed_equivalence_level": "related",
+    "hard_aggregation_policy": "blocked",
+    "decision": "downgrade_to_related",
+    "notes": "same parameter but weak-coverage vs over-coverage contexts can invert action meaning; use only as soft feature"
+  },
+  {
+    "bundle_id": "B09_SSS_POWER_OFFSET_SOFT_CONTEXT",
+    "left_signature_id": "6a33ce37e8b8ee",
+    "right_signature_id": "9dbeff622a41de",
+    "draft_equivalence_level": "related",
+    "expert_proposed_equivalence_level": "related",
+    "hard_aggregation_policy": "blocked",
+    "decision": "downgrade_to_related",
+    "notes": "same parameter but weak-coverage vs over-coverage contexts can invert action meaning; use only as soft feature"
+  },
+  {
+    "bundle_id": "B04_LTE_PDCCH_CCE_RESERVE_ENABLE",
+    "left_signature_id": "edea8f9b4a95f1",
+    "right_signature_id": "f3b81585652fb0",
+    "draft_equivalence_level": "exact",
+    "expert_proposed_equivalence_level": "exact",
+    "hard_aggregation_policy": "conditional",
+    "decision": "accept_conditional",
+    "notes": "same switch-enable label; enum row must retain raw target value before hard pooling"
+  },
+  {
+    "bundle_id": "B10_QRXLEVMIN_SOFT_PARENT",
+    "left_signature_id": "97282799546341",
+    "right_signature_id": "43b6d656ed9464",
+    "draft_equivalence_level": "semantic",
+    "expert_proposed_equivalence_level": "semantic",
+    "hard_aggregation_policy": "conditional",
+    "decision": "accept_conditional",
+    "notes": "same QRxLevMin increase label; hard aggregation only if exact parameter object/value boundary is retained"
+  }
+]

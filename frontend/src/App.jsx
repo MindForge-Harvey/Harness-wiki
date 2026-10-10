@@ -131,9 +131,9 @@ function HomePage() {
       <div className="grain" aria-hidden="true" />
 
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="返回知识库助手首页">
+        <a className="brand" href="#top" aria-label="返回无线网优助手首页">
           <BrandMark />
-          <span className="brand-title">知识库助手</span>
+          <span className="brand-title">无线网优助手</span>
         </a>
         <div className="header-tools">
           <div

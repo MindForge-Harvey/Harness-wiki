@@ -26,6 +26,7 @@ output/
 # 适配层运行时产物
 .run/
 .spool/
+.runtime/
 
 # dsh/home：配置模板与 profiles 入库，运行时数据与密钥不入库
 backend/dsh/home/.env

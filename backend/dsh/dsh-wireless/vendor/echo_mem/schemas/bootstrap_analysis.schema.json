@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bootstrap_analysis.schema.json",
+  "title": "BootstrapAnalysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sources", "method_intervals", "paired_deltas"],
+  "properties": {
+    "schema_version": {"const": "bootstrap_analysis.v1"},
+    "sources": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "method_intervals": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/methodInterval"}
+    },
+    "paired_deltas": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/pairedDelta"}
+    }
+  },
+  "$defs": {
+    "metricInterval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["point", "ci_low", "ci_high"],
+      "properties": {
+        "point": {"type": "number"},
+        "ci_low": {"type": "number"},
+        "ci_high": {"type": "number"}
+      }
+    },
+    "methodInterval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_count", "n_bootstrap", "confidence", "seed", "metrics"],
+      "properties": {
+        "sample_count": {"type": "integer", "minimum": 1},
+        "n_bootstrap": {"type": "integer", "minimum": 1},
+        "confidence": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "seed": {"type": "integer"},
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/metricInterval"}
+        }
+      }
+    },
+    "deltaMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["left_point", "right_point", "delta", "ci_low", "ci_high"],
+      "properties": {
+        "left_point": {"type": "number"},
+        "right_point": {"type": "number"},
+        "delta": {"type": "number"},
+        "ci_low": {"type": "number"},
+        "ci_high": {"type": "number"}
+      }
+    },
+    "pairedDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "left_method", "right_method", "delta_definition", "pair_count",
+        "left_trace_count", "right_trace_count", "left_only_count", "right_only_count",
+        "n_bootstrap", "confidence", "seed", "metrics"
+      ],
+      "properties": {
+        "left_method": {"type": "string"},
+        "right_method": {"type": "string"},
+        "delta_definition": {"const": "left_minus_right"},
+        "pair_count": {"type": "integer", "minimum": 1},
+        "left_trace_count": {"type": "integer", "minimum": 1},
+        "right_trace_count": {"type": "integer", "minimum": 1},
+        "left_only_count": {"type": "integer", "minimum": 0},
+        "right_only_count": {"type": "integer", "minimum": 0},
+        "n_bootstrap": {"type": "integer", "minimum": 1},
+        "confidence": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "seed": {"type": "integer"},
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/deltaMetric"}
+        }
+      }
+    }
+  }
+}

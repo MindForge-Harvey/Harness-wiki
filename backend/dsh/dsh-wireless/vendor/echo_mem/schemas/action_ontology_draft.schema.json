@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action_ontology_draft.schema.json",
+  "title": "ActionOntologyDraft",
+  "description": "LLM-assisted draft mapping from train-only vendor-local action signatures to reviewable action ontology candidates. Draft only; not frozen ontology.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ontology_candidates", "cross_signature_links"],
+  "properties": {
+    "ontology_candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/ontology_candidate"}
+    },
+    "cross_signature_links": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/cross_signature_link"}
+    }
+  },
+  "$defs": {
+    "operation_family": {
+      "type": ["string", "null"],
+      "enum": [
+        "capacity",
+        "coverage",
+        "interference",
+        "handover",
+        "neighbor",
+        "energy_saving",
+        "access",
+        "other",
+        "unknown",
+        null
+      ]
+    },
+    "object_scope": {
+      "type": ["string", "null"],
+      "enum": ["cell", "neighbor", "cell_pair", "frequency", "beam", "unknown", null]
+    },
+    "value_type": {
+      "type": ["string", "null"],
+      "enum": ["continuous", "enum", "bool", "set", "unknown", null]
+    },
+    "numeric_direction": {
+      "type": ["string", "null"],
+      "enum": [
+        "increase",
+        "decrease",
+        "enable",
+        "disable",
+        "add",
+        "delete",
+        "switch_enum",
+        "unchanged",
+        "unknown",
+        null
+      ]
+    },
+    "equivalence_level": {
+      "type": ["string", "null"],
+      "enum": ["exact", "semantic", "family", "related", "conflict", "unknown", null]
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "ontology_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_id",
+        "canonical_action_id",
+        "parameter_concept_id",
+        "operation_family",
+        "object_scope",
+        "value_type",
+        "numeric_direction",
+        "effect_direction",
+        "equivalence_level",
+        "confidence",
+        "needs_human_review",
+        "reason",
+        "do_not_merge_with"
+      ],
+      "properties": {
+        "signature_id": {"type": "string", "minLength": 1},
+        "canonical_action_id": {"type": ["string", "null"]},
+        "parameter_concept_id": {"type": ["string", "null"]},
+        "operation_family": {"$ref": "#/$defs/operation_family"},
+        "object_scope": {"$ref": "#/$defs/object_scope"},
+        "value_type": {"$ref": "#/$defs/value_type"},
+        "numeric_direction": {"$ref": "#/$defs/numeric_direction"},
+        "effect_direction": {"type": ["string", "null"]},
+        "equivalence_level": {"$ref": "#/$defs/equivalence_level"},
+        "confidence": {"$ref": "#/$defs/confidence"},
+        "needs_human_review": {"type": "boolean"},
+        "reason": {"type": ["string", "null"]},
+        "do_not_merge_with": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "cross_signature_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "left_signature_id",
+        "right_signature_id",
+        "equivalence_level",
+        "confidence",
+        "reason"
+      ],
+      "properties": {
+        "left_signature_id": {"type": "string", "minLength": 1},
+        "right_signature_id": {"type": "string", "minLength": 1},
+        "equivalence_level": {"$ref": "#/$defs/equivalence_level"},
+        "confidence": {"$ref": "#/$defs/confidence"},
+        "reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

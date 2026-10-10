@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action_evidence_profile.schema.json",
+  "title": "Experimental Action Evidence Profile",
+  "description": "Train-only, attribution-aware conditional evidence profile. It is not an executable strategy and is runtime-disabled by default.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "profile_id",
+    "object_type",
+    "schema_version",
+    "construction_status",
+    "profile_origin",
+    "attribution_confidence",
+    "evidence_state",
+    "action_identity",
+    "applicable_boundary",
+    "evidence_channels",
+    "calibration",
+    "provenance",
+    "runtime_eligibility"
+  ],
+  "properties": {
+    "profile_id": {"type": "string"},
+    "object_type": {"const": "action_evidence_profile"},
+    "schema_version": {"const": "action_evidence_profile.v1"},
+    "construction_status": {"const": "experimental_shadow"},
+    "profile_origin": {
+      "enum": ["direct_only", "contrastive_only", "cooccurrence_only", "hybrid", "unresolved"]
+    },
+    "attribution_confidence": {
+      "enum": ["direct", "contrastive_strong", "contrastive_weak", "cooccurrence_only", "unresolved"]
+    },
+    "evidence_state": {
+      "enum": ["support_profile", "counter_profile", "conflict_profile", "sparse_profile"]
+    },
+    "action_identity": {"type": "object"},
+    "applicable_boundary": {"type": "object"},
+    "evidence_channels": {"type": "object"},
+    "calibration": {"type": "object"},
+    "provenance": {"type": "object"},
+    "runtime_eligibility": {
+      "type": "object",
+      "required": ["explain", "rank", "support_rescue", "hard_counter"],
+      "properties": {
+        "explain": {"const": true},
+        "rank": {"const": false},
+        "support_rescue": {"const": false},
+        "hard_counter": {"const": false}
+      }
+    }
+  }
+}

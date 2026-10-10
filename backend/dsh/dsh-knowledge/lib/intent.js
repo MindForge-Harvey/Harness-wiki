@@ -164,7 +164,7 @@ export function createIntentLedger({
 
   async function ingestIssue(intent) {
     const p = intent.params
-    if (intent.kind === 'ingest_file') {
+    if (intent.kind === 'ingest_file' || (intent.kind === 'replace' && p.filename)) {
       const spool = path.join(dir, 'spool', intent.id + '.bin')
       if (!fs.existsSync(spool)) {
         transition(intent, { status: 'failed', error: '暂存文件丢失，请重新上传' })
@@ -335,9 +335,11 @@ export function createIntentLedger({
       if (!(await pipelineIdle())) return
       try {
         const res = await ingestIssue(intent)
+        if (res === null) return
         const trackId = res && res.track_id
         const docId = res && res.documents && res.documents[0] ? res.documents[0].id : null
-        if (!trackId || !docId) { transition(intent, { status: 'failed', error: '引擎未返回 track_id 或 doc_id' }); return }
+        // 上传响应可能只给 track_id，doc_id 在 track_status 中才可见。
+        if (!trackId && !docId) { transition(intent, { status: 'failed', error: '引擎未返回 track_id 或 doc_id' }); return }
         transition(intent, { phase: 'track_new', trackId, newDocId: docId, issuedAt: Date.now() })
       } catch (e) {
         if (isPipelineBusy(e)) return
@@ -366,6 +368,7 @@ export function createIntentLedger({
         if (intent.trackId) {
           const tr = await engine.trackStatus(intent.trackId)
           const doc = tr && tr.documents && tr.documents[0]
+          if (doc?.id && doc.id !== intent.newDocId) transition(intent, { newDocId: doc.id })
           st = doc ? doc.status : null
           errMsg = doc ? doc.error_msg : null
         } else {
@@ -373,7 +376,7 @@ export function createIntentLedger({
           st = await docStatusInEngine(intent.newDocId)
         }
         if (st === 'processed') {
-          // 注册表版本链提升：新 id 顶替旧 id
+          // 注册表版本链提升：文本一般产生新 id；延迟解析的 PDF 可能沿用来源 id。
           registry.replaceDoc({
             docId: p.replacesDocId, newDocId: intent.newDocId, source: p.source, title: p.title,
             topic: p.topic, actor: p.actor || 'intent', reason: p.reason || '内容更新',

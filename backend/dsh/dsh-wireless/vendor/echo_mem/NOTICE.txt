@@ -1,0 +1,14 @@
+Vendored unchanged compiler dependency closure and schemas from wireless_knowledge_compilation.
+Source commit: e734ac032a7dc671878d05cd40d2b31b68d156fc
+See source-manifest.json for individual SHA-256 hashes.
+Original publication artifact licensing note follows:
+
+# License decision required before publication
+
+No open-source license is granted by this placeholder.
+
+Before publishing this directory, the copyright owner must choose and approve
+the actual license, confirm ownership of every included source file, and replace
+this file with a standard `LICENSE` file. Apache-2.0 and BSD-3-Clause are common
+choices for research software, but the choice is a legal/organizational
+decision and is intentionally not made by the reproduction tooling.

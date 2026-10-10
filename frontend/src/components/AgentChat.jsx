@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   ArrowUp,
   Books,
-  Brain,
   CaretDown,
   CaretRight,
   CheckCircle,
@@ -22,13 +21,14 @@ import {
   Plus,
   ShareNetwork,
   StackSimple,
-  StopCircle,
+  Square,
   ThumbsDown,
   ThumbsUp,
   Trash,
   UserCircle,
   X,
 } from "@phosphor-icons/react";
+import { toolLabel, taskProgress, visibleTool, groupTaskMessages } from "../lib/task-progress.mjs";
 import assistantHead from "../assets/assistant-head.webp";
 import { agents } from "../data/agents";
 import {
@@ -70,18 +70,6 @@ function resultText(event) {
   return out.join("\n");
 }
 
-/** 时间线条目用的结果摘要：首段非空文本，截 64 字。 */
-function resultSummary(text, isError) {
-  const line =
-    String(text || "")
-      .split("\n")
-      .map((s) => s.trim())
-      .find(Boolean) || "";
-  const short = line.length > 64 ? `${line.slice(0, 63)}…` : line;
-  if (isError) return `失败${short ? `：${short}` : ""}`;
-  return short || "返回空结果";
-}
-
 /** 尝试把工具结果文本解析为 JSON（dsh-knowledge 工具结果多为 JSON）。 */
 function resultJsonOf(text) {
   try {
@@ -89,36 +77,6 @@ function resultJsonOf(text) {
   } catch {
     return null;
   }
-}
-
-/** 工具的中文名与图标语义。 */
-const TOOL_LABELS = {
-  lightrag_query_data: "知识检索",
-  kb_ingest: "文档入库",
-  kb_update: "知识更新",
-  kb_status: "健康状态",
-  kb_analyze: "知识库体检",
-  kb_report: "运营报告",
-  kb_graph_search: "图谱检索",
-  kb_feedback_inbox: "反馈收件箱",
-  kb_feedback_context: "反馈上下文",
-  kb_diagnosis_submit: "诊断提交",
-};
-
-function toolLabel(name) {
-  return TOOL_LABELS[name] || name;
-}
-
-/** 检索结果的引用文件列表（dedupe）。 */
-function citedFiles(resultJson) {
-  const files = new Set();
-  const chunks = resultJson?.data?.chunks || resultJson?.chunks || [];
-  for (const c of chunks) {
-    for (const r of c?.references || c?.file_path ? [c.file_path, ...(c.references || [])] : c?.references || []) {
-      if (typeof r === "string" && r.trim()) files.add(r.trim().split("/").pop());
-    }
-  }
-  return [...files].slice(0, 8);
 }
 
 /* ---------------------------------------------------------------- 图谱布局（移植自 dsh-knowledge client） */
@@ -239,117 +197,36 @@ function GraphCard({ entities, relations, truncated }) {
   );
 }
 
-/* ---------------------------------------------------------------- 思考卡 */
-
-/** 模型思考（reasoning 块）：默认收起，点击展开全文，形态对齐 dsh-web 的「思考 ·」行。 */
-function ThinkingCard({ message }) {
-  const [open, setOpen] = useState(false);
-  const firstLine =
-    String(message.content || "")
-      .split("\n")
-      .map((s) => s.trim())
-      .find(Boolean) || "思考中";
-  const brief = firstLine.length > 46 ? `${firstLine.slice(0, 45)}…` : firstLine;
-
-  return (
-    <div className="chat-message is-thinking-msg">
-      <button
-        type="button"
-        className={`chat-think${open ? " is-open" : ""}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span className="chat-think-head">
-          <Brain size={14} weight="duotone" aria-hidden="true" />
-          <em>思考</em>
-          <span className="chat-think-brief">{brief}</span>
-          <CaretDown size={13} weight="bold" aria-hidden="true" />
-        </span>
-        {open ? <span className="chat-think-body">{message.content}</span> : null}
-      </button>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- 工具卡 */
+/* ---------------------------------------------------------------- 任务阶段 */
 
 function ToolCard({ card }) {
   const [open, setOpen] = useState(false);
-  const label = toolLabel(card.name);
-  const running = card.status === "running";
+  const progress = taskProgress(card);
+  const running = progress.status === "running";
   const json = card.resultJson;
-
+  const expandable = progress.summaries.length > 1;
+  const Head = expandable ? "button" : "div";
   return (
-    <article className={`chat-tool-card is-${card.status}${open ? " is-open" : ""}`}>
-      <button className="chat-tool-head" type="button" onClick={() => setOpen((v) => !v)}>
+    <article className={`chat-tool-card is-${progress.status}${expandable && open ? " is-open" : ""}`}>
+      <Head className="chat-tool-head" {...(expandable ? { type: "button", onClick: () => setOpen(v => !v), "aria-expanded": open } : {})}>
         <span className="chat-tool-spin" aria-hidden="true">
-          {running ? <React.Fragment><i /><i /><i /></React.Fragment> : <CheckCircle size={14} weight="fill" />}
+          {running ? <React.Fragment><i /><i /><i /></React.Fragment>
+            : progress.status === "done" ? <CheckCircle size={14} weight="fill" />
+              : progress.status === "error" ? <X size={14} /> : <ClockCounterClockwise size={14} />}
         </span>
-        <strong>{label}</strong>
-        <span className="chat-tool-brief">{toolBrief(card)}</span>
-        <CaretDown size={13} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} />
-      </button>
-
-      {card.name === "kb_graph_search" && card.status === "done" && json?.entities?.length ? (
-        <GraphCard entities={json.entities} relations={json.relations} truncated={json.is_truncated} />
-      ) : null}
-
-      {card.name === "lightrag_query_data" && card.status === "done" ? (
-        <div className="chat-tool-facts">
-          {json?.query_id ? <span className="chat-tool-fact">查询 id：{json.query_id}</span> : null}
-          {json?.mode ? <span className="chat-tool-fact">模式：{json.mode}</span> : null}
-          {typeof json?.data?.chunks?.length === "number" ? (
-            <span className="chat-tool-fact">chunks：{json.data.chunks.length}</span>
-          ) : null}
-          {citedFiles(json).length ? (
-            <span className="chat-tool-fact is-files">引用：{citedFiles(json).join("、")}</span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {card.name === "kb_analyze" && card.status === "done" && json?.summary ? (
-        <div className="chat-tool-facts">
-          <span className="chat-tool-fact">源冲突：{json.summary.conflicts ?? "–"}</span>
-          <span className="chat-tool-fact">失败文档：{json.summary.failed_docs ?? "–"}</span>
-          <span className="chat-tool-fact">重复实体候选：{json.summary.dup_candidates ?? "–"}</span>
-          <span className="chat-tool-fact">零命中查询：{json.summary.gap_items ?? "–"}</span>
-        </div>
-      ) : null}
-
-      {card.name === "kb_status" && card.status === "done" && json?.engine ? (
-        <div className="chat-tool-facts">
-          <span className="chat-tool-fact">引擎：{json.engine.status}</span>
-          <span className="chat-tool-fact">管道：{json.engine.pipeline_busy ? "忙碌" : "空闲"}</span>
-          {typeof json?.stats?.active === "number" ? (
-            <span className="chat-tool-fact">生效文档：{json.stats.active}</span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {open ? (
+        <strong>{progress.title}</strong>
+        <span className="chat-tool-brief">{progress.summaries.join("；")}</span>
+        {expandable ? <CaretDown size={13} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} /> : null}
+      </Head>
+      {card.name === "kb_graph_search" && card.status === "done" && json?.entities?.length
+        ? <GraphCard entities={json.entities} relations={json.relations} truncated={json.is_truncated} /> : null}
+      {expandable && open ? (
         <div className="chat-tool-body">
-          {card.argsText ? <pre className="chat-tool-io">{card.argsText}</pre> : null}
-          {card.resultText ? <pre className="chat-tool-io">{card.resultText.slice(0, 2400)}</pre> : null}
+          {progress.summaries.map(summary => <p key={summary}>{summary}</p>)}
         </div>
-      ) : null}
-
-      {card.status === "error" && card.resultText ? (
-        <p className="chat-tool-error">{card.resultText.slice(0, 300)}</p>
       ) : null}
     </article>
   );
-}
-
-function toolBrief(card) {
-  const args = card.args || {};
-  if (card.name === "lightrag_query_data") return args.query ? String(args.query).slice(0, 26) : "检索知识库";
-  if (card.name === "kb_ingest") return args.kind === "file" ? `入库：${args.title || args.file_path || ""}`.slice(0, 30) : `入库：${args.title || "文本"}`;
-  if (card.name === "kb_update") return `更新：${args.action || ""}${args.entity_name ? " · " + args.entity_name : ""}`.slice(0, 30);
-  if (card.name === "kb_graph_search") return args.label || args.query || "图谱检索";
-  if (card.name === "kb_status") return "知识库健康";
-  if (card.name === "kb_analyze") return "健康分析";
-  if (card.name === "kb_report") return `近 ${args.days || 7} 天运营`;
-  return card.status === "running" ? "执行中…" : card.status === "error" ? "执行失败" : "已完成";
 }
 
 /* ---------------------------------------------------------------- 审批卡 */
@@ -464,7 +341,7 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
   const shareAnswer = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: "知识库助手回答", text: fullText });
+        await navigator.share({ title: "无线网优助手回答", text: fullText });
         return;
       }
       await navigator.clipboard?.writeText(fullText);
@@ -486,7 +363,7 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
       <RobotAvatar activity={pending ? "working" : "waiting"} compact />
       <div className="chat-message-stack">
         <div className="chat-message-meta">
-          <strong>知识库助手</strong>
+          <strong>无线网优助手</strong>
           <time>{message.time}</time>
         </div>
         <div className="chat-assistant-content">
@@ -498,8 +375,8 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
                 <i />
               </span>
               <div>
-                <strong>{activityText || "正在思考"}</strong>
-                <span>检索证据与执行过程实时可见</span>
+                <strong>{activityText || "正在分析问题与已有依据"}</strong>
+                <span>分析阶段与依据实时更新</span>
               </div>
             </div>
           ) : (
@@ -594,8 +471,11 @@ function PlannerNatureGlyph({ type = "sprout" }) {
 }
 
 function TimelineDrawer({ open, onClose, timeline, activity }) {
-  const finished = activity !== "working";
-  const progress = Math.min(95, timeline.length * 12);
+  const steps = groupTaskMessages(timeline.map(item => ({ ...item, role: item.kind === "tool" ? "tool" : item.kind })))
+    .map(item => item.kind === "tool" ? { ...item, ...taskProgress(item), detail: taskProgress(item).summaries.join("；") } : item);
+  const finished = activity !== "working" && steps.length > 0;
+  const completed = steps.filter(item => item.status === "done").length;
+  const pending = steps.filter(item => ["needs_data", "warning", "error"].includes(item.status)).length;
 
   return (
     <aside
@@ -609,8 +489,8 @@ function TimelineDrawer({ open, onClose, timeline, activity }) {
             <PlannerNatureGlyph type="tree" />
           </span>
           <div className="planner-heading-copy">
-            <span>TIMELINE</span>
-            <h2>执行过程</h2>
+            <span>任务进展</span>
+            <h2>分析过程</h2>
           </div>
         </div>
         <button type="button" aria-label="收起执行过程" title="收起" onClick={onClose}>
@@ -623,17 +503,14 @@ function TimelineDrawer({ open, onClose, timeline, activity }) {
           <PlannerNatureGlyph type={finished ? "tree" : "sprout"} />
         </span>
         <div className="planner-overview-copy">
-          <span>{finished ? "本轮执行已完成" : "正在执行"}</span>
-          <strong>{timeline.length ? `${timeline.length} 项操作` : "等待新任务"}</strong>
-          <div className="planner-progress" role="progressbar" aria-label="执行进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}>
-            <i style={{ width: `${progress}%` }} />
-          </div>
+          <span>{finished ? "本轮回答已结束" : activity === "working" ? "正在分析" : "等待新任务"}</span>
+          <strong>{steps.length ? `${completed} 个阶段已完成${pending ? `，${pending} 个阶段需跟进` : ""}` : activity === "working" ? "正在整理问题与依据" : "发送工单或问题开始分析"}</strong>
         </div>
       </section>
 
       <ol className="chat-timeline" aria-label="执行时间线">
-        {timeline.length ? (
-          timeline.map((item) => (
+        {steps.length ? (
+          steps.map((item) => (
             <li key={item.id} className={`chat-timeline-item is-${item.kind} is-${item.status || "info"}`}>
               <span className="chat-timeline-dot" aria-hidden="true" />
               <div className="chat-timeline-body">
@@ -643,13 +520,13 @@ function TimelineDrawer({ open, onClose, timeline, activity }) {
             </li>
           ))
         ) : (
-          <li className="chat-timeline-item is-empty">发送消息后，这里会实时展示工具调用与审批过程。</li>
+          <li className="chat-timeline-item is-empty">这里将展示实际分析阶段、得到的结果与待补信息。</li>
         )}
       </ol>
 
       <footer className="planner-footer">
         <span className={`planner-live is-${activity}`} aria-hidden="true" />
-        <span>{finished ? "等待下一条消息" : "工具调用与审批实时同步"}</span>
+        <span>{activity === "working" ? "分析结果实时更新" : "等待下一条消息"}</span>
       </footer>
     </aside>
   );
@@ -687,7 +564,6 @@ export default function AgentChat() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [capabilityOpen, setCapabilityOpen] = useState(false);
-  const [composerExpanded, setComposerExpanded] = useState(false);
   const [timeline, setTimeline] = useState([]);
   const [activityText, setActivityText] = useState("");
   const messagesEndRef = useRef(null);
@@ -703,10 +579,10 @@ export default function AgentChat() {
   const activityLabel = isThinking ? activityText || "正在执行" : attachment ? "附件已准备" : "在线，可以开始";
 
   const quickPrompts = [
-    "知识库里有哪些关于报销的制度？",
-    "做一次知识库体检，看看有什么问题",
-    "知识库当前健康状态如何？",
-    "帮我看看「报销」相关的知识图谱",
+    "QRxLevMin 增大有什么作用？",
+    "找低接通工单的历史参数调整案例",
+    "低速率工单应怎样结合历史经验判断根因？",
+    "结合历史工单比较参数调整方案，需要哪些数据？",
   ];
 
   const visibleHistory = useMemo(() => {
@@ -725,7 +601,7 @@ export default function AgentChat() {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "知识库助手 | 对话工作台";
+    document.title = "无线网优助手 | 对话工作台";
     return () => {
       document.title = previousTitle;
     };
@@ -746,10 +622,9 @@ export default function AgentChat() {
 
     input.style.height = "0px";
     const contentHeight = input.scrollHeight;
-    const nextHeight = Math.min(Math.max(contentHeight, 30), 96);
+    const nextHeight = Math.min(Math.max(contentHeight, 48), 176);
     input.style.height = `${nextHeight}px`;
-    input.style.overflowY = contentHeight > 96 ? "auto" : "hidden";
-    setComposerExpanded(draft.includes("\n") || nextHeight > 34);
+    input.style.overflowY = contentHeight > 176 ? "auto" : "hidden";
   }, [draft]);
 
   useEffect(() => {
@@ -822,31 +697,16 @@ export default function AgentChat() {
     }
 
     if (event.type === "step/start") {
-      setActivityText("正在推理");
+      setActivityText("正在分析问题与已有依据");
       return;
     }
 
     if (event.type === "assistant/message") {
       const blocks = data.message?.content || [];
-      const reasoning = blocks
-        .filter((b) => b && b.type === "reasoning" && typeof b.text === "string")
-        .map((b) => b.text)
-        .join("\n\n");
       const text = blocks
         .filter((b) => b && b.type === "text")
         .map((b) => b.text)
         .join("");
-      if (reasoning) {
-        setMessages((items) => [
-          ...items,
-          {
-            id: `thinking-${event.seq}`,
-            role: "thinking",
-            time: clockTime(),
-            content: reasoning,
-          },
-        ]);
-      }
       if (!text) return;
       setMessages((items) => [
         ...items,
@@ -880,15 +740,13 @@ export default function AgentChat() {
           time: clockTime(),
         },
       ]);
-      setActivityText(`正在调用 ${toolLabel(data.name)}`);
-      const argsDetail = args.query
-        ? String(args.query).slice(0, 32)
-        : args.action
-          ? String(args.action)
-          : "";
+      const card = { name: data.name, args, status: "running" };
+      if (!visibleTool(card)) return;
+      setActivityText(`正在${taskProgress(card).title}`);
       const tlId = pushTimelineItem({
         kind: "tool",
-        title: `${toolLabel(data.name)}${argsDetail ? `：${argsDetail}` : ""}`,
+        name: data.name, args, callId: data.callId,
+        title: taskProgress(card).title,
         status: "running",
       });
       if (data.callId) timelineCallRef.current.set(data.callId, tlId);
@@ -913,7 +771,7 @@ export default function AgentChat() {
       if (tlId) {
         setTimeline((items) =>
           items.map((it) =>
-            it.id === tlId ? { ...it, status: isError ? "error" : "done", detail: resultSummary(text, isError) } : it,
+            it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json } : it,
           ),
         );
       }
@@ -988,6 +846,8 @@ export default function AgentChat() {
   const resetTurnState = useCallback(() => {
     setIsThinking(false);
     setActivityText("");
+    setMessages(items => items.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
+    setTimeline(items => items.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
     abortRef.current = null;
     pendingUserTextRef.current = null;
     currentQueryIdRef.current = null;
@@ -1110,8 +970,7 @@ export default function AgentChat() {
     }
     const wallTime = (ms) =>
       new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(ms));
-    setMessages(
-      events.map((e) => {
+    const restored = events.map((e) => {
         const time = typeof e.time === "number" ? wallTime(e.time) : clockTime();
         switch (e.kind) {
           case "user":
@@ -1119,7 +978,7 @@ export default function AgentChat() {
           case "assistant":
             return { id: `h-a-${e.seq}`, role: "assistant", time, content: e.text, instant: true };
           case "thinking":
-            return { id: `h-t-${e.seq}`, role: "thinking", time, content: e.text };
+            return null;
           case "tool": {
             let args = {};
             try {
@@ -1136,7 +995,7 @@ export default function AgentChat() {
               argsText: e.argsText,
               status: e.status || "done",
               resultText: e.resultText || "",
-              resultJson: null,
+              resultJson: e.resultJson || resultJsonOf(e.resultText),
               time,
             };
           }
@@ -1156,8 +1015,11 @@ export default function AgentChat() {
           default:
             return null;
         }
-      }).filter(Boolean),
-    );
+      }).filter(Boolean);
+    setMessages(restored);
+    const lastUser = restored.findLastIndex(message => message.role === "user");
+    setTimeline(restored.slice(lastUser + 1).filter(message => ["tool", "approval"].includes(message.role))
+      .map(message => ({ ...message, kind: message.role, title: message.role === "approval" ? "执行审批" : taskProgress(message).title })));
   };
 
   const deleteSession = (item) => {
@@ -1197,13 +1059,13 @@ export default function AgentChat() {
 
         <aside className={`chat-history${historyOpen ? " is-open" : ""}`} aria-label="历史对话">
           <div className="chat-sidebar-home">
-            <a className="chat-home-link" href="/" aria-label="返回知识库助手首页">
+            <a className="chat-home-link" href="/" aria-label="返回无线网优助手首页">
               <span className="chat-home-arrow" aria-hidden="true">
                 <ArrowLeft size={16} weight="bold" />
               </span>
               <BrandMark />
               <span className="chat-home-copy">
-                <strong>知识库助手</strong>
+                <strong>无线网优助手</strong>
                 <small>返回门户</small>
               </span>
             </a>
@@ -1243,7 +1105,7 @@ export default function AgentChat() {
                 <Books size={18} weight="duotone" />
               </span>
               <span>
-                <strong>知识资料</strong>
+                <strong>网优资料</strong>
                 <small>在对话中上传</small>
               </span>
             </button>
@@ -1355,8 +1217,8 @@ export default function AgentChat() {
               <section className="chat-welcome" aria-labelledby="chat-welcome-title">
                 <RobotAvatar activity={activity} hero />
                 <p className="chat-welcome-label">{kbAgent.role}</p>
-                <h2 id="chat-welcome-title">今天想了解或整理什么？</h2>
-                <p>可以直接提问知识内容、上传文档入库、编辑知识图谱，或让我做一次知识库体检。</p>
+                <h2 id="chat-welcome-title">从参数或一张工单开始</h2>
+                <p>检索历史工单与已沉淀经验，对照当前数据分析根因、比较参数方案；也可处理工单并沉淀经验。</p>
                 <div className="chat-starter-grid" aria-label="快捷提问">
                   {quickPrompts.map((prompt) => (
                     <button type="button" key={prompt} onClick={() => sendMessage(prompt)}>
@@ -1371,9 +1233,8 @@ export default function AgentChat() {
                 <div className="chat-date-separator">
                   <span>今天</span>
                 </div>
-                {messages.map((message) => {
+                {groupTaskMessages(messages).map((message) => {
                   if (message.role === "user") return <UserMessage key={message.id} message={message} />;
-                  if (message.role === "thinking") return <ThinkingCard key={message.id} message={message} />;
                   if (message.role === "tool") return <ToolCard key={message.id} card={message} />;
                   if (message.role === "approval") {
                     return <ApprovalCard key={message.id} card={message} onDecide={handleDecide} />;
@@ -1397,9 +1258,7 @@ export default function AgentChat() {
 
           <footer className="chat-composer-shell">
             <div
-              className={`chat-composer${composerExpanded ? " is-expanded" : ""}${
-                attachment ? " has-attachment" : ""
-              }`}
+              className={`chat-composer${attachment ? " has-attachment" : ""}`}
             >
               <input
                 ref={fileInputRef}
@@ -1418,6 +1277,16 @@ export default function AgentChat() {
                   </button>
                 </div>
               ) : null}
+              <textarea
+                ref={composerInputRef}
+                rows={2}
+                value={draft}
+                aria-label="输入你的问题"
+                aria-describedby="chat-composer-hint"
+                placeholder="问参数、找历史案例，或粘贴一张网优工单…"
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={handleKeyDown}
+              />
               <div className="chat-composer-controls">
                 <button
                   className={`chat-composer-tool is-add${attachment ? " is-active" : ""}`}
@@ -1426,17 +1295,9 @@ export default function AgentChat() {
                   title="添加附件（在对话中入库）"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Plus size={16} weight="bold" />
+                  <Plus size={20} weight="regular" />
                 </button>
-                <textarea
-                  ref={composerInputRef}
-                  rows={1}
-                  value={draft}
-                  aria-label="输入你的问题"
-                  placeholder="提问知识内容，或描述治理任务（上传/编辑/体检）…"
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
+                <span className="chat-composer-hint" id="chat-composer-hint">Enter 发送 · Shift+Enter 换行</span>
                 <button
                   className={`chat-send-button${isThinking ? " is-stopping" : ""}`}
                   type="button"
@@ -1445,11 +1306,10 @@ export default function AgentChat() {
                   title={isThinking ? "停止接收" : "发送消息"}
                   onClick={isThinking ? stopResponse : () => sendMessage()}
                 >
-                  {isThinking ? <StopCircle size={16} weight="fill" /> : <ArrowUp size={15} weight="bold" />}
+                  {isThinking ? <Square size={12} weight="fill" aria-hidden="true" /> : <ArrowUp size={18} weight="bold" aria-hidden="true" />}
                 </button>
               </div>
             </div>
-            <p>回答依据知识库证据生成；写操作都会先向你请求批准。</p>
           </footer>
         </section>
 
@@ -1519,7 +1379,7 @@ export default function AgentChat() {
               ))}
             </div>
             <footer>
-              <span>写操作（入库/替换/退役/图谱变更）都会先请求你的批准。</span>
+              <span>候选方案与实际反馈分开保存；执行成功与效果改善分别评价。</span>
               <button type="button" onClick={() => setCapabilityOpen(false)}>
                 开始对话
                 <ArrowUp size={14} weight="bold" aria-hidden="true" />

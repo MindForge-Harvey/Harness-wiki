@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Table 2A frozen LLM reranker selection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["selected_candidate_id"],
+  "properties": {
+    "selected_candidate_id": {
+      "type": "string",
+      "pattern": "^C[0-9]{2}$"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state_transition.schema.json",
+  "title": "StateTransition",
+  "description": "长评估驱动的 MemoryObject 状态迁移记录。每次迁移留痕，可回放。",
+  "type": "object",
+  "required": [
+    "transition_id",
+    "memory_id",
+    "from_state",
+    "to_state",
+    "trigger",
+    "rule_id",
+    "evidence",
+    "occurred_at"
+  ],
+  "properties": {
+    "transition_id": {"type": "string"},
+    "memory_id": {"type": "string"},
+    "from_state": {"type": "string"},
+    "to_state": {"type": "string"},
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "long_eval_pass_majority",
+        "long_eval_fail_majority",
+        "long_eval_mixed",
+        "echo_lcb_validated",
+        "exec_failure_blocker",
+        "manual_override",
+        "scoring_threshold"
+      ]
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "状态迁移规则编号，定义见 docs/architecture/state-transition-rules.md"
+    },
+    "evidence": {
+      "type": "object",
+      "description": "用于支撑迁移的统计量",
+      "properties": {
+        "long_eval_pass_count": {"type": "integer"},
+        "long_eval_fail_count": {"type": "integer"},
+        "exec_fail_count": {"type": "integer"},
+        "pass_rate": {"type": "number"},
+        "support_count": {"type": "integer"}
+      }
+    },
+    "narrative": {
+      "type": "string",
+      "description": "一行迁移说明，便于 demo / 审计"
+    },
+    "applicability_after": {
+      "type": "object",
+      "description": "迁移后收缩或扩展的适用边界（如果有）"
+    },
+    "occurred_at": {"type": "string", "format": "date-time"}
+  }
+}

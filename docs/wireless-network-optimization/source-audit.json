@@ -1,0 +1,205 @@
+{
+  "schema_version": "wireless_source_audit.v1",
+  "audited_on": "2026-10-08",
+  "branch": "wireless-network-optimization",
+  "source": {
+    "repository": "https://github.com/Jinbo666/wireless_knowledge_compilation",
+    "commit": "e734ac032a7dc671878d05cd40d2b31b68d156fc",
+    "committed_at": "2026-09-29T17:05:20+08:00",
+    "primary_directory": "echo-mem-reproducibility",
+    "tracked_files": 162,
+    "python_files": 97,
+    "schemas": 18,
+    "experiment_scripts": 29,
+    "protocols": 7,
+    "source_wireless_skills": 8,
+    "supplemental_parent_modules": [
+      "pipeline/ingest/adapters/icos_en.py",
+      "pipeline/ingest/adapters/shanxi_zh.py",
+      "pipeline/package/agent_memory_tools.py",
+      "pipeline/package/hierarchical_memory_access.py",
+      "api/main.py",
+      "prompts/shadow_solution_select.md"
+    ]
+  },
+  "official_public_verification": {
+    "scope": "public_synthetic_only",
+    "python_version": "3.12.5",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "started_at": "2026-10-08T03:20:43.523463+00:00",
+    "completed_at": "2026-10-08T03:21:14.631268+00:00",
+    "command": "env -u PYTHONPATH .venv/bin/python run.py verify",
+    "exit_code": 2,
+    "ok": false,
+    "synthetic_exit_code": 1,
+    "check_exit_code": 2,
+    "tests_exit_code": 1,
+    "tests_passed": 13,
+    "tests_failed": 2,
+    "missing_fixture": "examples/synthetic/trace_records.jsonl",
+    "fixture_absent_from_git_tree": true,
+    "fixture_ignored_by_root_rule": "*.jsonl",
+    "failed_tests": [
+      "test_partial_multi_action_plan_is_not_retyped_as_action_direct",
+      "test_execution_mix_is_composite_not_binary_bundle_direct"
+    ],
+    "local_report": ".run/research/wireless_knowledge_compilation/echo-mem-reproducibility/runs/20261008T112043+0800_c86b0c2b25bf4b3d9b0f9f63b570c6c8_verification/report.json",
+    "scientific_code_modified": false,
+    "expected_outputs_modified": false
+  },
+  "independent_mechanism_probes": {
+    "scope": "constructed_inputs_not_official_synthetic_reproduction",
+    "passed": 8,
+    "failed": 0,
+    "checks": [
+      "strict_single_action_direct",
+      "partial_multi_action_not_direct",
+      "mixed_bundle_not_binary_direct",
+      "small_sample_lcb_suppressed",
+      "one_pass_not_validated",
+      "ticket_only_hides_actions_and_outcomes",
+      "positive_and_review_and_counter_separate",
+      "imputed_parameter_is_labelled"
+    ],
+    "small_sample": {
+      "passed": 1,
+      "failed": 0,
+      "raw_pass_rate": 1.0,
+      "credibility_lcb": 0.223607,
+      "state": "unverified"
+    },
+    "larger_sample": {
+      "passed": 100,
+      "failed": 20,
+      "raw_pass_rate": 0.833333,
+      "credibility_lcb": 0.76895
+    },
+    "parameter_fallback": {
+      "current_value_source": "train_median_fallback",
+      "current_value_confidence": "imputed",
+      "target_value_confidence": "imputed",
+      "current_parameter_snapshot_used": false
+    }
+  },
+  "available_corpus": {
+    "structured_sample_path": "data/samples/eval_traces_sample.jsonl",
+    "structured_sample_traces": 1,
+    "structured_sample_actions": 1,
+    "structured_sample_bytes": 2097,
+    "structured_sample_schema_valid": true,
+    "ontology_signature_labels": 279,
+    "canonical_action_labels": 92,
+    "parameter_concepts": 87,
+    "draft_cross_signature_links": 131,
+    "signature_policies": {
+      "allowed": 240,
+      "conditional": 17,
+      "blocked": 22
+    },
+    "reviewed_link_policies": {
+      "blocked": 12,
+      "conditional": 3
+    },
+    "ontology_entries_with_review_flag": 279,
+    "experiment_markdown_documents": 277,
+    "case_study_narratives": 2,
+    "overview_anonymized_real_ticket_narratives": 1,
+    "compiled_package_files_in_git": 0,
+    "harness_active_documents": 1,
+    "harness_active_document_titles": [
+      "A-RAG.pdf"
+    ],
+    "wireless_material_imported_into_harness": true,
+    "import_mode": "bundled_structured_snapshot_not_remote_lightrag",
+    "echo_tracked_text_files": 158
+  },
+  "recommendation": {
+    "status": "wireless_focused_with_echo_principles_and_execution_feedback",
+    "wireless_skill_count": 11,
+    "adapt_existing_count": 8,
+    "new_skills": [
+      "wireless-case-retrieval",
+      "wireless-parameter-adaptation"
+    ],
+    "existing_generic_skill": null,
+    "total_project_skills_after_implementation": 11,
+    "wireless_runtime_installed": true,
+    "operational_history_imported": false,
+    "full_private_reproduction_run": false,
+    "installed_wireless_skills": [
+      "wireless-case-retrieval",
+      "wireless-effect-evaluation",
+      "wireless-evidence-builder",
+      "wireless-knowledge-compiler",
+      "wireless-parameter-adaptation",
+      "wireless-problem-identification",
+      "wireless-root-cause-analysis",
+      "wireless-solution-decision",
+      "wireless-workorder-intake",
+      "wireless-workorder-orchestrator",
+      "wireless-echo-mem"
+    ],
+    "installed_wireless_tools": [
+      "wireless_knowledge_query",
+      "wireless_case_search",
+      "wireless_parameter_check",
+      "wireless_workorder",
+      "wireless_compile_history",
+      "wireless_memory_query",
+      "wireless_echo_query"
+    ],
+    "installed_total_project_skills": 11,
+    "runtime_scope": "persistent_intake, preliminary_classification, aligned_evidence, referenced_hypotheses, case_and_semantic_lookup, declared_constraints, before_after_evaluation, pinned_rule_compile, immutable_package_read, pinned_echo_source_qa, candidate_plan_versions, sourced_execution_feedback, stage_event_snapshots",
+    "domain_principles_skill": "wireless-echo-mem"
+  },
+  "runtime_verification": {
+    "date": "2026-10-08",
+    "contract_tests_passed": 19,
+    "wireless_skill_validations_passed": 11,
+    "live_backend_conversations_passed": 5,
+    "live_frontend_workorder_conversations_passed": 1,
+    "live_categories": [
+      "parameter_meaning",
+      "historical_actions_and_outcome_scope",
+      "declared_constraints",
+      "conditional_workorder_analysis",
+      "unknown_parameter"
+    ],
+    "frontend_build": "passed",
+    "frontend_entry": "http://127.0.0.1:5174/chat",
+    "notes": [
+      "复测修正了具体参数被泛化为失败关键词的召回问题。",
+      "复测收紧了来源仅支持改变触发边界时的因果建议。",
+      "工具已在默认 profile 加载；未执行任何网络参数下发。",
+      "补齐所有原规划 Skill；当前 SDK 实际发现并可加载 11 个。",
+      "新增工单阶段、效果评估、冻结源编译与记忆读取均以真实模型对话验证。",
+      "分型复测收紧为实际症状和有声明判据的异常，不把观测中出现 SINR 自动当成干扰。",
+      "默认定位改为无线网优；通用公司知识 Skill 替换为 ECHO-Mem 原理 Skill，源文本覆盖 158 份已跟踪文件。",
+      "网优专用定位、ECHO 原理引用及方案/执行反馈/历史三组真实模型对话通过；执行样例为显式模拟，未调用网管。",
+      "原理查询的可选字段修正为可无损 JSON 输出；回归和真实 SDK 分发验证通过。"
+    ],
+    "total_project_skill_validations_passed": 11,
+    "live_workflow_conversations_passed": 3,
+    "live_workflow_categories": [
+      "simulated_workorder_intake_identification_evidence_diagnosis",
+      "simulated_before_after_effect",
+      "demo_source_compilation_and_strategy_read"
+    ],
+    "live_wireless_focus_conversations_passed": 3,
+    "live_wireless_focus_log": ".run/wireless-focus-smoke/1791457697206/results.json"
+  },
+  "compiler_adaptation": {
+    "source_commit": "e734ac032a7dc671878d05cd40d2b31b68d156fc",
+    "unchanged_vendor_files": 42,
+    "python_runtime_dependencies": [
+      "jsonschema==4.25.1",
+      "pandas==2.3.2",
+      "numpy==2.3.3"
+    ],
+    "ontology_mode": "off",
+    "calibrated_gate_loaded": false,
+    "real_history_preloaded": false,
+    "local_demo_package_verified": true,
+    "docker_build_executed": false
+  }
+}

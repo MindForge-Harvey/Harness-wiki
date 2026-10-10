@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shadow_eval_result.schema.json",
+  "title": "ShadowEvalResult",
+  "description": "影子决策离线评测结果（评测器可见 withheld label 与 gold_action）",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "input_trace_id",
+    "eval_mode",
+    "match_tier",
+    "match_scheme",
+    "match_param",
+    "match_delta",
+    "score",
+    "hit_counter_evidence"
+  ],
+  "properties": {
+    "decision_id": {"type": "string"},
+    "input_trace_id": {"type": "string"},
+    "eval_mode": {
+      "type": "string",
+      "enum": ["action_gold_a", "legacy_ticket"]
+    },
+    "eval_unit_id": {"type": "string"},
+    "label": {
+      "type": "string",
+      "description": "工单级长评估标签（上下文）"
+    },
+    "action_label": {
+      "type": "string",
+      "description": "金标准动作级标签",
+      "enum": ["long_eval_pass", "long_eval_fail", "long_eval_unknown"]
+    },
+    "gold_action": {
+      "type": ["object", "null"],
+      "description": "动作级金标准（scheme / param / delta）",
+      "properties": {
+        "action_id": {"type": "string"},
+        "scheme_id": {"type": "string"},
+        "scheme_group": {"type": "string"},
+        "parameter_semantic_id": {"type": "string"},
+        "param_cn_name": {"type": "string"},
+        "param_object": {"type": "string"},
+        "direction": {"type": "string"},
+        "delta_bucket": {"type": "string"},
+        "value_pattern_id": {"type": "string"},
+        "before_value": {},
+        "after_value": {},
+        "change": {"type": "string"}
+      }
+    },
+    "gold_actions": {
+      "type": "array",
+      "description": "当前 trace 内全部 A 集合格 gold 动作；方案层评分会在这些动作中取最佳匹配。",
+      "items": {"type": "object"}
+    },
+    "gold_action_id": {"type": "string"},
+    "recommended_action": {"type": "object"},
+    "plan_score": {
+      "type": ["object", "null"],
+      "description": "方案层评分：方案组/方案ID/参数语义/方向；不使用 before/after 参数值，避免泄露答案。",
+      "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "tier": {"type": "string"},
+        "match_scheme_group": {"type": "boolean"},
+        "match_scheme_id": {"type": "boolean"},
+        "match_param_semantic": {"type": "boolean"},
+        "match_direction": {"type": "boolean"},
+        "match_delta_bucket": {"type": "boolean"},
+        "predicted_plan": {"type": "object"},
+        "gold_plan": {"type": "object"},
+        "matched_gold_action_id": {"type": "string"},
+        "gold_action_count": {"type": "integer"},
+        "gold_scheme_groups": {"type": "array", "items": {"type": "string"}},
+        "scoring_policy": {"type": "string"},
+        "weights": {"type": "object"},
+        "notes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "match_tier": {
+      "type": "string",
+      "enum": ["full", "param", "scheme", "none"]
+    },
+    "match_scheme": {"type": "boolean"},
+    "match_param": {"type": "boolean"},
+    "match_delta": {"type": "boolean"},
+    "matched_historical_action": {
+      "type": "boolean",
+      "description": "兼容字段，等同 match_scheme"
+    },
+    "hit_counter_evidence": {"type": "boolean"},
+    "recommended_scheme_hit": {"type": "boolean"},
+    "score": {"type": "number", "minimum": 0, "maximum": 1},
+    "notes": {"type": "array", "items": {"type": "string"}},
+    "eval_split_id": {"type": "string"},
+    "created_at": {"type": "string"}
+  }
+}

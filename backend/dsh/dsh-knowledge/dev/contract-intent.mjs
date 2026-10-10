@@ -183,6 +183,35 @@ await check('替换：先删旧（核验消失）→ 插新（内容寻址新 id
   ok(s.engine._state.docs.has(newDocId) && !s.engine._state.docs.has(d1), 'engine has only new doc')
 })
 
+await check('文件替换：multipart 上传只返回 track_id，后续从 track 找回新 doc_id', async () => {
+  const s = await makeStack()
+  const original = await s.engine.uploadFile('replace.md', Buffer.from('旧文件内容'))
+  s.engine.advanceTicks()
+  const oldId = original.documents[0].id
+  s.registry.ensureDoc({ docId: oldId, source: 'replace.md', title: '文件替换' })
+  s.registry.touchStatus(oldId, 'active')
+  const uploadFile = s.engine.uploadFile.bind(s.engine)
+  let uploads = 0
+  s.engine.uploadFile = async (...args) => {
+    uploads++
+    const result = await uploadFile(...args)
+    return { track_id: result.track_id }
+  }
+  const result = await s.kb.replaceFile({ docId: oldId, filename: 'replace.md', bytes: Buffer.from('新文件内容'), actor: 'test' })
+  for (let i = 0; i < 15; i++) {
+    await s.intents.tickNow()
+    s.engine.advanceTicks()
+    await sleep(20)
+    if (s.intents.get(result.intent_id).status === 'verified') break
+  }
+  const finished = s.intents.get(result.intent_id)
+  eq(finished.status, 'verified', JSON.stringify(finished))
+  eq(uploads, 1, '文件替换必须走 uploadFile')
+  ok(finished.docId && finished.docId !== oldId, '应从 track_status 获取新文档 id')
+  eq(s.registry.getDoc(finished.docId).status, 'active')
+  ok(!s.engine._state.docs.has(oldId), '旧文档已删除')
+})
+
 await check('替换：新文档处理失败 → 注册表回滚旧文档 active', async () => {
   const s = await makeStack()
   const r = await s.engine.insertText('旧内容', 'src:rf')

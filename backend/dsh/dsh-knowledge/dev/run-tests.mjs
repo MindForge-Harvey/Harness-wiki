@@ -16,6 +16,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const SUITES = [
   'contract-store.mjs',    // 存储原语（原子写/防抖/append-only/压缩）
   'contract-engine.mjs',   // 假引擎锁定引擎契约怪癖 + engine-port 纯函数
+  'contract-http-engine.mjs', // 真实 HTTP 出口：API Key / multipart / stream / 远程前缀
   'contract-intent.mjs',   // 意图账本（WAL/状态机/崩溃恢复/替换阶段机）
   'contract-reconciler.mjs', // 收敛器（收养/缺失/补删/豁免/分页）
   'contract-service.mjs',  // 单一写入口（origin 策略/幂等/审计）

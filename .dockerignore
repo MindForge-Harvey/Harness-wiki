@@ -3,6 +3,7 @@
 **/.git
 **/.run
 **/.spool
+**/.runtime
 
 # 运行时数据与密钥不进镜像
 backend/.env
@@ -16,3 +17,7 @@ gateway
 index.html
 docker-compose*.yml
 nginx.conf
+
+# Skill 正文必须随执行环境进入镜像。
+!skills/
+!skills/**

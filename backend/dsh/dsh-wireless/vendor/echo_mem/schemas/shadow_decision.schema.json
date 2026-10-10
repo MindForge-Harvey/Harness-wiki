@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shadow_decision.schema.json",
+  "title": "ShadowDecision",
+  "description": "影子系统对单条工单的推荐决策（决策时不可含 withheld label）",
+  "type": "object",
+  "required": ["decision_id", "input_trace_id", "query", "recommended_action", "supporting_knowledge", "veto_checked", "risk_level", "decision_reason", "needs_human_review", "produced_by"],
+  "properties": {
+    "decision_id": {"type": "string"},
+    "input_trace_id": {"type": "string"},
+    "query": {
+      "type": "object",
+      "properties": {
+        "issue_type": {"type": "string"},
+        "vendor": {"type": "string"},
+        "system": {"type": "string"},
+        "region": {"type": "string"},
+        "cell_name": {"type": "string"}
+      }
+    },
+    "recommended_action": {
+      "type": "object",
+      "properties": {
+        "scheme_id": {"type": "string"},
+        "parameter_semantic_id": {"type": "string"},
+        "param_cn_name": {"type": "string"},
+        "direction": {"type": "string"},
+        "suggested_delta": {"type": "string"},
+        "value_pattern_id": {"type": "string"}
+      }
+    },
+    "supporting_knowledge": {
+      "type": "object",
+      "properties": {
+        "strategy_memory_ids": {"type": "array", "items": {"type": "string"}},
+        "playbook_memory_ids": {"type": "array", "items": {"type": "string"}},
+        "episode_pairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["episode_id", "candidate_id"],
+            "properties": {
+              "episode_id": {"type": "string"},
+              "candidate_id": {"type": "string"},
+              "has_semantic": {"type": "boolean"}
+            }
+          }
+        },
+        "veto_memory_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "navigation_path": {
+      "type": ["object", "null"],
+      "description": "金字塔导航路径：issue → family → strategy/playbook → episode/veto",
+      "properties": {
+        "issue": {"type": ["object", "null"]},
+        "family": {"type": ["object", "null"]},
+        "selected_strategy": {"type": ["object", "null"]},
+        "selected_playbook": {"type": ["object", "null"]},
+        "supporting_episodes": {"type": "array", "items": {"type": "object"}},
+        "vetoes": {"type": "array", "items": {"type": "object"}},
+        "veto_background_count": {"type": "integer"},
+        "selection_policy": {"type": "string"}
+      }
+    },
+    "veto_checked": {"type": "boolean"},
+    "veto_hits": {"type": "array", "items": {"type": "string"}},
+    "risk_level": {"type": "string", "enum": ["low", "medium", "high"]},
+    "decision_reason": {"type": "string"},
+    "needs_human_review": {"type": "boolean"},
+    "retrieval_notes": {"type": "array", "items": {"type": "string"}},
+    "produced_by": {"type": "string"},
+    "created_at": {"type": "string"}
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "canonical_action.schema.json",
+  "title": "CanonicalAction",
+  "description": "Leakage-aware action representation shared by recommendations and evaluation gold.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "object_type",
+    "object_id",
+    "vendor",
+    "rat",
+    "scheme_group",
+    "scheme_id",
+    "parameter_semantic_key",
+    "parameter_name",
+    "action_type",
+    "direction",
+    "target_value_or_delta",
+    "value_semantics",
+    "scope",
+    "time_window",
+    "boundary_conditions"
+  ],
+  "properties": {
+    "object_type": {"type": ["string", "null"]},
+    "object_id": {"type": ["string", "null"]},
+    "vendor": {"type": ["string", "null"]},
+    "rat": {"type": ["string", "null"]},
+    "scheme_group": {"type": ["string", "null"]},
+    "scheme_id": {"type": ["string", "null"]},
+    "parameter_semantic_key": {"type": ["string", "null"]},
+    "parameter_name": {"type": ["string", "null"]},
+    "action_type": {"type": ["string", "null"]},
+    "direction": {"type": ["string", "null"]},
+    "target_value_or_delta": {"type": ["string", "null"]},
+    "value_semantics": {"type": ["string", "null"]},
+    "scope": {"type": ["string", "null"]},
+    "time_window": {"type": ["string", "null"]},
+    "boundary_conditions": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

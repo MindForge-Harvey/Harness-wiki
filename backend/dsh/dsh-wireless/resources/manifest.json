@@ -1,0 +1,70 @@
+{
+  "repository": "https://github.com/Jinbo666/wireless_knowledge_compilation",
+  "commit": "e734ac032a7dc671878d05cd40d2b31b68d156fc",
+  "snapshot_date": "2026-10-08",
+  "sources": {
+    "data/raw/action_ontology/action_ontology_reviewed_draft_v2.json": {
+      "sha256": "6a251232722dd6e25044a2cb9ecb98f9f577a9c35138bee3552d834d42b47de1",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/data/raw/action_ontology/action_ontology_reviewed_draft_v2.json"
+    },
+    "data/raw/action_ontology/action_ontology_signature_policy_v2.csv": {
+      "sha256": "b130167f7083c9040f654a521fef7cf7ca579cbe4a18e355a9d1fcdaa7a47649",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/data/raw/action_ontology/action_ontology_signature_policy_v2.csv"
+    },
+    "data/raw/action_ontology/action_ontology_link_policy_v2.csv": {
+      "sha256": "6284d068f473c26b1ff8d03718bac75e970fff2b8ef11319a582def08f0c54b0",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/data/raw/action_ontology/action_ontology_link_policy_v2.csv"
+    },
+    "data/samples/eval_traces_sample.jsonl": {
+      "sha256": "1106f59a94c1217ee53f7aaf0e083996b8cde9e51931c6b615058324152f75bb",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/data/samples/eval_traces_sample.jsonl"
+    },
+    "paper/manuscript/ECHO-Mem_Overview_Trace_Example.md": {
+      "sha256": "2d1a5c844034065534ad45545d6270b20484d9e6436002baa2873ede928812b9",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/paper/manuscript/ECHO-Mem_Overview_Trace_Example.md"
+    },
+    "docs/experiments/echo-mem-case-studies-20260621.md": {
+      "sha256": "0f3942dc7f9c3a8b7d71b2e853ebf893e951bfde5dd201b1c62e9954eeee7fc8",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-case-studies-20260621.md"
+    },
+    "docs/experiments/echo-mem-strategy-sampled-evidence-dev-20260627.md": {
+      "sha256": "6c9cec08594440872ab91edcac050586d76edd80ead8e792d03f561fb76e0630",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-strategy-sampled-evidence-dev-20260627.md"
+    },
+    "docs/experiments/echo-mem-direction-guard-badcase-audit-dev-20260709.md": {
+      "sha256": "436dceb5014b264b2ca2c824e5da57cead32897a806d8ad4ce1b5818c037abdb",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-direction-guard-badcase-audit-dev-20260709.md"
+    },
+    "docs/experiments/raw-source-field-opportunity-audit-20260711.md": {
+      "sha256": "d8328ea416f39aac8138cc6018869472e1e0ca69aad41fded163332c94a15b71",
+      "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/raw-source-field-opportunity-audit-20260711.md"
+    }
+  },
+  "resources": {
+    "cases.json": {
+      "sha256": "46ea4ff287e58f88feef43b50f9463023210d214b3ee7cf57445cbb99355e577"
+    },
+    "lessons.json": {
+      "sha256": "aa8e1df14d3a76662998c16126097b1c4e012e2a0f249218e1b63ccba188a8f2"
+    },
+    "link-policy.json": {
+      "sha256": "020e71b0957e1654d3712ef23000312307536b7a1d7eeedeb6a2e724f771b664"
+    },
+    "ontology.json": {
+      "sha256": "6a251232722dd6e25044a2cb9ecb98f9f577a9c35138bee3552d834d42b47de1"
+    },
+    "sample-traces.json": {
+      "sha256": "1d75961ddaab5e743fada79b8fcccc15299d2ea7b449fd1ef926a0c2f1c37156"
+    },
+    "signature-policy.json": {
+      "sha256": "69b7541884680ff27298cd2136730ee1ad34dfb8027da175b6660260a12cb518"
+    },
+    "echo-corpus.json": {
+      "sha256": "5f3b18af512db0978b194fd50750b08d9dc890f0e5f1e7d1ada75d14758f815e"
+    },
+    "echo-skill-corpus.json": {
+      "sha256": "ceb1fa10fc75c1ce1aae3314eab8b9ee89d51aaa23a5377d5863009a53a9786c"
+    }
+  },
+  "scope": "无线参数语义、案例和研究经验，以及 ECHO-Mem 固定提交的完整已跟踪文本语料；非全量生产历史库。"
+}

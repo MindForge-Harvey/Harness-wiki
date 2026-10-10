@@ -1,0 +1,209 @@
+[
+  {
+    "case_id": "demo-handover-switch",
+    "evidence_type": "onboarding_demo",
+    "title": "演示：切换差小区切换控制开关调整",
+    "context": {
+      "system": "LTE",
+      "vendor": null,
+      "vendor_label": "样例厂家",
+      "problem": "切换差小区",
+      "band": "B3",
+      "indoor": false
+    },
+    "actions": [
+      {
+        "role": "executed_demo",
+        "scheme_id": "切换参数微调",
+        "object": "切换控制",
+        "parameter": "HoCfgSwitch",
+        "parameter_cn": "切换控制开关",
+        "before": "关",
+        "after": "开",
+        "allowed_values": [
+          "开",
+          "关"
+        ],
+        "execution": "exec_success"
+      }
+    ],
+    "outcome": {
+      "label": "long_eval_pass",
+      "scope": "demo_ticket",
+      "kpi_before_after": null
+    },
+    "limitations": [
+      "脱敏占位演示，不属于真实效果样本。",
+      "不可纳入真实成功率或现场效果统计。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/data/samples/eval_traces_sample.jsonl",
+        "section": "sample_eval_001",
+        "source_path": "data/samples/eval_traces_sample.jsonl"
+      }
+    ]
+  },
+  {
+    "case_id": "real-low-access-bundle",
+    "evidence_type": "anonymized_real_case_summary",
+    "title": "实际双动作工单：低接通用户占比高小区",
+    "context": {
+      "date": "2025-10-07",
+      "system": "LTE",
+      "vendor": null,
+      "vendor_label": "厂商A（展示别名）",
+      "problem": "低接通用户占比高小区",
+      "band": "F",
+      "indoor": false
+    },
+    "actions": [
+      {
+        "role": "executed",
+        "scheme_id": "LDJT028",
+        "object": "CELLSEL",
+        "parameter": "QRxLevMin",
+        "parameter_cn": "最小接入电平",
+        "before": -64,
+        "after": -62,
+        "delta": 2,
+        "unit": "源编码；物理单位未提供",
+        "source_condition": "<-60",
+        "source_range": {
+          "min": -156,
+          "max": -44
+        },
+        "execution": "执行成功"
+      },
+      {
+        "role": "executed",
+        "scheme_id": "LDJT022",
+        "object": "CELLRESEL",
+        "parameter": "SNonIntraSearch",
+        "parameter_cn": "异频/异系统测量启动门限",
+        "before": 25,
+        "after": 27,
+        "delta": 2,
+        "unit": "源编码；物理单位未提供",
+        "source_condition": "<31",
+        "source_range": {
+          "min": 0,
+          "max": 31
+        },
+        "execution": "执行成功"
+      }
+    ],
+    "outcome": {
+      "label": "Pass",
+      "scope": "ticket_bundle",
+      "kpi_before_after": null
+    },
+    "limitations": [
+      "仅有案例摘要，原始完整 Trace 未随 Git 提供。",
+      "整体长评通过不能分摊成两个参数各自独立有效。",
+      "缺少 KPI 前后值、改善幅度、当前厂家版本及取值口径。",
+      "源范围和条件属于历史案例，不能直接当作当前网元约束；源数值不换算成 dBm。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/paper/manuscript/ECHO-Mem_Overview_Trace_Example.md",
+        "section": "区域二：动作与执行记录；区域三：整体结果与时间边界",
+        "source_path": "paper/manuscript/ECHO-Mem_Overview_Trace_Example.md"
+      }
+    ]
+  },
+  {
+    "case_id": "published-prescheduling-match",
+    "evidence_type": "published_experiment_case_summary",
+    "title": "成功推荐案例：智能预调度持续时间系数",
+    "context": {
+      "system": null,
+      "vendor": null,
+      "problem": null
+    },
+    "actions": [
+      {
+        "role": "recommended",
+        "scheme_id": "LGDX2002",
+        "parameter_cn": "智能预调度持续时间系数",
+        "direction": "increase",
+        "delta": 1
+      },
+      {
+        "role": "historical_gold_comparison",
+        "scheme_id": "LGDX2002",
+        "parameter_cn": "智能预调度持续时间系数",
+        "direction": "increase",
+        "before": 0,
+        "after": 1,
+        "delta": 1
+      }
+    ],
+    "outcome": {
+      "label": "strong_action_match",
+      "scope": "recommendation_vs_gold",
+      "gate": "accept",
+      "historical_gold_long_evaluation": "通过（文档叙述）",
+      "kpi_before_after": null
+    },
+    "limitations": [
+      "研究案例摘要，不是完整工单。",
+      "动作匹配分数不是现场 KPI 改善量或成功概率。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-case-studies-20260621.md",
+        "section": "案例 1：成功推荐",
+        "source_path": "docs/experiments/echo-mem-case-studies-20260621.md"
+      }
+    ]
+  },
+  {
+    "case_id": "published-handover-veto",
+    "evidence_type": "published_experiment_case_summary",
+    "title": "反证转复核案例：同方案族中的不同切换参数",
+    "context": {
+      "system": null,
+      "vendor": null,
+      "problem": "切换准备失败"
+    },
+    "actions": [
+      {
+        "role": "recommended_not_execution_record",
+        "scheme_id": "LDH003",
+        "parameter_cn": "资源类切换准备失败惩罚定时器",
+        "direction": "increase",
+        "delta": 2
+      },
+      {
+        "role": "historical_gold_comparison",
+        "scheme_id": "LDH003",
+        "parameter_cn": "非资源类切换准备失败惩罚次数",
+        "direction": "increase",
+        "before": 30,
+        "after": 40,
+        "delta": 10
+      }
+    ],
+    "outcome": {
+      "label": "require_review",
+      "scope": "research_gate_decision",
+      "failcohort_hit_score": 0.64,
+      "baseline_without_veto": "accept; unsafe_accepted=true",
+      "kpi_before_after": null
+    },
+    "limitations": [
+      "推荐定时器与对照惩罚次数是不同参数，不能因方案编号相同而归并。",
+      "+2 是推荐动作，不是已执行或已证明失败的动作。",
+      "0.64 是该研究案例的反证命中评分，不是当前工单失败概率。",
+      "未提供可运行的全量失败队列与 gate 校准产物。"
+    ],
+    "references": [
+      {
+        "url": "https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-case-studies-20260621.md",
+        "section": "案例 2：Veto 拦截",
+        "source_path": "docs/experiments/echo-mem-case-studies-20260621.md"
+      }
+    ]
+  }
+]

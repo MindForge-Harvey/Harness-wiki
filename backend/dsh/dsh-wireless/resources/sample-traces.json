@@ -1,0 +1,82 @@
+[
+  {
+    "trace_id": "t_sample_eval_001",
+    "source": {
+      "dataset": "minimal_sample_v1",
+      "row_offsets": [
+        0,
+        1
+      ],
+      "ingested_at": "2026-05-01T00:00:00+08:00"
+    },
+    "ticket": {
+      "id": "sample_eval_001",
+      "issued_at": "2026-05-01T08:30:00+08:00",
+      "state": "闭环",
+      "ticket_category": "内部工单",
+      "ticket_type": "非实时工单",
+      "primary_issue_type": "切换差小区",
+      "province_issue_type": "切换差小区",
+      "cell_name": "样例小区A",
+      "network_element_name": "样例网元A",
+      "cell_id": "100001",
+      "eci": "100001",
+      "site_name": "样例基站A",
+      "antenna_rx_ports": "4",
+      "aau_antenna_info": null,
+      "region": "样例地市",
+      "vendor": "样例厂家",
+      "is_indoor": "否",
+      "band": "B3",
+      "system": "LTE"
+    },
+    "actions": [
+      {
+        "action_id": "a_0",
+        "exec_id": "exec_sample_001",
+        "param_exec_id": "pe_sample_001",
+        "param_object": "切换控制",
+        "param_en_name": "HoCfgSwitch",
+        "site_param_object": null,
+        "site_param_en_name": null,
+        "param_cn_name": "切换控制开关",
+        "before_value": "关",
+        "after_value": "开",
+        "value_rule": "取值: 开/关",
+        "adjustment_rule": null,
+        "scheme_id": "切换参数微调",
+        "scheme_group": "切换控制参数",
+        "param_kind": "切换问题",
+        "root_cause_l1": "切换问题",
+        "root_cause_l2": "切换控制参数",
+        "root_cause_key": "切换问题 / 切换控制参数",
+        "scheme_type3": "调整切换控制开关",
+        "scheme_desc": "在样例场景下尝试调整切换控制相关开关。",
+        "verbal_desc": "样例策略说明（脱敏占位）。",
+        "issued_state": "下发成功",
+        "issued_at": "2026-05-01T09:00:00+08:00",
+        "exec_state": "exec_success",
+        "exec_at": "2026-05-01T09:05:00+08:00",
+        "exec_detail": null,
+        "exec_failure_reason": null,
+        "rollback_state": null,
+        "rollback_at": null,
+        "rollback_detail": null,
+        "short_eval_result": "短评估未启用",
+        "long_eval_result": "long_eval_pass",
+        "raw_row_index": 0
+      }
+    ],
+    "aggregate": {
+      "action_count": 1,
+      "long_eval_pass_count": 1,
+      "long_eval_fail_count": 0,
+      "long_eval_unknown_count": 0,
+      "exec_success_count": 1,
+      "exec_failed_count": 0,
+      "audit_timeout_count": 0,
+      "ticket_outcome": "long_eval_pass",
+      "ticket_outcome_reason": "single_action_pass"
+    }
+  }
+]

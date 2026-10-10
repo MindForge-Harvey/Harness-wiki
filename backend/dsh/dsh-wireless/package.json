@@ -1,0 +1,14 @@
+{
+  "name": "dsh-wireless",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "description": "无线网优与 ECHO-Mem 原理检索、工单/方案/执行记录、效果评估与规则编译工具。",
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  }
+}

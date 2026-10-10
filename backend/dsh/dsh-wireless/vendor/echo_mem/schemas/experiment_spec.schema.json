@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experiment_spec.schema.json",
+  "title": "ExperimentSpec",
+  "description": "Immutable input contract for one ECHO-Mem paper experiment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_mode",
+    "experiment_id",
+    "protocol_version",
+    "dataset_role",
+    "method_ids",
+    "sample",
+    "artifacts",
+    "configs",
+    "reproducibility",
+    "holdout"
+  ],
+  "properties": {
+    "schema_version": {"const": "experiment_spec.v1"},
+    "run_mode": {"enum": ["smoke", "paper"]},
+    "experiment_id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "protocol_version": {"type": "string", "minLength": 1},
+    "dataset_role": {"enum": ["dev", "holdout", "eval_set_a"]},
+    "method_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "ablation_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1},
+      "default": []
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "limit"],
+      "properties": {
+        "policy": {"enum": ["all", "head", "gold_only", "gold_stratified", "outcome_stratified"]},
+        "limit": {"type": "integer", "minimum": 0},
+        "trace_ids_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["split_manifest", "memory_package"],
+      "properties": {
+        "split_manifest": {"$ref": "#/$defs/artifactRef"},
+        "memory_package": {"$ref": "#/$defs/artifactRef"},
+        "eval_set": {"$ref": "#/$defs/artifactRef"},
+        "parameter_snapshots": {"$ref": "#/$defs/artifactRef"}
+      }
+    },
+    "configs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ranker", "gate"],
+      "properties": {
+        "ranker": {"$ref": "#/$defs/configRef"},
+        "gate": {"$ref": "#/$defs/configRef"},
+        "llm": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["model_id", "prompt_version", "temperature", "seed"],
+          "properties": {
+            "model_id": {"type": ["string", "null"]},
+            "prompt_version": {"type": ["string", "null"]},
+            "prompt_path": {"type": ["string", "null"]},
+            "prompt_hash": {"type": ["string", "null"]},
+            "api_mode": {"type": ["string", "null"]},
+            "base_url": {"type": ["string", "null"]},
+            "temperature": {"type": ["number", "null"], "minimum": 0},
+            "top_p": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+            "max_tokens": {"type": ["integer", "null"], "minimum": 1},
+            "seed": {"type": ["integer", "null"]}
+          }
+        }
+      }
+    },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code_commit", "code_dirty", "random_seed"],
+      "properties": {
+        "code_commit": {"type": ["string", "null"]},
+        "code_dirty": {"type": "boolean"},
+        "code_tree_hash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "random_seed": {"type": ["integer", "null"]},
+        "dependency_lock_path": {"type": ["string", "null"]},
+        "dependency_lock_hash": {"type": ["string", "null"]}
+      }
+    },
+    "holdout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed"],
+      "properties": {
+        "allowed": {"type": "boolean", "default": false},
+        "approval_reason": {"type": ["string", "null"]},
+        "approved_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"dataset_role": {"const": "holdout"}}, "required": ["dataset_role"]},
+      "then": {
+        "properties": {
+          "holdout": {
+            "properties": {"allowed": {"const": true}},
+            "required": ["allowed", "approval_reason", "approved_at"]
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"run_mode": {"const": "paper"}}, "required": ["run_mode"]},
+      "then": {
+        "properties": {
+          "artifacts": {
+            "properties": {
+              "split_manifest": {"properties": {"sha256": {"type": "string"}}},
+              "memory_package": {"properties": {"sha256": {"type": "string"}}}
+            }
+          },
+          "configs": {
+            "properties": {
+              "ranker": {"properties": {"sha256": {"type": "string"}}},
+              "gate": {"properties": {"sha256": {"type": "string"}}}
+            }
+          },
+          "reproducibility": {
+            "properties": {
+              "code_commit": {"type": "string", "minLength": 7},
+              "code_dirty": {"const": false},
+              "code_tree_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+              "dependency_lock_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "id": {"type": ["string", "null"]},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "configRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}

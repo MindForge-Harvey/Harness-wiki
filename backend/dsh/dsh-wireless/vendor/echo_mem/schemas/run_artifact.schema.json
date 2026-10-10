@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run_artifact.schema.json",
+  "title": "RunArtifact",
+  "description": "Immutable manifest for one completed or failed ECHO-Mem experiment run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "status",
+    "created_at",
+    "completed_at",
+    "experiment_spec_hash",
+    "readiness",
+    "method_results",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {"const": "run_artifact.v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["completed", "failed"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "experiment_spec_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "readiness": {
+      "type": "object",
+      "required": ["ok", "checks"],
+      "properties": {
+        "ok": {"type": "boolean"},
+        "checks": {"type": "object"}
+      }
+    },
+    "method_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method_id", "trace_count", "summary", "metric_counts", "semantic_sha256"],
+        "properties": {
+          "method_id": {"type": "string", "minLength": 1},
+          "trace_count": {"type": "integer", "minimum": 0},
+          "summary": {"type": "object"},
+          "metric_counts": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/metricCount"}
+          },
+          "semantic_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/fileRef"}
+    },
+    "failure": {
+      "type": ["object", "null"],
+      "properties": {
+        "type": {"type": "string"},
+        "message": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "metricCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator", "value"],
+      "properties": {
+        "numerator": {"type": "number", "minimum": 0},
+        "denominator": {"type": "number", "minimum": 0},
+        "value": {"type": "number", "minimum": 0}
+      }
+    },
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
