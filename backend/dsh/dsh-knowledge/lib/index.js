@@ -120,6 +120,7 @@ export function apply(ctx) {
    */
   const images = createImageLinker({
     urlBase: () => {
+      if (process.env.KB_PUBLIC_BASE_URL) return process.env.KB_PUBLIC_BASE_URL.replace(/\/+$/, '')
       const port = webServer && webServer.port
       if (!port) return null
       // 0.0.0.0 是监听地址不是浏览器可访问地址，统一回环
@@ -510,6 +511,18 @@ export function apply(ctx) {
       const row = feedback.record({ ...body, kb: 'company' })
       json(res, 201, { ok: true, feedback: row })
     }).catch((e) => err(res, e))
+  }
+
+  function handleAnswerVote(req, res) {
+    readJsonBody(req, 2 * 1024 * 1024).then(body => {
+      const row = feedback.vote(body);
+      json(res, 200, { ok: true, rating: row?.rating || null });
+    }).catch(e => err(res, e));
+  }
+
+  function handleAnswerVotes(req, res) {
+    try { json(res, 200, { ok: true, votes: feedback.votes(queryParams(req)) }); }
+    catch (e) { err(res, e); }
   }
 
   /** 手动修正反馈（问题类型 / 说明 / 状态），供工作台反馈管理入口。 */
@@ -959,6 +972,8 @@ export function apply(ctx) {
     ['POST', /^\/kb\/intents\/([^/]+)\/retry$/, handleIntentRetry],
     ['GET', /^\/kb\/audit$/, handleAudit],
     ['POST', /^\/kb\/feedback$/, handleFeedback],
+    ['POST', /^\/kb\/feedback\/vote$/, handleAnswerVote],
+    ['GET', /^\/kb\/feedback\/votes$/, handleAnswerVotes],
     ['PATCH', /^\/kb\/feedback\/([^/]+)$/, handleFeedbackUpdate],
     ['DELETE', /^\/kb\/feedback\/([^/]+)$/, handleFeedbackDelete],
     ['GET', /^\/kb\/feedback$/, handleFeedbackList],

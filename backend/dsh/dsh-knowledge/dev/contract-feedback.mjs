@@ -305,5 +305,28 @@ await check('反馈手动管理：删除（墓碑行）后列表与统计排除�
   eq(f2.stats().open, 2, 'tombstone survives restart')
 })
 
+await check('回答点赞：按用户与回答保存、去重、切换、撤销，并在重启后恢复', async () => {
+  const dir = tmp(); const f = createFeedbackLedger({ dir })
+  const base = { actor: 'alice', session_id: 's-1', message_id: '6', query: 'q', answer: 'a', query_id: 'q-1' }
+  const first = f.vote({ ...base, rating: 'positive' })
+  eq(f.vote({ ...base, rating: 'positive' }).feedback_id, first.feedback_id)
+  eq(f.stats().total, 1, 'repeated positive votes do not append duplicates')
+  eq(f.vote({ ...base, rating: 'negative' }).feedback_id, first.feedback_id)
+  eq(f.stats().total, 1, 'switching votes updates the same record')
+  eq(f.get(first.feedback_id).issue_type, 'other')
+  f.vote({ ...base, actor: 'bob', rating: 'positive' })
+  eq(f.stats().total, 2, 'different users never merge into one vote')
+  const f2 = createFeedbackLedger({ dir })
+  eq(f2.votes({ actor: 'alice', session_id: 's-1' })[0].rating, 'negative')
+  eq(f2.votes({ actor: 'bob', session_id: 's-1' })[0].rating, 'positive')
+  f2.vote({ ...base, rating: null })
+  eq(f2.votes({ actor: 'alice', session_id: 's-1' }).length, 0)
+  eq(f2.votes({ actor: 'bob', session_id: 's-1' }).length, 1, 'cancellation affects only the author')
+  eq(createFeedbackLedger({ dir }).stats().total, 1, 'cancellation persists across restart')
+  let failed = false
+  try { f2.vote({ ...base, rating: 'fake' }) } catch (e) { failed = e.status === 400 }
+  ok(failed, 'invalid ratings are rejected')
+})
+
 const failed = finish()
 if (process.argv[1] && import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href) process.exit(failed ? 1 : 0)

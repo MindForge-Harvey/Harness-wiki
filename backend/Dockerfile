@@ -9,6 +9,8 @@ RUN npm ci --omit=dev --no-fund --no-audit
 
 # 适配层与 dsh 运行时（dsh/home 的 settings/profiles 与插件；.env 不进镜像，由 compose 注入）
 COPY backend/index.js ./
+COPY backend/portal-session.mjs ./
+COPY backend/answer-actions.mjs ./
 COPY backend/dsh /app/backend/dsh
 
 ENV NODE_ENV=production

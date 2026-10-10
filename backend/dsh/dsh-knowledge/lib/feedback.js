@@ -43,6 +43,7 @@ function rowFrom(input = {}) {
     query_id: clean(input.query_id, 120) || null,
     session_id: clean(input.session_id, 200) || null,
     message_id: clean(input.message_id, 200) || null,
+    actor: clean(input.actor, 200) || null,
     query: clean(input.query, 4000),
     answer: clean(input.answer, 12000),
     references: Array.isArray(input.references) ? input.references.slice(0, 20).map((r) => ({
@@ -89,6 +90,31 @@ export function createFeedbackLedger({ dir, logger = () => {} } = {}) {
       .filter((r) => !since || r.created_at >= since)
       .sort((a, b) => a.created_at < b.created_at ? 1 : -1)
       .slice(0, Math.max(1, Math.min(200, Number(limit) || 50)))
+  }
+
+  /** One current vote per authenticated user and answer, including real cancellation. */
+  function vote(input) {
+    const actor = clean(input.actor, 200);
+    const session = clean(input.session_id, 200);
+    const message = clean(input.message_id, 200);
+    if (!actor || !session || !message) throw Object.assign(new Error('反馈必须关联用户、会话和回答'), { status: 400 });
+    if (![null, 'positive', 'negative'].includes(input.rating)) throw Object.assign(new Error('反馈选项无效'), { status: 400 });
+    const current = [...rows.values()].find(r => r.actor === actor && r.session_id === session && r.message_id === message && r.status !== 'deleted');
+    if (input.rating === null) {
+      if (current) remove(current.feedback_id);
+      return null;
+    }
+    if (current?.rating === input.rating) return current;
+    const row = rowFrom({ ...input, actor, session_id: session, message_id: message,
+      issue_type: input.rating === 'negative' ? 'other' : null,
+      ...(current ? { feedback_id: current.feedback_id, created_at: current.created_at } : {}),
+    });
+    return append({ ...row, ...(current ? { updated_at: new Date().toISOString() } : {}) });
+  }
+
+  function votes({ actor, session_id }) {
+    return [...rows.values()].filter(r => r.actor === actor && r.session_id === session_id && r.status !== 'deleted')
+      .map(r => ({ message_id: r.message_id, rating: r.rating }));
   }
 
   function updateStatus(id, status, extra = {}) {
@@ -138,5 +164,5 @@ export function createFeedbackLedger({ dir, logger = () => {} } = {}) {
     }
     return { total, open }
   }
-  return { record, list, get: (id) => rows.get(id) || null, updateStatus, update, remove, stats }
+  return { record, list, vote, votes, get: (id) => rows.get(id) || null, updateStatus, update, remove, stats }
 }

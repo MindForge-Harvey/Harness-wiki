@@ -32,6 +32,8 @@ import {
 } from "@phosphor-icons/react";
 import { toolLabel, taskProgress, visibleTool, groupTaskMessages } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
+import { appBase, appUrl } from "../lib/app-url";
+import { copyText } from "../lib/copy-text.mjs";
 import assistantHead from "../assets/assistant-head.webp";
 import { agents } from "../data/agents";
 import {
@@ -42,7 +44,10 @@ import {
   fetchChatHistory,
   fetchPendingApprovals,
   decideApproval,
-  submitFeedback,
+  fetchAnswerVotes,
+  voteOnAnswer,
+  shareAnswer as createAnswerShare,
+  fetchSharedAnswer,
   renameSession,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
@@ -315,9 +320,15 @@ function RobotAvatar({ activity = "waiting", compact = false, hero = false }) {
   );
 }
 
-function AssistantMessage({ message, onFeedback, onGrow, pending = false, activityText = "" }) {
+function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = false, pending = false, activityText = "" }) {
   const [copied, setCopied] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const feedback = message.feedback || null;
+  const [actionBusy, setActionBusy] = useState(null);
+  const [actionStatus, setActionStatus] = useState(null);
+  const [shareUrl, setShareUrl] = useState(null);
+  const statusTimerRef = useRef(null);
+  const shareButtonRef = useRef(null);
+  const canAct = Number.isSafeInteger(message.seq);
 
   const fullText = message.content || "";
 
@@ -345,40 +356,54 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
     // 仅挂载时启动一次：整条消息的 content 到达后不会再变。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(timerRef.current);
+    window.clearTimeout(statusTimerRef.current);
+  }, []);
   const growing = shown < fullText.length;
   useEffect(() => {
     if (growing) onGrow?.();
   }, [shown, growing, onGrow]);
 
   const copyAnswer = async () => {
+    setActionStatus(null);
     try {
-      await navigator.clipboard?.writeText(fullText);
+      await copyText(fullText);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
-    } catch {
+      setActionStatus({ text: "回答已复制" });
+      window.clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = window.setTimeout(() => setCopied(false), 2400);
+    } catch (error) {
       setCopied(false);
+      setActionStatus({ error: true, text: error.message });
     }
   };
 
   const shareAnswer = async () => {
+    setActionStatus(null);
+    setActionBusy("share");
     try {
-      if (navigator.share) {
-        await navigator.share({ title: "知识库助手回答", text: fullText });
-        return;
-      }
-      await navigator.clipboard?.writeText(fullText);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
-    } catch {
-      setCopied(false);
-    }
+      setShareUrl(await onShare(message));
+    } catch (error) { setActionStatus({ error: true, text: error.message }); }
+    finally { setActionBusy(null); }
   };
 
-  const rate = (value) => {
+  const copyShareLink = async () => {
+    try {
+      await copyText(shareUrl);
+      setActionStatus({ text: "分享链接已复制" });
+    } catch (error) { setActionStatus({ error: true, text: error.message }); }
+  };
+
+  const rate = async (value) => {
     const next = feedback === value ? null : value;
-    setFeedback(next);
-    if (next) onFeedback?.(message, next);
+    setActionStatus(null);
+    setActionBusy("feedback");
+    try {
+      await onFeedback(message, next);
+      setActionStatus({ text: next === null ? "反馈已取消" : next === "up" ? "已记录：回答有帮助" : "已记录：回答需改进" });
+    } catch (error) { setActionStatus({ error: true, text: error.message }); }
+    finally { setActionBusy(null); }
   };
 
   return (
@@ -416,31 +441,43 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
             >
               <Copy size={15} />
             </button>
-            <button
+            {!readOnly && <button
               className={feedback === "up" ? "is-active" : ""}
               type="button"
               aria-label="回答有帮助"
               aria-pressed={feedback === "up"}
               title="回答有帮助"
+              disabled={!!actionBusy || !canAct}
               onClick={() => rate("up")}
             >
               <ThumbsUp size={15} />
-            </button>
-            <button
+            </button>}
+            {!readOnly && <button
               className={feedback === "down" ? "is-active" : ""}
               type="button"
               aria-label="回答需改进"
               aria-pressed={feedback === "down"}
               title="回答需改进"
+              disabled={!!actionBusy || !canAct}
               onClick={() => rate("down")}
             >
               <ThumbsDown size={15} />
-            </button>
-            <button type="button" aria-label="分享回答" title="分享回答" onClick={shareAnswer}>
+            </button>}
+            {!readOnly && <button ref={shareButtonRef} type="button" aria-label="分享回答" title="分享回答" disabled={!!actionBusy || !canAct} onClick={shareAnswer}>
               <ShareNetwork size={15} />
-            </button>
+            </button>}
           </div>
         ) : null}
+        {shareUrl ? (
+          <div className="chat-share-panel" role="dialog" aria-label="分享这条回答" onKeyDown={event => {
+            if (event.key === "Escape") { event.stopPropagation(); setShareUrl(null); shareButtonRef.current?.focus(); }
+          }}>
+            <div className="chat-share-heading"><strong>分享这条回答</strong><button type="button" aria-label="关闭分享" onClick={() => { setShareUrl(null); shareButtonRef.current?.focus(); }}><X size={16} /></button></div>
+            <p>链接仅包含这条问答，登录后即可查看。</p>
+            <div className="chat-share-link"><input aria-label="分享链接" value={shareUrl} readOnly onFocus={event => event.target.select()} /><button type="button" onClick={copyShareLink}>复制链接</button></div>
+          </div>
+        ) : null}
+        {actionStatus ? <p className={`chat-action-status${actionStatus.error ? " is-error" : ""}`} role={actionStatus.error ? "alert" : "status"}>{actionStatus.text}</p> : null}
       </div>
     </article>
   );
@@ -543,6 +580,9 @@ function BrandMark() {
 
 export default function AgentChat() {
   const [sessions, setSessions] = useState(loadSessions);
+  const [sharedId, setSharedId] = useState(() => new URLSearchParams(window.location.search).get("share"));
+  const [sharedLoading, setSharedLoading] = useState(false);
+  const [pageError, setPageError] = useState("");
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -567,6 +607,7 @@ export default function AgentChat() {
   const currentQueryIdRef = useRef(null);
   const currentUserTextRef = useRef(null);
   const sessionSeqRef = useRef(0);
+  const historyRequestRef = useRef(0);
 
   const activity = isThinking ? "working" : attachment ? "reading" : "waiting";
   const activityLabel = isThinking ? activityText || "正在执行" : attachment ? "附件已准备" : "在线，可以开始";
@@ -599,6 +640,22 @@ export default function AgentChat() {
       document.title = previousTitle;
     };
   }, []);
+
+  useEffect(() => {
+    if (!sharedId) return;
+    let cancelled = false;
+    setSharedLoading(true);
+    setPageError("");
+    fetchSharedAnswer(sharedId).then(share => {
+      if (cancelled) return;
+      setMessages([
+        ...(share.question ? [{ id: "shared-question", role: "user", content: share.question }] : []),
+        { id: "shared-answer", role: "assistant", content: share.answer, instant: true },
+      ]);
+    }).catch(error => { if (!cancelled) setPageError(error.message); })
+      .finally(() => { if (!cancelled) setSharedLoading(false); });
+    return () => { cancelled = true; };
+  }, [sharedId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -664,17 +721,13 @@ export default function AgentChat() {
     }
   }, []);
 
-  /** 点赞/点踩：带本轮 query_id 落 feedback.jsonl。 */
-  const handleFeedback = useCallback((message, rating) => {
-    submitFeedback({
-      rating,
-      ...(message.queryId ? { query_id: message.queryId } : {}),
-      question: message.question || "",
-      answer: (message.content || "").slice(0, 4000),
-    }).catch(() => {
-      // 反馈失败不打断对话；静默（按钮状态保留用户意图）
-    });
-  }, []);
+  /** The server binds votes to the persisted answer and authenticated user. */
+  const handleFeedback = useCallback(async (message, rating) => {
+    const savedRating = await voteOnAnswer({ sessionId, messageSeq: message.seq, rating });
+    setMessages(items => items.map(item => item.id === message.id ? { ...item, feedback: savedRating } : item));
+  }, [sessionId]);
+
+  const handleShare = useCallback(message => createAnswerShare({ sessionId, messageSeq: message.seq }), [sessionId]);
 
   const handleNotification = useCallback((notification) => {
     if (notification.method === "session.status") {
@@ -705,6 +758,7 @@ export default function AgentChat() {
         ...items,
         {
           id: `assistant-${event.seq}`,
+          seq: event.seq,
           role: "assistant",
           time: clockTime(),
           content: text,
@@ -850,6 +904,7 @@ export default function AgentChat() {
     const typedContent = (typeof preset === "string" ? preset : draft).trim();
     if (!typedContent && !attachment) return;
     if (isThinking || voice.active) return;
+    historyRequestRef.current += 1;
 
     const content = typedContent || `请处理附件：${attachment.name}`;
     const timestamp = Date.now();
@@ -928,6 +983,7 @@ export default function AgentChat() {
   };
 
   const startNewChat = () => {
+    historyRequestRef.current += 1;
     voice.cancel();
     stopResponseSilently();
     setSessionId(null);
@@ -938,6 +994,11 @@ export default function AgentChat() {
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
     setHistoryOpen(false);
+    setPageError("");
+    if (sharedId) {
+      window.history.replaceState(null, "", appUrl("chat"));
+      setSharedId(null);
+    }
   };
 
   const stopResponseSilently = () => {
@@ -946,6 +1007,7 @@ export default function AgentChat() {
   };
 
   const resumeSession = async (item) => {
+    const requestId = ++historyRequestRef.current;
     voice.cancel();
     stopResponseSilently();
     setSessionId(item.sessionId);
@@ -954,9 +1016,21 @@ export default function AgentChat() {
     setAttachment(null);
     setTimeline([]);
     setHistoryOpen(false);
+    setPageError("");
+    if (sharedId) {
+      window.history.replaceState(null, "", appUrl("chat"));
+      setSharedId(null);
+    }
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
-    const events = await fetchChatHistory(item.sessionId);
+    const [events, votes] = await Promise.all([
+      fetchChatHistory(item.sessionId),
+      fetchAnswerVotes(item.sessionId).catch(error => {
+        if (requestId === historyRequestRef.current) setPageError("反馈状态加载失败：" + error.message);
+        return {};
+      }),
+    ]);
+    if (requestId !== historyRequestRef.current) return;
     if (!events.length) {
       setMessages([
         {
@@ -977,7 +1051,7 @@ export default function AgentChat() {
           case "user":
             return { id: `h-u-${e.seq}`, role: "user", time, content: e.text };
           case "assistant":
-            return { id: `h-a-${e.seq}`, role: "assistant", time, content: e.text, instant: true };
+            return { id: `h-a-${e.seq}`, seq: e.seq, role: "assistant", time, content: e.text, feedback: votes[e.seq] || null, instant: true };
           case "thinking":
             return null;
           case "tool": {
@@ -1140,7 +1214,7 @@ export default function AgentChat() {
 
         <aside className={`chat-history${historyOpen ? " is-open" : ""}`} aria-label="历史对话">
           <div className="chat-sidebar-home">
-            <a className="chat-home-link" href="/" aria-label="返回知识库助手首页">
+            <a className="chat-home-link" href={appBase} aria-label="返回知识库助手首页">
               <BrandMark />
               <span className="chat-home-copy">
                 <strong>知识库助手</strong>
@@ -1260,7 +1334,7 @@ export default function AgentChat() {
             <div className="chat-agent-identity">
               <RobotAvatar activity={activity} />
               <div>
-                <h1>{kbAgent.short}</h1>
+                <h1>{sharedId ? "分享的回答" : kbAgent.short}</h1>
                 <div className={`chat-agent-status is-${activity}`} aria-live="polite">
                   {isThinking ? activityLabel : "知识问答与运营"}
                 </div>
@@ -1279,7 +1353,9 @@ export default function AgentChat() {
           </header>
 
           <div className={`chat-messages${messages.length ? " has-messages" : ""}`}>
-            {!messages.length ? (
+            {pageError ? <p className="chat-page-error" role="alert">{pageError}</p> : null}
+            {sharedId ? <div className="chat-shared-notice"><span>{sharedLoading ? "正在加载分享的回答…" : "这是一条分享的问答"}</span><button type="button" onClick={startNewChat}>开始新对话</button></div> : null}
+            {!messages.length && !sharedId ? (
               <section className="chat-welcome" aria-labelledby="chat-welcome-title">
                 <div className="chat-welcome-heading">
                   <h2 id="chat-welcome-title">今天想了解什么？</h2>
@@ -1311,6 +1387,8 @@ export default function AgentChat() {
                       key={message.id}
                       message={message}
                       onFeedback={handleFeedback}
+                      onShare={handleShare}
+                      readOnly={!!sharedId}
                       onGrow={scrollDuringTyping}
                     />
                   );
@@ -1323,7 +1401,7 @@ export default function AgentChat() {
             )}
           </div>
 
-          {messages.length > 0 ? composer : null}
+          {messages.length > 0 && !sharedId ? composer : null}
         </section>
 
         <TimelineDrawer

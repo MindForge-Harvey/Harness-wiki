@@ -411,6 +411,20 @@ body.chat-view {
 .chat-page .chat-message-actions { transform: none; gap: 3px; margin-top: 12px; }
 .chat-page .chat-message-actions button { color: #657d99; }
 .chat-page .chat-message-actions button:hover { color: #426991; background: #edf4fc; }
+.chat-page .chat-message-actions button.is-active { color: #1264ca; background: #deebfc; }
+.chat-page .chat-message-actions button:disabled { opacity: .45; cursor: default; }
+.chat-page .chat-action-status { margin: 8px 0 0; color: #426991; font-size: 12px; line-height: 1.7; }
+.chat-page .chat-action-status.is-error, .chat-page .chat-page-error { color: #a64246; }
+.chat-page .chat-page-error { max-width: 760px; margin: 12px auto; font-size: 13px; }
+.chat-page .chat-share-panel { max-width: 520px; margin-top: 12px; padding: 16px; border: 1px solid #d5e3f5; border-radius: 12px; background: #f8fbff; }
+.chat-page .chat-share-heading, .chat-page .chat-share-link, .chat-page .chat-shared-notice { display: flex; align-items: center; gap: 12px; }
+.chat-page .chat-share-heading { justify-content: space-between; }
+.chat-page .chat-share-heading strong { font-size: 13px; color: #284b70; }
+.chat-page .chat-share-heading button { display: grid; place-items: center; border: 0; padding: 4px; background: transparent; color: #657d99; }
+.chat-page .chat-share-panel p { margin: 8px 0 12px; font-size: 12px; color: #607a96; }
+.chat-page .chat-share-link input { flex: 1; min-width: 0; height: 36px; border: 1px solid #d5e3f5; border-radius: 6px; padding: 0 9px; background: white; color: #426991; font: inherit; font-size: 12px; }
+.chat-page .chat-share-link button, .chat-page .chat-shared-notice button { flex: 0 0 auto; border: 1px solid #c8dbf4; border-radius: 6px; padding: 8px 12px; background: #eaf3ff; color: #315f93; font: inherit; font-size: 12px; cursor: pointer; }
+.chat-page .chat-shared-notice { max-width: 760px; margin: 16px auto; justify-content: space-between; color: #607a96; font-size: 12px; }
 .chat-page .chat-pending-message { color: #657d99; background: transparent; border: 0; box-shadow: none; }
 .chat-page .chat-pending-message strong { font-size: 13px; font-weight: 500; }
 .chat-page .chat-pending-message span { font-size: 11px; color: #657d99; }

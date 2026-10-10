@@ -1,0 +1,7 @@
+# Server-managed .env; do not put real keys in source or images.
+LLM_PROVIDER=aliyun
+LLM_BASE_URL=https://your-aliyun-endpoint/compatible-mode/v1
+LLM_MODEL=qwen3.8-flash
+LLM_API_KEY=
+LLM_REASONING_EFFORT=off
+LIGHTRAG_API_KEY=

@@ -1,0 +1,41 @@
+name: harness-wiki
+services:
+  harness-wiki:
+    image: harness-wiki:latest
+    build:
+      context: .
+      dockerfile: deploy/harness-wiki.Dockerfile
+    container_name: harness-wiki
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3088"
+      DSH_CHILD_HTTP_PORT: "3090"
+      DSH_PROFILE: rag-kb
+      DSH_HOME_DIR: dsh/home
+      PORTAL_AUTH_URL: http://portal-auth:8080
+      LIGHTRAG_BASE_URL: http://lightrag:9621
+      KB_RAG_STORAGE: /data/rag_storage
+      KB_LIGHTRAG_INPUTS_DIR: /data/inputs
+      KB_PUBLIC_BASE_URL: https://www.agent-show.com/harness-wiki/api
+    volumes:
+      - harness-sessions:/app/backend/dsh/home/sessions
+      - harness-storages:/app/backend/dsh/home/storages
+      - harness-spool:/app/backend/.spool
+      - /root/work_project/LightRAG/data/rag_storage:/data/rag_storage:ro
+      - /root/work_project/LightRAG/data/inputs:/data/inputs:ro
+    networks:
+      - proxy-tier
+    healthcheck:
+      test: ["CMD", "node", "-e", "Promise.all([fetch('http://127.0.0.1:80/api/health').then(r=>{if(!r.ok)throw Error('frontend')}),fetch('http://127.0.0.1:3090/kb/health').then(r=>r.json()).then(j=>{if(!j.ok||!j.engine_counts)throw Error('engine')})]).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
+volumes:
+  harness-sessions:
+  harness-storages:
+  harness-spool:
+networks:
+  proxy-tier:
+    external: true

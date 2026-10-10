@@ -3,6 +3,8 @@
  * launchUrl 固定指向本应用的对话工作台。
  */
 
+import { appUrl } from "../lib/app-url";
+
 export const agents = [
   {
     id: "rag-knowledge-assistant",
@@ -12,7 +14,7 @@ export const agents = [
     description:
       "接入公司知识库（LightRAG），在对话中完成知识检索问答、文档治理、图谱编辑与健康体检；每个回答都有来源依据，每个写操作都经过人工审批。",
     role: "知识问答与运营",
-    launchUrl: "/chat",
+    launchUrl: appUrl("chat"),
     shape: 6,
     capabilities: [
       ["检索问答", "基于知识库证据回答问题，列明引用文件，原文档图片随回答展示。"],

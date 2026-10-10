@@ -21,6 +21,8 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
+import { checkPortalSession, portalIdentity } from './portal-session.mjs'
+import { selectAnswer, createAnswerShareStore } from './answer-actions.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -37,6 +39,7 @@ const PROFILE = process.env.DSH_PROFILE || 'rag-kb'
 const WORKSPACE_CWD = path.resolve(here, '..') // 工作区根：kb_ingest file_path 边界与 {{cwd}}
 const SPOOL_DIR = path.join(here, '.spool')
 const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || 'dsh/home') // settings/profiles/sessions
+const answerShares = createAnswerShareStore(path.join(DSH_HOME, 'storages', 'answer-shares'))
 
 function log(msg) { console.log('[rag-kb-server] ' + msg) }
 
@@ -298,7 +301,13 @@ function projectHistory(events) {
         const idx = block?.toolCallId ? toolIndexByCall.get(block.toolCallId) : undefined
         if (idx === undefined) break
         out[idx].status = block?.isError ? 'error' : 'done'
-        out[idx].resultText = textOf(block?.content).slice(0, 4000)
+        const resultText = textOf(block?.content)
+        out[idx].resultText = resultText.slice(0, 4000)
+        if (out[idx].name === 'lightrag_query_data' && !block?.isError) {
+          try { out[idx].queryId = JSON.parse(resultText).query_id || null } catch {
+            out[idx].queryId = resultText.match(/查询\s*id[：:]\s*([\w-]+)/i)?.[1] || null
+          }
+        }
         break
       }
       case 'approval/asked': {
@@ -328,7 +337,44 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x')
   const p = url.pathname
   try {
+    if (req.method === 'GET' && p === '/api/auth/check') return await checkPortalSession(req, res)
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
+
+    if (p === '/api/chat/feedback' && req.method === 'GET') {
+      res.setHeader('Cache-Control', 'no-store')
+      const actor = (await portalIdentity(req)).username
+      const sessionId = url.searchParams.get('sessionId') || ''
+      if (!/^[\w-]{1,200}$/.test(sessionId)) return json(res, 400, { ok: false, error: '会话标识无效' })
+      const qs = new URLSearchParams({ session_id: sessionId, actor })
+      const r = await proxy('/kb/feedback/votes?' + qs, req, null)
+      return json(res, r.status, JSON.parse(r.body.toString('utf8')))
+    }
+
+    if (req.method === 'POST' && (p === '/api/chat/feedback' || p === '/api/chat/shares')) {
+      const actor = (await portalIdentity(req)).username
+      let body
+      try { body = JSON.parse((await readBody(req, 8192)).toString('utf8')) } catch (error) {
+        return json(res, error.status || 400, { ok: false, error: '请求体不是合法 JSON' })
+      }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { ok: false, error: '请求体必须是对象' })
+      if (!/^[\w-]{1,200}$/.test(body.sessionId || '')) return json(res, 400, { ok: false, error: '会话标识无效' })
+      const history = await readSessionEvents(body.sessionId)
+      const answer = selectAnswer(history ? projectHistory(history) : [], body.sessionId, body.messageSeq)
+      res.setHeader('Cache-Control', 'no-store')
+      if (p === '/api/chat/shares') return json(res, 201, { ok: true, share: answerShares.create(answer) })
+      if (![null, 'up', 'down'].includes(body.rating)) return json(res, 400, { ok: false, error: '反馈选项无效' })
+      const payload = Buffer.from(JSON.stringify({ actor, session_id: answer.sessionId, message_id: String(answer.messageSeq),
+        query_id: answer.queryId, query: answer.question, answer: answer.answer,
+        rating: body.rating === null ? null : body.rating === 'up' ? 'positive' : 'negative' }))
+      const r = await proxy('/kb/feedback/vote', { method: 'POST' }, payload)
+      return json(res, r.status, JSON.parse(r.body.toString('utf8')))
+    }
+
+    if (req.method === 'GET' && p.startsWith('/api/chat/shares/')) {
+      await portalIdentity(req)
+      res.setHeader('Cache-Control', 'no-store')
+      return json(res, 200, { ok: true, share: answerShares.get(p.slice('/api/chat/shares/'.length)) })
+    }
 
     if (req.method === 'GET' && p === '/api/chat/history') {
       const sessionId = String(url.searchParams.get('sessionId') || '')
@@ -349,6 +395,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, r.status, JSON.parse(r.body.toString('utf8') || '{}'))
     }
 
+    // User identity for answer votes must be established by the adapter above.
+    if (/^\/api\/kb\/feedback\/votes?$/.test(p)) return json(res, 404, { ok: false, error: 'not found' })
     if (p.startsWith('/api/kb/')) {
       const body = ['GET', 'HEAD'].includes(req.method) ? null : await readBody(req)
       const qs = url.search

@@ -12,6 +12,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight } from "@phosphor-icons/react";
 import gsap from "gsap";
 import AgentChat from "./components/AgentChat";
 import { agents } from "./data/agents";
+import { appUrl } from "./lib/app-url";
 
 const ParticleStage = lazy(() => import("./components/ParticleStage"));
 
@@ -305,7 +306,7 @@ function HomePage() {
 }
 
 function App() {
-  return window.location.pathname.startsWith("/chat") ? <AgentChat /> : <HomePage />;
+  return window.location.pathname.startsWith(appUrl("chat")) ? <AgentChat /> : <HomePage />;
 }
 
 export default App;

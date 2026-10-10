@@ -3,6 +3,8 @@
  * 适配层地址走 vite 代理（/api → 127.0.0.1:3088）。
  */
 
+import { appUrl } from "./app-url";
+
 const SESSIONS_KEY = "rag-kb-sessions";
 
 /** ---------------------------------------------------------------- 会话列表（localStorage） */
@@ -63,7 +65,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
   (async () => {
     let response
     try {
-      response = await fetch("/api/chat/stream", {
+      response = await fetch(appUrl("api/chat/stream"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -135,7 +137,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
 /** 拉取会话历史（适配层读会话日志投影成展示事件）。失败返回空数组。 */
 export async function fetchChatHistory(sessionId) {
   try {
-    const res = await fetch(`/api/chat/history?sessionId=${encodeURIComponent(sessionId)}`);
+    const res = await fetch(appUrl(`api/chat/history?sessionId=${encodeURIComponent(sessionId)}`));
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.events) ? data.events : [];
@@ -145,14 +147,14 @@ export async function fetchChatHistory(sessionId) {
 }
 
 export async function fetchPendingApprovals() {
-  const r = await fetch("/api/approvals/pending");
+  const r = await fetch(appUrl("api/approvals/pending"));
   if (!r.ok) return [];
   const data = await r.json();
   return Array.isArray(data.pending) ? data.pending : [];
 }
 
 export async function decideApproval(id, decision) {
-  const r = await fetch(`/api/approvals/${encodeURIComponent(id)}/decision`, {
+  const r = await fetch(appUrl(`api/approvals/${encodeURIComponent(id)}/decision`), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ decision }),
@@ -176,11 +178,43 @@ export async function submitFeedback(body) {
     issue_type: rating === "negative" && !body.note ? "other" : body.issue_type,
   };
   delete payload.question;
-  const r = await fetch("/api/kb/feedback", {
+  const r = await fetch(appUrl("api/kb/feedback"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!r.ok) throw new Error("反馈提交失败（HTTP " + r.status + "）");
   return r.json();
+}
+
+async function answerRequest(path, options = {}) {
+  const response = await fetch(appUrl(path), { cache: 'no-store', ...options });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.ok !== true) throw new Error(body.error || `操作失败（HTTP ${response.status}）`);
+  return body;
+}
+
+export async function fetchAnswerVotes(sessionId) {
+  const body = await answerRequest(`api/chat/feedback?sessionId=${encodeURIComponent(sessionId)}`);
+  return Object.fromEntries(body.votes.map(vote => [vote.message_id, vote.rating === 'negative' ? 'down' : 'up']));
+}
+
+export async function voteOnAnswer({ sessionId, messageSeq, rating }) {
+  const body = await answerRequest('api/chat/feedback', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId, messageSeq, rating }),
+  });
+  return body.rating === 'negative' ? 'down' : body.rating === 'positive' ? 'up' : null;
+}
+
+export async function shareAnswer({ sessionId, messageSeq }) {
+  const body = await answerRequest('api/chat/shares', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId, messageSeq }),
+  });
+  return new URL(appUrl(`chat?share=${body.share.id}`), window.location.origin).href;
+}
+
+export async function fetchSharedAnswer(id) {
+  return (await answerRequest(`api/chat/shares/${encodeURIComponent(id)}`)).share;
 }
