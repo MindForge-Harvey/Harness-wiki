@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test:chat": "node --test dev/contract-chat-progress.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
