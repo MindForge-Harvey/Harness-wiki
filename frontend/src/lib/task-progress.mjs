@@ -71,12 +71,28 @@ function outcome(card) {
   }
 }
 
+function knowledgeReferences(card) {
+  const files = [];
+  for (const call of card.calls || [card]) {
+    if (call.name !== 'lightrag_query_data' || call.status !== 'done' || outcome(call).status !== 'done') continue;
+    const data = call.resultJson?.data || call.resultJson;
+    const references = Array.isArray(data?.references) ? data.references : [];
+    const rendered = String(call.resultText || '').match(/(?:^|\n)引用[：:]\s*([^\n]+)/)?.[1];
+    for (const reference of [...references, ...(rendered ? rendered.split('、') : [])]) {
+      const file = typeof reference === 'string' ? reference : reference?.file_path || reference?.file;
+      if (typeof file === 'string' && file.trim()) files.push(file.trim());
+    }
+  }
+  return [...new Set(files)];
+}
+
 export function taskProgress(card) {
   const results = (card.calls || [card]).map(outcome);
   return {
     title: toolLabel(card.name),
     status: ['running', 'error', 'warning', 'pending', 'done'].find(status => results.some(r => r.status === status)),
     summaries: [...new Set(results.map(r => r.summary))],
+    references: knowledgeReferences(card),
   };
 }
 

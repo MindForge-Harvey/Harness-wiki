@@ -49,6 +49,8 @@ function getHarness() {
     const harness = new DeepSeekHarness({
       profile: PROFILE,
       cwd: WORKSPACE_CWD,
+      // backend/.env 由适配层加载并透传；避免 CLI 再从该目录读取启动变量。
+      processCwd: WORKSPACE_CWD,
       dshHome: DSH_HOME,
       // 模型路由与 key 均来自 backend/.env（provider 对应 dsh/home/settings.yaml 的 providers 项）
       provider: process.env.LLM_PROVIDER || 'qwen-token-plan',

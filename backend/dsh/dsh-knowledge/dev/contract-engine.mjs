@@ -5,10 +5,73 @@
  * 假引擎与真实引擎行为漂移，应先改这里再改上层。
  */
 import { makeRunner, ok, eq, throws } from './harness.mjs'
+import http from 'node:http'
 
 const { check, finish } = makeRunner('contract-engine')
 const { createFakeEngine } = await import('../lib/fake-engine.js')
-const { isPipelineBusy, flattenGraphArrays, engineStatusToRegistry, fileSetOf, clipQueryData } = await import('../lib/engine-port.js')
+const { createLightRagEngine, isPipelineBusy, flattenGraphArrays, engineStatusToRegistry, fileSetOf, clipQueryData } = await import('../lib/engine-port.js')
+
+// 真实 HTTP 边界：验证鉴权不会在 GET、JSON、文件上传或流式请求中丢失。
+async function withHttpEngine(apiKey, run) {
+  const previousKey = process.env.LIGHTRAG_API_KEY
+  if (apiKey) process.env.LIGHTRAG_API_KEY = apiKey
+  else delete process.env.LIGHTRAG_API_KEY
+  const requests = []
+  const server = http.createServer(async (req, res) => {
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
+    requests.push({ path: req.url, method: req.method, headers: req.headers, body: Buffer.concat(chunks).toString() })
+    if (apiKey && req.headers['x-api-key'] !== apiKey) {
+      res.writeHead(403, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ detail: 'API Key required' }))
+    }
+    if (req.url === '/query/stream') {
+      res.writeHead(200, { 'content-type': 'application/x-ndjson' })
+      return res.end(JSON.stringify({ response: '已检索' }) + '\n' + JSON.stringify({ references: ['制度.md'] }) + '\n')
+    }
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ status_counts: { processed: 1 }, data: { chunks: [{ content: '制度依据' }] }, status: 'success' }))
+  })
+  try {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+    await run(createLightRagEngine(`http://127.0.0.1:${server.address().port}`), requests)
+  } finally {
+    if (previousKey === undefined) delete process.env.LIGHTRAG_API_KEY
+    else process.env.LIGHTRAG_API_KEY = previousKey
+    server.closeAllConnections()
+    await new Promise(resolve => server.close(resolve))
+  }
+}
+
+await check('API Key 鉴权：GET、JSON、multipart 与流式请求均可通过受保护引擎', async () => {
+  await withHttpEngine('contract-only-key', async (engine, requests) => {
+    eq((await engine.statusCounts()).status_counts.processed, 1)
+    eq((await engine.queryData({ query: '报销要求' })).data.chunks[0].content, '制度依据')
+    await engine.uploadFile('fixture.md', Buffer.from('上传资料'))
+    const lines = []
+    await engine.queryStream({ query: '报销要求' }, line => lines.push(line))
+    eq(lines.length, 2)
+    eq(lines[1].references[0], '制度.md')
+    eq(requests.length, 4)
+    eq(requests[0].method, 'GET')
+    eq(requests[1].headers['content-type'], 'application/json')
+    eq(JSON.parse(requests[1].body).query, '报销要求')
+    ok(requests[2].headers['content-type'].startsWith('multipart/form-data; boundary='), '上传必须保留自动生成的 multipart 边界')
+    ok(requests[2].body.includes('上传资料'), '文件内容必须保留')
+    eq(requests[3].headers['content-type'], 'application/json')
+    ok(requests.every(request => request.headers['x-api-key'] === 'contract-only-key'))
+  })
+})
+
+await check('未配置 API Key：普通与流式请求继续兼容无鉴权的本地引擎', async () => {
+  await withHttpEngine(null, async (engine, requests) => {
+    await engine.statusCounts()
+    const lines = []
+    await engine.queryStream({ query: '本地检索' }, line => lines.push(line))
+    eq(lines.length, 2)
+    ok(requests.every(request => request.headers['x-api-key'] === undefined), '未配置时不发送空密钥')
+  })
+})
 
 // ---------------------------------------------------------------- 怪癖 1：同 source 重插 409
 

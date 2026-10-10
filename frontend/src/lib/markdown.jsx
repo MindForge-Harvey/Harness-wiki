@@ -12,6 +12,11 @@ export function Markdown({ children, className = "" }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          p: ({ node, children, ...props }) => {
+            const content = node.children.filter(child => child.type !== "text" || child.value.trim());
+            const sectionTitle = content.length === 1 && content[0].type === "element" && content[0].tagName === "strong";
+            return <p {...props} className={sectionTitle ? "md-section-title" : undefined}>{children}</p>;
+          },
           table: (props) => (
             <div className="md-table-wrap">
               <table {...props} />

@@ -45,6 +45,8 @@ export function flattenGraphArrays(value) {
 /** 创建 LightRAG HTTP 适配器（v1.5.6 契约）。 */
 export function createLightRagEngine(baseUrl) {
   const base = String(baseUrl || process.env.LIGHTRAG_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '')
+  const apiKey = process.env.LIGHTRAG_API_KEY || ''
+  const authHeaders = apiKey ? { 'X-API-Key': apiKey } : {}
 
   async function request(pathname, opts = {}) {
     const { method = 'GET', jsonBody, formBody, signal, timeoutMs = 120000 } = opts
@@ -55,7 +57,7 @@ export function createLightRagEngine(baseUrl) {
       else signal.addEventListener('abort', () => controller.abort(), { once: true })
     }
     let body
-    const headers = {}
+    const headers = { ...authHeaders }
     if (formBody !== undefined) body = formBody
     else if (jsonBody !== undefined) {
       body = JSON.stringify(jsonBody)
@@ -98,7 +100,7 @@ export function createLightRagEngine(baseUrl) {
     try {
       const resp = await fetch(base + '/query/stream', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { ...authHeaders, 'content-type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       })

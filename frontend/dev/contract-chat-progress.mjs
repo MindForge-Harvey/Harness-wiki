@@ -16,6 +16,18 @@ test('knowledge evidence includes entity-only results without declaring a miss',
   assert.match(taskProgress(card).summaries[0], /1 个关联实体/);
 });
 
+test('source files retain real names across rendered, structured and grouped retrievals', () => {
+  const calls = [
+    tool('lightrag_query_data', { resultText: '引用：差旅管理办法.docx、财务,报销细则.xlsx\n查询 id：q-test' }),
+    tool('lightrag_query_data', { resultJson: { references: ['差旅管理办法.docx', '发票说明.pdf'] } }),
+    tool('lightrag_query_data', { resultJson: { data: { references: [{ file_path: '补充说明.pdf' }] } } }),
+    tool('lightrag_query_data', { status: 'error', resultText: '引用：失败结果.pdf' }),
+  ];
+  assert.deepEqual(taskProgress({ ...calls[0], calls }).references,
+    ['差旅管理办法.docx', '财务,报销细则.xlsx', '发票说明.pdf', '补充说明.pdf']);
+  assert.deepEqual(taskProgress(tool('lightrag_query_data', { resultJson: { entities: [{ entity_name: '报销' }] } })).references, []);
+});
+
 test('async document submissions never claim completed ingestion or replacement', () => {
   for (const name of ['kb_ingest', 'kb_update']) {
     const card = tool(name, { resultJson: { ok: true, intent_id: 'intent-test', document: { status: 'pending' } } });
