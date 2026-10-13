@@ -19,6 +19,7 @@ import {
   Microphone,
   ListChecks,
   FileArrowUp,
+  Paperclip,
   SidebarSimple,
   Plus,
   ShareNetwork,
@@ -32,13 +33,18 @@ import {
 } from "@phosphor-icons/react";
 import { toolLabel, taskProgress, visibleTool, groupTaskMessages } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
-import { appBase, appUrl } from "../lib/app-url";
+import { appUrl } from "../lib/app-url";
 import { copyText } from "../lib/copy-text.mjs";
+import { useAttachments } from "../lib/use-attachments";
+import { hasTransferFiles, transferFiles } from "../lib/attachments.mjs";
+import { AttachmentList, AttachmentPreview } from "./ChatAttachments";
 import assistantHead from "../assets/assistant-head.webp";
 import { agents } from "../data/agents";
 import {
   loadSessions,
-  upsertSession,
+  clearSessions,
+  fetchIdentity,
+  setActiveAccount,
   removeSession,
   streamChat,
   fetchChatHistory,
@@ -48,7 +54,6 @@ import {
   voteOnAnswer,
   shareAnswer as createAnswerShare,
   fetchSharedAnswer,
-  renameSession,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
 
@@ -483,7 +488,7 @@ function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = fal
   );
 }
 
-function UserMessage({ message }) {
+function UserMessage({ message, onPreview }) {
   return (
     <article className="chat-message-row is-user">
       <div className="chat-message-stack">
@@ -492,6 +497,7 @@ function UserMessage({ message }) {
           <time>{message.time}</time>
         </div>
         <div className="chat-user-content">{message.content}</div>
+        {message.attachments?.length ? <AttachmentList items={message.attachments} onPreview={onPreview} sent /> : null}
       </div>
       <span className="chat-user-avatar" aria-hidden="true">
         <UserCircle size={26} weight="duotone" />
@@ -568,10 +574,37 @@ function clockTime() {
 function BrandMark() {
   return (
     <span className="chat-brand-symbol" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-      <i />
+      <svg className="chat-brand-galaxy" viewBox="0 0 40 40" fill="none">
+        <circle className="chat-brand-halo" cx="20" cy="20" r="7" />
+        <g className="chat-brand-orbit is-outer" transform="translate(20 20) rotate(-28)">
+          <ellipse rx="17" ry="9" />
+          <g transform="scale(1 .5294)">
+            <g className="chat-brand-orbit-spin">
+              <circle className="chat-brand-star" cx="17" r="1.9" />
+            </g>
+          </g>
+        </g>
+        <g className="chat-brand-orbit is-middle" transform="translate(20 20) rotate(48)">
+          <ellipse rx="15.5" ry="7.8" />
+          <g transform="scale(1 .5032)">
+            <g className="chat-brand-orbit-spin">
+              <path className="chat-brand-star" d="m15.5-2.6.8 1.8L18.1 0l-1.8.8-.8 1.8-.8-1.8L12.9 0l1.8-.8Z" />
+            </g>
+          </g>
+        </g>
+        <g className="chat-brand-orbit is-inner" transform="translate(20 20) rotate(110)">
+          <ellipse rx="13" ry="6.4" />
+          <g transform="scale(1 .4923)">
+            <g className="chat-brand-orbit-spin">
+              <circle className="chat-brand-star" cx="13" r="2.2" />
+            </g>
+          </g>
+        </g>
+        <circle className="chat-brand-core" cx="20" cy="20" r="3.7" />
+        <circle className="chat-brand-core-light" cx="18.9" cy="18.8" r="1.1" />
+        <path className="chat-brand-twinkle" d="m5 3 .6 1.4L7 5l-1.4.6L5 7l-.6-1.4L3 5l1.4-.6Z" />
+        <path className="chat-brand-twinkle is-distant" d="m34 32 .5 1.5 1.5.5-1.5.5L34 36l-.5-1.5-1.5-.5 1.5-.5Z" />
+      </svg>
     </span>
   );
 }
@@ -579,7 +612,10 @@ function BrandMark() {
 /* ---------------------------------------------------------------- 主组件 */
 
 export default function AgentChat() {
-  const [sessions, setSessions] = useState(loadSessions);
+  const [sessions, setSessions] = useState([]);
+  const [user, setUser] = useState(null);
+  const accountRef = useRef(null);
+  const accountEpoch = useRef(0);
   const [sharedId, setSharedId] = useState(() => new URLSearchParams(window.location.search).get("share"));
   const [sharedLoading, setSharedLoading] = useState(false);
   const [pageError, setPageError] = useState("");
@@ -592,7 +628,11 @@ export default function AgentChat() {
     setDraft(base + (base && !/\s$/.test(base) ? "\n" : "") + text);
   });
   const [historyQuery, setHistoryQuery] = useState("");
-  const [attachment, setAttachment] = useState(null);
+  const uploads = useAttachments();
+  const { attachments } = uploads;
+  const [preview, setPreview] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const dragDepthRef = useRef(0);
   const [isThinking, setIsThinking] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
@@ -609,8 +649,8 @@ export default function AgentChat() {
   const sessionSeqRef = useRef(0);
   const historyRequestRef = useRef(0);
 
-  const activity = isThinking ? "working" : attachment ? "reading" : "waiting";
-  const activityLabel = isThinking ? activityText || "正在执行" : attachment ? "附件已准备" : "在线，可以开始";
+  const activity = isThinking ? "working" : attachments.length ? "reading" : "waiting";
+  const activityLabel = isThinking ? activityText || "正在执行" : attachments.length ? "附件已准备" : "在线，可以开始";
   const hasMessages = messages.length > 0;
 
   const quickPrompts = [
@@ -642,7 +682,7 @@ export default function AgentChat() {
   }, []);
 
   useEffect(() => {
-    if (!sharedId) return;
+    if (!sharedId || !user) return;
     let cancelled = false;
     setSharedLoading(true);
     setPageError("");
@@ -655,7 +695,7 @@ export default function AgentChat() {
     }).catch(error => { if (!cancelled) setPageError(error.message); })
       .finally(() => { if (!cancelled) setSharedLoading(false); });
     return () => { cancelled = true; };
-  }, [sharedId]);
+  }, [sharedId, user?.uid]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -695,6 +735,88 @@ export default function AgentChat() {
   const timelineCallRef = useRef(new Map());
   const timelineApprovalRef = useRef(new Map());
 
+  useEffect(() => {
+    let disposed = false;
+    let checking = false;
+    const clearAccount = () => {
+      accountEpoch.current += 1;
+      historyRequestRef.current += 1;
+      abortRef.current?.();
+      abortRef.current = null;
+      voice.cancel();
+      accountRef.current = null;
+      setActiveAccount(null);
+      setUser(null);
+      setSessions([]);
+      setSessionId(null);
+      setMessages([]);
+      setDraft('');
+      uploads.clear();
+      setPreview(null);
+      setTimeline([]);
+      setIsThinking(false);
+      setActivityText('');
+      setHistoryQuery('');
+      pendingUserTextRef.current = null;
+      currentUserTextRef.current = null;
+      currentQueryIdRef.current = null;
+      timelineCallRef.current.clear();
+      timelineApprovalRef.current.clear();
+    };
+    const check = async () => {
+      if (disposed || checking) return;
+      checking = true;
+      const checkEpoch = accountEpoch.current;
+      try {
+        const next = await fetchIdentity();
+        if (disposed || checkEpoch !== accountEpoch.current) return;
+        if (next?.uid !== accountRef.current || !next) {
+          clearAccount();
+          if (!next) { setPageError('请登录后开始对话'); return; }
+          accountRef.current = next.uid;
+          setActiveAccount(next.uid);
+          setUser(next);
+          setPageError('');
+          const epoch = accountEpoch.current;
+          try {
+            const list = await loadSessions();
+            if (!disposed && epoch === accountEpoch.current) setSessions(list);
+          } catch (error) { if (!disposed && epoch === accountEpoch.current) setPageError(error.message); }
+        }
+      } catch (error) {
+        if (!disposed && checkEpoch === accountEpoch.current) { clearAccount(); setPageError(error.message); }
+      } finally { checking = false; }
+    };
+    const invalidate = () => { clearAccount(); setPageError('正在更新登录状态…'); void check(); };
+    const visible = () => { if (document.visibilityState === 'visible') void check(); };
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('agent-showcase-auth') : null;
+    if (channel) channel.onmessage = invalidate;
+    window.addEventListener('focus', check);
+    window.addEventListener('harness-auth-invalid', invalidate);
+    document.addEventListener('visibilitychange', visible);
+    const timer = window.setInterval(check, 10000);
+    void check();
+    return () => {
+      disposed = true;
+      abortRef.current?.();
+      setActiveAccount(null);
+      window.clearInterval(timer);
+      channel?.close();
+      window.removeEventListener('focus', check);
+      window.removeEventListener('harness-auth-invalid', invalidate);
+      document.removeEventListener('visibilitychange', visible);
+    };
+  }, []);
+
+  const refreshSessions = async () => {
+    const epoch = accountEpoch.current;
+    try {
+      const list = await loadSessions();
+      if (epoch === accountEpoch.current) setSessions(list);
+    } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
+  };
+
+
   /** 追加一条过程项（tool/approval/error），返回条目 id 供后续更新状态。 */
   const pushTimelineItem = useCallback((item) => {
     const id = `tl-${++timelineIdRef.current}`;
@@ -704,12 +826,14 @@ export default function AgentChat() {
 
   /** 审批决定：用 callId 匹配审批桥的 pending 记录再提交。 */
   const handleDecide = useCallback(async (card, decision) => {
+    const epoch = accountEpoch.current;
     const pending = await fetchPendingApprovals();
     const match =
       pending.find((p) => p.callId && card.callId && p.callId === card.callId) ||
       pending.find((p) => p.toolName === card.toolName);
     if (!match) throw new Error("审批请求已失效");
     await decideApproval(match.id, decision);
+    if (epoch !== accountEpoch.current) return;
     setMessages((items) =>
       items.map((m) => (m.role === "approval" && m.approvalKey === card.approvalKey ? { ...m, status: decision === "allowed-once" ? "allowed" : "rejected" } : m)),
     );
@@ -723,7 +847,9 @@ export default function AgentChat() {
 
   /** The server binds votes to the persisted answer and authenticated user. */
   const handleFeedback = useCallback(async (message, rating) => {
+    const epoch = accountEpoch.current;
     const savedRating = await voteOnAnswer({ sessionId, messageSeq: message.seq, rating });
+    if (epoch !== accountEpoch.current) return;
     setMessages(items => items.map(item => item.id === message.id ? { ...item, feedback: savedRating } : item));
   }, [sessionId]);
 
@@ -902,11 +1028,14 @@ export default function AgentChat() {
 
   const sendMessage = (preset) => {
     const typedContent = (typeof preset === "string" ? preset : draft).trim();
-    if (!typedContent && !attachment) return;
-    if (isThinking || voice.active) return;
+    if (!typedContent && !attachments.length) return;
+    if (isThinking || voice.active || uploads.blocked) return;
+    if (!accountRef.current) { setPageError("请登录后开始对话"); return; }
+    const epoch = accountEpoch.current;
+    const guarded = handlers => Object.fromEntries(Object.entries(handlers).map(([name, handler]) => [name, (...args) => { if (epoch === accountEpoch.current) handler(...args); }]));
     historyRequestRef.current += 1;
 
-    const content = typedContent || `请处理附件：${attachment.name}`;
+    const content = typedContent || `请处理${attachments.length > 1 ? "这些" : ""}附件：${attachments.map(item => item.name).join("、")}`;
     const timestamp = Date.now();
 
     currentUserTextRef.current = content;
@@ -916,29 +1045,31 @@ export default function AgentChat() {
 
     setMessages((items) => [
       ...items,
-      { id: `user-${timestamp}`, role: "user", time: clockTime(), content },
+      { id: `user-${timestamp}`, role: "user", time: clockTime(), content, attachments },
     ]);
     setDraft("");
-    setAttachment(null);
+    uploads.clear();
     setIsThinking(true);
     setTimeline([]);
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
 
-    const attachmentPayload = attachment
-      ? [{ name: attachment.name, data: attachment.data }]
+    const attachmentPayload = attachments.length
+      ? attachments.map(({ name, data, mimeType }) => ({ name, data, mimeType }))
       : undefined;
 
     abortRef.current = streamChat(
       { sessionId, message: content, attachments: attachmentPayload },
-      {
-        onStart: (id) => {
+      guarded({
+        onStart: (id, savedAttachments) => {
           setSessionId(id);
-          setSessions(upsertSession(id, content));
+          if (savedAttachments?.length) setMessages(items => items.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item));
+          void refreshSessions();
         },
-        onRenamed: ({ from, to }) => {
+        onRenamed: ({ from, to, attachments: savedAttachments }) => {
           setSessionId(to);
-          setSessions(renameSession(from, to));
+          if (savedAttachments?.length) setMessages(items => items.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item));
+          void refreshSessions();
           setMessages((items) => [
             ...items,
             {
@@ -950,7 +1081,7 @@ export default function AgentChat() {
           ]);
         },
         onNotification: handleNotification,
-        onDone: () => resetTurnState(),
+        onDone: () => { resetTurnState(); void refreshSessions(); },
         onError: (message) => {
           resetTurnState();
           setMessages((items) => [
@@ -964,7 +1095,7 @@ export default function AgentChat() {
             },
           ]);
         },
-      },
+      }),
     );
   };
 
@@ -989,7 +1120,8 @@ export default function AgentChat() {
     setSessionId(null);
     setMessages([]);
     setDraft("");
-    setAttachment(null);
+    uploads.clear();
+    setPreview(null);
     setTimeline([]);
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
@@ -1013,7 +1145,8 @@ export default function AgentChat() {
     setSessionId(item.sessionId);
     setMessages([]);
     setDraft("");
-    setAttachment(null);
+    uploads.clear();
+    setPreview(null);
     setTimeline([]);
     setHistoryOpen(false);
     setPageError("");
@@ -1049,7 +1182,7 @@ export default function AgentChat() {
         const time = typeof e.time === "number" ? wallTime(e.time) : clockTime();
         switch (e.kind) {
           case "user":
-            return { id: `h-u-${e.seq}`, role: "user", time, content: e.text };
+            return { id: `h-u-${e.seq}`, role: "user", time, content: e.text, attachments: e.attachments };
           case "assistant":
             return { id: `h-a-${e.seq}`, seq: e.seq, role: "assistant", time, content: e.text, feedback: votes[e.seq] || null, instant: true };
           case "thinking":
@@ -1102,9 +1235,14 @@ export default function AgentChat() {
     setTimeline(restoredTimeline);
   };
 
-  const deleteSession = (item) => {
-    setSessions(removeSession(item.sessionId));
-    if (item.sessionId === sessionId) startNewChat();
+  const deleteSession = async (item) => {
+    const epoch = accountEpoch.current;
+    try {
+      const list = await removeSession(item.sessionId);
+      if (epoch !== accountEpoch.current) return;
+      setSessions(list);
+      if (item.sessionId === sessionId) startNewChat();
+    } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
   };
 
   const handleKeyDown = (event) => {
@@ -1115,33 +1253,69 @@ export default function AgentChat() {
     }
   };
 
-  const readAttachment = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAttachment({ name: file.name, data: String(reader.result || "").split(",")[1] || "" });
-    reader.readAsDataURL(file);
+  const addFiles = files => {
+    uploads.add(files);
+    composerInputRef.current?.focus();
+  };
+
+  const handlePaste = event => {
+    const files = transferFiles(event.clipboardData);
+    if (!files.length) {
+      if (/^file:\/\//m.test(event.clipboardData.getData("text/uri-list"))) {
+        event.preventDefault();
+        uploads.reportError("浏览器无法读取剪贴板中的本地文件路径，请将文件拖入，或点击附件按钮选择。");
+      }
+      return;
+    }
+    event.preventDefault();
+    addFiles(files);
+    // Preserve text included with files, while ordinary text paste keeps native behavior.
+    const text = event.clipboardData.getData("text/plain");
+    if (text) {
+      voice.cancel();
+      const input = composerInputRef.current;
+      const start = input.selectionStart, end = input.selectionEnd;
+      setDraft(current => current.slice(0, start) + text + current.slice(end));
+      requestAnimationFrame(() => input.setSelectionRange(start + text.length, start + text.length));
+    }
   };
 
   const composer = (
-    <footer className="chat-composer-shell" aria-label="消息输入">
+    <footer className="chat-composer-shell" aria-label="消息输入" onPaste={handlePaste}
+      onDragEnter={event => {
+        if (!hasTransferFiles(event.dataTransfer)) return;
+        event.preventDefault();
+        dragDepthRef.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={event => { if (hasTransferFiles(event.dataTransfer)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; } }}
+      onDragLeave={event => {
+        event.preventDefault();
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+        if (!dragDepthRef.current) setDragging(false);
+      }}
+      onDrop={event => {
+        if (!hasTransferFiles(event.dataTransfer)) return;
+        event.preventDefault();
+        dragDepthRef.current = 0;
+        setDragging(false);
+        addFiles(transferFiles(event.dataTransfer));
+      }}>
       <div
-        className={`chat-composer${attachment ? " has-attachment" : ""}${voice.active ? " is-recording" : ""}`}
+        className={`chat-composer${attachments.length ? " has-attachment" : ""}${dragging ? " is-dragging" : ""}${voice.active ? " is-recording" : ""}`}
       >
         <input
           ref={fileInputRef}
           className="chat-file-input"
           type="file"
-          onChange={(event) => readAttachment(event.target.files?.[0])}
+          multiple
+          onChange={event => { addFiles(Array.from(event.target.files || [])); event.target.value = ""; }}
         />
-        {attachment ? (
-          <div className="chat-attachment-chip">
-            <span className="chat-attachment-icon" aria-hidden="true">
-              <FileText size={15} weight="duotone" />
-            </span>
-            <span>{attachment.name}</span>
-            <button type="button" aria-label={`移除 ${attachment.name}`} onClick={() => setAttachment(null)}>
-              <X size={13} />
-            </button>
+        {dragging ? <div className="chat-drop-overlay"><FileArrowUp size={32} weight="duotone" /><strong>松开即可添加附件</strong><span>图片、文档和其他文件 · 最多 8 个</span></div> : null}
+        {attachments.length ? (
+          <div className="chat-attachment-tray">
+            <AttachmentList items={attachments} onPreview={setPreview} onRemove={uploads.remove} onRetry={uploads.retry} />
+            {attachments.length > 1 ? <button type="button" className="chat-attachments-clear" aria-label="全部移除附件" title="全部移除附件" onClick={uploads.clear}><X size={14} /><span>全部移除</span></button> : null}
           </div>
         ) : null}
         <textarea
@@ -1156,18 +1330,18 @@ export default function AgentChat() {
         />
         <div className="chat-composer-controls">
           <button
-            className={`chat-composer-tool is-add${attachment ? " is-active" : ""}`}
+            className={`chat-composer-tool is-add${attachments.length ? " is-active" : ""}`}
             type="button"
             aria-label="添加附件"
-            title="添加附件（在对话中入库）"
+            title="添加图片或文件，也可直接粘贴或拖入"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Plus size={20} weight="regular" />
+            <Paperclip size={20} weight="regular" />
           </button>
           <span className="chat-composer-hint" id="chat-composer-hint" role="status">
             {voice.active ? (
               <><span className="chat-voice-wave" aria-hidden="true"><i /><i /><i /><i /></span>{voice.status === "starting" ? "正在连接麦克风…" : voice.status === "stopping" ? "正在整理语音…" : "正在聆听，点击麦克风结束"}</>
-            ) : "Shift + Enter 换行"}
+            ) : uploads.blocked ? "附件正在准备，请等待或移除失败项" : <><span className="chat-upload-hint">{attachments.length ? `${attachments.length} 个附件` : "粘贴或拖入附件"}<span aria-hidden="true"> · </span></span>Shift + Enter 换行</>}
           </span>
           <button
             className={`chat-composer-tool is-voice${voice.active ? " is-listening" : ""}`}
@@ -1186,7 +1360,7 @@ export default function AgentChat() {
           <button
             className={`chat-send-button${isThinking ? " is-stopping" : ""}`}
             type="button"
-            disabled={voice.active || (!isThinking && !draft.trim() && !attachment)}
+            disabled={!user || voice.active || (!isThinking && (uploads.blocked || (!draft.trim() && !attachments.length)))}
             aria-label={isThinking ? "停止接收" : "发送消息"}
             title={isThinking ? "停止接收" : "发送消息"}
             onClick={isThinking ? stopResponse : () => sendMessage()}
@@ -1195,12 +1369,14 @@ export default function AgentChat() {
           </button>
         </div>
       </div>
+      {uploads.error ? <p className="chat-upload-error" role="alert">{uploads.error}<button type="button" aria-label="关闭附件提示" onClick={uploads.dismissError}><X size={14} /></button></p> : null}
       {voice.error ? <p className="chat-voice-error" role="alert">{voice.error}</p> : null}
     </footer>
   );
 
   return (
     <main className={`chat-page${isThinking ? " is-working" : ""}${messages.length ? " has-conversation" : " is-empty"}`}>
+      {preview ? <AttachmentPreview key={preview.id} item={preview} onClose={() => setPreview(null)} /> : null}
       <div className="chat-workspace">
         <button
           className={`chat-drawer-backdrop${historyOpen || plannerOpen ? " is-visible" : ""}`}
@@ -1214,11 +1390,11 @@ export default function AgentChat() {
 
         <aside className={`chat-history${historyOpen ? " is-open" : ""}`} aria-label="历史对话">
           <div className="chat-sidebar-home">
-            <a className="chat-home-link" href={appBase} aria-label="返回知识库助手首页">
+            <a className="chat-home-link" href="/?agent=knowledge-harness" aria-label="返回智能体首页">
               <BrandMark />
               <span className="chat-home-copy">
-                <strong>知识库助手</strong>
-                <small>知识问答工作台</small>
+                <strong>智能体首页</strong>
+                <small>返回门户</small>
               </span>
             </a>
             <button
@@ -1231,8 +1407,8 @@ export default function AgentChat() {
             </button>
           </div>
 
-          <nav className="chat-sidebar-tools" aria-label="工作区入口">
-            <button type="button" aria-label="新对话" onClick={startNewChat}>
+          <nav className="chat-sidebar-tools" aria-label="工作区入口" data-active={capabilityOpen ? "capabilities" : attachments.length ? "upload" : !hasMessages && !sharedId ? "new" : "none"}>
+            <button type="button" aria-label="新对话" aria-current={!hasMessages && !sharedId && !capabilityOpen && !attachments.length ? "page" : undefined} onClick={startNewChat}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <Plus size={18} />
               </span>
@@ -1241,7 +1417,7 @@ export default function AgentChat() {
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" aria-label="能力中心" onClick={() => setCapabilityOpen(true)}>
+            <button type="button" aria-label="能力中心" aria-expanded={capabilityOpen} onClick={() => setCapabilityOpen(true)}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <CirclesThreePlus size={18} />
               </span>
@@ -1250,7 +1426,7 @@ export default function AgentChat() {
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" aria-label="上传文档" onClick={() => { setHistoryOpen(false); fileInputRef.current?.click(); }}>
+            <button type="button" aria-label="上传文档" aria-pressed={!capabilityOpen && attachments.length > 0} onClick={() => { setHistoryOpen(false); fileInputRef.current?.click(); }}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <FileArrowUp size={18} />
               </span>
@@ -1278,6 +1454,7 @@ export default function AgentChat() {
             {visibleHistory.map((item) => (
               <button
                 className={item.sessionId === sessionId ? "is-active" : ""}
+                aria-current={item.sessionId === sessionId ? "page" : undefined}
                 type="button"
                 key={item.sessionId}
                 onClick={() => resumeSession(item)}
@@ -1304,16 +1481,20 @@ export default function AgentChat() {
           <div className="chat-history-footer">
             <span>
               <FileText size={16} weight="duotone" aria-hidden="true" />
-              会话保存在本机
+              {user ? `${user.username} 的对话` : "个人对话"}
             </span>
             <button
               type="button"
               aria-label="清理历史对话"
               title="清理历史对话"
-              onClick={() => {
-                for (const item of sessions) removeSession(item.sessionId);
-                setSessions([]);
-                startNewChat();
+              onClick={async () => {
+                const epoch = accountEpoch.current;
+                try {
+                  await clearSessions();
+                  if (epoch !== accountEpoch.current) return;
+                  setSessions([]);
+                  startNewChat();
+                } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
               }}
             >
               <Trash size={16} />
@@ -1377,7 +1558,7 @@ export default function AgentChat() {
                   <span>今天</span>
                 </div>
                 {groupTaskMessages(messages).map((message) => {
-                  if (message.role === "user") return <UserMessage key={message.id} message={message} />;
+                  if (message.role === "user") return <UserMessage key={message.id} message={message} onPreview={setPreview} />;
                   if (message.role === "tool") return <ToolCard key={message.id} card={message} />;
                   if (message.role === "approval") {
                     return <ApprovalCard key={message.id} card={message} onDecide={handleDecide} />;

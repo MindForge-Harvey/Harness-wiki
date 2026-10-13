@@ -1,54 +1,45 @@
 /**
- * 适配层客户端：SSE 聊天、审批决定、kb 反馈，以及 localStorage 会话列表。
+ * 适配层客户端：SSE 聊天、审批决定、kb 反馈，以及按账号保存的服务端会话列表。
  * 适配层地址走 vite 代理（/api → 127.0.0.1:3088）。
  */
 
 import { appUrl } from "./app-url";
 
-const SESSIONS_KEY = "rag-kb-sessions";
-
-/** ---------------------------------------------------------------- 会话列表（localStorage） */
-
-export function loadSessions() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]");
-    return Array.isArray(raw) ? raw : [];
-  } catch {
-    return [];
-  }
+let activeAccount = null;
+export const setActiveAccount = uid => { activeAccount = uid; };
+export async function fetchIdentity() {
+  const response = await fetch('/api/auth/me', { cache: 'no-store' });
+  if (!response.ok) throw new Error('登录状态检查失败');
+  const data = await response.json();
+  return data.authenticated && data.user?.uid ? data.user : null;
 }
 
-function saveSessions(list) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(list.slice(0, 50)));
+async function personalFetch(url, options = {}) {
+  const uid = activeAccount;
+  if (!uid) throw new Error('请先登录');
+  const response = await fetch(url, { ...options, cache: 'no-store', headers: {
+    ...options.headers, 'X-Portal-User': uid, 'X-Harness-Request': '1',
+  } });
+  if (uid !== activeAccount) throw new DOMException('登录账号已切换', 'AbortError');
+  if (response.status === 401) window.dispatchEvent(new Event('harness-auth-invalid'));
+  return response;
 }
 
-/** 记录/刷新一个会话（title 取首条用户消息）。 */
-export function upsertSession(sessionId, title) {
-  const list = loadSessions().filter((s) => s.sessionId !== sessionId);
-  const existing = loadSessions().find((s) => s.sessionId === sessionId);
-  list.unshift({
-    sessionId,
-    title: title || existing?.title || "新对话",
-    time: Date.now(),
-  });
-  saveSessions(list);
-  return list;
+export async function loadSessions() {
+  const response = await personalFetch(appUrl('api/chat/sessions'));
+  if (!response.ok) throw new Error('历史对话加载失败');
+  return (await response.json()).sessions;
 }
-
-export function removeSession(sessionId) {
-  saveSessions(loadSessions().filter((s) => s.sessionId !== sessionId));
+export const upsertSession = () => loadSessions();
+export const renameSession = () => loadSessions();
+export async function removeSession(id) {
+  const response = await personalFetch(appUrl('api/chat/sessions/' + encodeURIComponent(id)), { method: 'DELETE' });
+  if (!response.ok) throw new Error('删除对话失败');
   return loadSessions();
 }
-
-/** 服务端会话迁移后，把本地会话表里的旧 id 原地改成新 id（保留标题与时间）。 */
-export function renameSession(fromId, toId) {
-  const list = loadSessions();
-  const hit = list.find((s) => s.sessionId === fromId);
-  if (!hit) return upsertSession(toId, "新对话");
-  return saveSessions([
-    ...list.filter((s) => s.sessionId !== fromId && s.sessionId !== toId),
-    { ...hit, sessionId: toId },
-  ]) || loadSessions();
+export async function clearSessions() {
+  const response = await personalFetch(appUrl('api/chat/sessions'), { method: 'DELETE' });
+  if (!response.ok) throw new Error('清理对话失败');
 }
 
 /** ---------------------------------------------------------------- SSE 聊天 */
@@ -65,7 +56,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
   (async () => {
     let response
     try {
-      response = await fetch(appUrl("api/chat/stream"), {
+      response = await personalFetch(appUrl("api/chat/stream"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -105,7 +96,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
       } catch {
         return;
       }
-      if (event === "start") handlers.onStart?.(data.sessionId);
+      if (event === "start") handlers.onStart?.(data.sessionId, data.attachments);
       else if (event === "notification") handlers.onNotification?.(data);
       else if (event === "renamed") handlers.onRenamed?.(data);
       else if (event === "done") handlers.onDone?.(data);
@@ -137,7 +128,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
 /** 拉取会话历史（适配层读会话日志投影成展示事件）。失败返回空数组。 */
 export async function fetchChatHistory(sessionId) {
   try {
-    const res = await fetch(appUrl(`api/chat/history?sessionId=${encodeURIComponent(sessionId)}`));
+    const res = await personalFetch(appUrl(`api/chat/history?sessionId=${encodeURIComponent(sessionId)}`));
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.events) ? data.events : [];
@@ -147,14 +138,14 @@ export async function fetchChatHistory(sessionId) {
 }
 
 export async function fetchPendingApprovals() {
-  const r = await fetch(appUrl("api/approvals/pending"));
+  const r = await personalFetch(appUrl("api/approvals/pending"));
   if (!r.ok) return [];
   const data = await r.json();
   return Array.isArray(data.pending) ? data.pending : [];
 }
 
 export async function decideApproval(id, decision) {
-  const r = await fetch(appUrl(`api/approvals/${encodeURIComponent(id)}/decision`), {
+  const r = await personalFetch(appUrl(`api/approvals/${encodeURIComponent(id)}/decision`), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ decision }),
@@ -178,7 +169,7 @@ export async function submitFeedback(body) {
     issue_type: rating === "negative" && !body.note ? "other" : body.issue_type,
   };
   delete payload.question;
-  const r = await fetch(appUrl("api/kb/feedback"), {
+  const r = await personalFetch(appUrl("api/kb/feedback"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
@@ -188,7 +179,7 @@ export async function submitFeedback(body) {
 }
 
 async function answerRequest(path, options = {}) {
-  const response = await fetch(appUrl(path), { cache: 'no-store', ...options });
+  const response = await personalFetch(appUrl(path), { cache: 'no-store', ...options });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body.ok !== true) throw new Error(body.error || `操作失败（HTTP ${response.status}）`);
   return body;

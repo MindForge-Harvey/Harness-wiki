@@ -13,7 +13,7 @@ RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/source
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev --no-fund --no-audit
-COPY backend/index.js backend/portal-session.mjs backend/answer-actions.mjs ./
+COPY backend/index.js backend/portal-session.mjs backend/answer-actions.mjs backend/session-ownership.mjs backend/import-legacy-sessions.mjs backend/chat-attachments.mjs ./
 COPY backend/dsh ./dsh
 RUN mkdir -p dsh/home/profiles/rag-kb/node_modules && \
     ln -s /app/backend/dsh/dsh-knowledge dsh/home/profiles/rag-kb/node_modules/dsh-knowledge && \

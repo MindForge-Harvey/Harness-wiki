@@ -280,3 +280,22 @@ VITE_AGENT_HUB_URL=https://www.example.com/agent_hub/api/auth/sso/login
 - 已完成登录、用户状态查询和本地会话退出。
 - 尚未把九个业务系统逐个接成 CAS 客户端。
 - `cas-server` 内置的演示账号仅用于开发联调，生产应替换为真实账号数据源（LDAP/数据库等）。
+
+## 47 服务器的统一门户与个人会话（2026-10-10）
+
+线上 `docker-compose.server.yml` 使用主门户的 `portal-auth` 和 CAS；账号数据由主门户写入共享 PostgreSQL 的 `agent_showcase` 库。知识库应用不再展示独立的单卡片首页，`/harness-wiki/` 直接显示并定位到 `/harness-wiki/chat`，左上角返回 `/?agent=knowledge-harness` 的九智能体统一主页。
+
+- `HARNESS_DATABASE_URL`：服务器 `.env` 中配置，指向现有专用数据库，密码不写入仓库或镜像。
+- `harness_sessions` 保存会话 ID、不可变的 `owner_uid`、标题、时间与删除状态；开发环境没有数据库 URL 时使用持久化 SQLite，生产缺少数据库配置时拒绝启动。
+- `GET /api/chat/sessions` 只返回当前用户的列表；历史读取、继续对话、反馈、创建分享、删除与审批操作在后端校验归属。客户端提供的用户 ID 只用于发现过期登录状态，不用于授权。
+- 删除会话后数据库保留不可重新认领的删除标记。引擎日志仍保存在原 `harness-sessions` 数据卷，原始数据可恢复。
+- 浏览器不再从共享 `rag-kb-sessions` localStorage 读取历史；登录账号变更时清空消息、附件、输入和执行状态，重新读取该账号的历史。
+- 已生成的分享链接仍只展示用户主动分享的单条问答快照，不开放整段会话。
+
+旧日志只能通过 `backend/import-legacy-sessions.mjs` 和明确的归属映射导入，禁止客户端认领。已确认的 20:08 会话归 harvey，其余四条更早日志归原 agentshow。
+
+验证：`node --test backend/dev/contract-session-ownership.mjs backend/dev/contract-portal-session.mjs backend/dev/contract-answer-actions.mjs` 覆盖真实 HTTP 路由、跨用户请求、重启持久化、删除后拒绝认领和审批隔离；前端另有 18 项聊天功能测试及生产构建。
+
+线上验收：两个新注册账号完成真实模型问答、本人历史恢复、跨用户历史/继续/反馈/分享/删除拒绝访问、未登录拒绝访问，以及浏览器切换账号清空旧消息。服务再次更新后验证 PostgreSQL 归属与原日志均持久保留，临时账号和日志随后清理。`harness-wiki` 健康，主门户与 CAS/portal-auth 健康检查正常。
+
+源码与镜像回滚资料在 `/root/work_project/codex-backups/` 和主门户 README 的此次发布记录中；数据库导入前快照为 `/root/work_project/backups/agent-showcase/before-harness-ownership-20261010.sql.gz`。环境文件、数据库和三类应用数据卷必须保留。

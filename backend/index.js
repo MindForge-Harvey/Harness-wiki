@@ -22,7 +22,9 @@ import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
 import { checkPortalSession, portalIdentity } from './portal-session.mjs'
+import { createSessionStore, validSessionId, ownedApprovals } from './session-ownership.mjs'
 import { selectAnswer, createAnswerShareStore } from './answer-actions.mjs'
+import { createChatAttachmentStore, validateAttachments } from './chat-attachments.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -38,8 +40,12 @@ const CHILD_HTTP = `http://127.0.0.1:${process.env.DSH_CHILD_HTTP_PORT || 3090}`
 const PROFILE = process.env.DSH_PROFILE || 'rag-kb'
 const WORKSPACE_CWD = path.resolve(here, '..') // 工作区根：kb_ingest file_path 边界与 {{cwd}}
 const SPOOL_DIR = path.join(here, '.spool')
+const chatAttachments = createChatAttachmentStore(SPOOL_DIR)
 const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || 'dsh/home') // settings/profiles/sessions
 const answerShares = createAnswerShareStore(path.join(DSH_HOME, 'storages', 'answer-shares'))
+
+const sessionStore = await createSessionStore({ sqlitePath: path.join(DSH_HOME, 'storages', 'chat-sessions.sqlite') })
+const approvalCalls = new Map()
 
 function log(msg) { console.log('[rag-kb-server] ' + msg) }
 
@@ -138,35 +144,24 @@ function proxy(childPath, req, bodyBuffer) {
 
 // ---------------------------------------------------------------- SSE 聊天
 
-/** 附件落 spool，返回给模型看的路径说明（kb_ingest file_path 走审批）。 */
-function saveAttachments(attachments) {
-  if (!Array.isArray(attachments) || !attachments.length) return []
-  fs.mkdirSync(SPOOL_DIR, { recursive: true })
-  return attachments.map((a) => {
-    const safe = String(a.name || 'attachment').replace(/[/\\]/g, '_')
-    const filePath = path.join(SPOOL_DIR, Date.now() + '-' + safe)
-    fs.writeFileSync(filePath, Buffer.from(a.data || '', 'base64'))
-    return filePath
-  })
-}
-
 async function handleChatStream(req, res) {
   let body
   try {
     body = JSON.parse((await readBody(req)).toString('utf8') || '{}')
   } catch (e) {
-    return json(res, 400, { ok: false, error: '请求体不是合法 JSON' })
+    return json(res, e.status || 400, { ok: false, error: e.status === 413 ? '请求体过大' : '请求体不是合法 JSON' })
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { ok: false, error: '请求体必须是对象' })
   const message = typeof body.message === 'string' ? body.message.trim() : ''
   if (!message) return json(res, 400, { ok: false, error: 'message 不能为空' })
-  const sessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : `session-${crypto.randomUUID().replaceAll('-', '')}`
+  validateAttachments(body.attachments)
+  const uid = req.identity.uid
+  const sessionId = body.sessionId || await sessionStore.create(uid, message)
+  await sessionStore.require(uid, sessionId)
+  await sessionStore.touch(uid, sessionId)
   if (activeRuns.has(sessionId)) return json(res, 409, { ok: false, error: '该会话正在处理上一条消息，请稍候' })
-
-  const attachmentPaths = saveAttachments(body.attachments)
-  const prompt = attachmentPaths.length
-    ? message + '\n\n（用户随消息上传了 ' + attachmentPaths.length + ' 个文件，已保存到本地：'
-      + attachmentPaths.join('；') + '。若用户想将其加入知识库，请用 kb_ingest 处理。）'
-    : message
+  let attachmentTurn = chatAttachments.save(sessionId, message, body.attachments)
+  activeRuns.add(sessionId)
 
   res.writeHead(200, {
     'content-type': 'text/event-stream; charset=utf-8',
@@ -179,17 +174,20 @@ async function handleChatStream(req, res) {
   try {
     session = await getSession(sessionId)
   } catch (e) {
-    return send('error', { message: 'dsh 子进程启动失败：' + (e && e.message ? e.message : e) })
+    activeRuns.delete(sessionId)
+    send('error', { message: 'dsh 子进程启动失败：' + (e && e.message ? e.message : e) })
+    return res.end()
   }
-  send('start', { sessionId })
+  send('start', { sessionId, attachments: attachmentTurn.attachments })
 
-  activeRuns.add(sessionId)
   let closed = false
-  req.on('close', () => { closed = true })
+  res.on('close', () => { closed = true })
 
   const runOnce = async (handle, id) => {
-    const result = await handle.run(prompt, {
+    const result = await handle.run(attachmentTurn.content, {
       onNotification: (n) => {
+        const event = n.params?.event
+        if (event?.type === 'tool/call' && event.data?.callId) approvalCalls.set(event.data.callId, { uid, sessionId: id })
         if (!closed) send('notification', n)
       },
     })
@@ -204,12 +202,14 @@ async function handleChatStream(req, res) {
     // 适配层/子进程重启后，旧会话日志已在磁盘上，create 同名 id 直接撞车。
     // 兜底：迁移到全新 id 重跑，并通过 renamed 事件让前端同步本地会话表（上下文重新开始）。
     if (!closed && msg.includes('already exists')) {
-      const newId = `session-${crypto.randomUUID().replaceAll('-', '')}`
+      const previous = await sessionStore.require(uid, sessionId)
+      const newId = await sessionStore.create(uid, previous.title)
       sessions.delete(sessionId)
       sessionAlias.set(sessionId, newId)
       try {
         const migrated = await getSession(newId)
-        send('renamed', { from: sessionId, to: newId })
+        attachmentTurn = chatAttachments.save(newId, message, body.attachments)
+        send('renamed', { from: sessionId, to: newId, attachments: attachmentTurn.attachments })
         log('会话迁移 ' + sessionId + ' → ' + newId)
         await runOnce(migrated, newId)
       } catch (e2) {
@@ -222,6 +222,7 @@ async function handleChatStream(req, res) {
     }
   } finally {
     activeRuns.delete(sessionId)
+    for (const [callId, run] of approvalCalls) if (run.uid === uid && (run.sessionId === sessionId || run.sessionId === sessionAlias.get(sessionId))) approvalCalls.delete(callId)
     res.end()
   }
 }
@@ -230,6 +231,7 @@ async function handleChatStream(req, res) {
 
 /** 在 backend/dsh/home/sessions 的工作区目录下定位会话日志（工作区哈希目录名不猜测，全量扫描）。 */
 function findSessionFile(sessionId) {
+  validSessionId(sessionId)
   const root = path.join(DSH_HOME, 'sessions')
   let workspaces
   try {
@@ -269,7 +271,7 @@ async function readSessionEvents(sessionId) {
 }
 
 /** 把会话日志投影为前端可渲染的展示事件（user/assistant/thinking/tool/approval/error）。 */
-function projectHistory(events) {
+function projectHistory(events, sessionId) {
   const toolIndexByCall = new Map()
   const pendingApprovals = []
   const out = []
@@ -330,7 +332,7 @@ function projectHistory(events) {
         break
     }
   }
-  return out
+  return sessionId ? chatAttachments.project(sessionId, out) : out
 }
 
 const server = http.createServer(async (req, res) => {
@@ -338,28 +340,62 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname
   try {
     if (req.method === 'GET' && p === '/api/auth/check') return await checkPortalSession(req, res)
+    if (p.startsWith('/api/') && p !== '/api/health') {
+      req.identity = await portalIdentity(req)
+      res.setHeader('Cache-Control', 'no-store')
+      if (!['GET', 'HEAD'].includes(req.method) && process.env.NODE_ENV === 'production' && req.headers['x-harness-request'] !== '1') return json(res, 403, { ok: false, error: '请求来源无效' })
+    }
+    if (p === '/api/auth/me' && req.method === 'GET') return json(res, 200, { authenticated: true, user: req.identity })
+    if (p === '/api/chat/sessions' && req.method === 'GET') return json(res, 200, { ok: true, sessions: await sessionStore.list(req.identity.uid), user: req.identity })
+    if (p === '/api/chat/sessions' && req.method === 'DELETE') {
+      await sessionStore.clear(req.identity.uid)
+      return json(res, 200, { ok: true })
+    }
+    if (p.startsWith('/api/chat/sessions/') && req.method === 'DELETE') {
+      await sessionStore.remove(req.identity.uid, decodeURIComponent(p.slice('/api/chat/sessions/'.length)))
+      return json(res, 200, { ok: true })
+    }
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
+
+    if (req.method === 'GET' && /^\/api\/chat\/attachments\/([^/]+)\/([^/]+)$/.test(p)) {
+      const [, sessionId, id] = p.match(/^\/api\/chat\/attachments\/([^/]+)\/([^/]+)$/)
+      await sessionStore.require(req.identity.uid, sessionId)
+      const item = chatAttachments.file(sessionId, id)
+      const download = url.searchParams.get('download') === '1'
+      res.writeHead(200, {
+        'content-type': download ? 'application/octet-stream' : item.contentType,
+        'content-length': item.size,
+        'content-disposition': `${download || !item.inline ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(item.name)}`,
+        'x-content-type-options': 'nosniff',
+        ...(!item.inline ? { 'content-security-policy': "sandbox" } : {}),
+      })
+      const stream = fs.createReadStream(item.path)
+      stream.on('error', () => res.destroy())
+      return stream.pipe(res)
+    }
 
     if (p === '/api/chat/feedback' && req.method === 'GET') {
       res.setHeader('Cache-Control', 'no-store')
-      const actor = (await portalIdentity(req)).username
+      const actor = req.identity.username
       const sessionId = url.searchParams.get('sessionId') || ''
       if (!/^[\w-]{1,200}$/.test(sessionId)) return json(res, 400, { ok: false, error: '会话标识无效' })
+      await sessionStore.require(req.identity.uid, sessionId)
       const qs = new URLSearchParams({ session_id: sessionId, actor })
       const r = await proxy('/kb/feedback/votes?' + qs, req, null)
       return json(res, r.status, JSON.parse(r.body.toString('utf8')))
     }
 
     if (req.method === 'POST' && (p === '/api/chat/feedback' || p === '/api/chat/shares')) {
-      const actor = (await portalIdentity(req)).username
+      const actor = req.identity.username
       let body
       try { body = JSON.parse((await readBody(req, 8192)).toString('utf8')) } catch (error) {
         return json(res, error.status || 400, { ok: false, error: '请求体不是合法 JSON' })
       }
       if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { ok: false, error: '请求体必须是对象' })
       if (!/^[\w-]{1,200}$/.test(body.sessionId || '')) return json(res, 400, { ok: false, error: '会话标识无效' })
+      await sessionStore.require(req.identity.uid, body.sessionId)
       const history = await readSessionEvents(body.sessionId)
-      const answer = selectAnswer(history ? projectHistory(history) : [], body.sessionId, body.messageSeq)
+      const answer = selectAnswer(history ? projectHistory(history, body.sessionId) : [], body.sessionId, body.messageSeq)
       res.setHeader('Cache-Control', 'no-store')
       if (p === '/api/chat/shares') return json(res, 201, { ok: true, share: answerShares.create(answer) })
       if (![null, 'up', 'down'].includes(body.rating)) return json(res, 400, { ok: false, error: '反馈选项无效' })
@@ -371,7 +407,6 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && p.startsWith('/api/chat/shares/')) {
-      await portalIdentity(req)
       res.setHeader('Cache-Control', 'no-store')
       return json(res, 200, { ok: true, share: answerShares.get(p.slice('/api/chat/shares/'.length)) })
     }
@@ -379,24 +414,32 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/chat/history') {
       const sessionId = String(url.searchParams.get('sessionId') || '')
       if (!sessionId) return json(res, 400, { ok: false, error: 'sessionId 必填' })
+      await sessionStore.require(req.identity.uid, sessionId)
       const events = await readSessionEvents(sessionId)
-      return json(res, 200, { sessionId, events: events ? projectHistory(events) : [] })
+      return json(res, 200, { sessionId, events: events ? projectHistory(events, sessionId) : [] })
     }
 
     if (p === '/api/approvals/pending' && req.method === 'GET') {
       const r = await proxy('/approvals/pending', req, null)
-      return json(res, r.status, JSON.parse(r.body.toString('utf8') || '{}'))
+      const data = JSON.parse(r.body.toString('utf8') || '{}')
+      data.pending = await ownedApprovals(sessionStore, req.identity.uid, data.pending || [], approvalCalls)
+      return json(res, r.status, data)
     }
 
     if (req.method === 'POST' && /^\/api\/approvals\/([^/]+)\/decision$/.test(p)) {
       const id = p.split('/')[3]
-      const body = await readBody(req)
+      const pendingResponse = await proxy('/approvals/pending', { method: 'GET' }, null)
+      if (pendingResponse.status !== 200) return json(res, 503, { ok: false, error: '审批服务暂不可用' })
+      const pending = JSON.parse(pendingResponse.body.toString('utf8')).pending || []
+      const owned = await ownedApprovals(sessionStore, req.identity.uid, pending, approvalCalls)
+      if (!owned.some(item => item.id === id)) return json(res, 404, { ok: false, error: '审批不存在' })
+      const body = await readBody(req, 8192)
       const r = await proxy('/approvals/' + encodeURIComponent(id) + '/decision', req, body)
       return json(res, r.status, JSON.parse(r.body.toString('utf8') || '{}'))
     }
 
     // User identity for answer votes must be established by the adapter above.
-    if (/^\/api\/kb\/feedback\/votes?$/.test(p)) return json(res, 404, { ok: false, error: 'not found' })
+    if (/^\/api\/kb\/feedback(?:\/|$)/.test(p)) return json(res, 404, { ok: false, error: 'not found' })
     if (p.startsWith('/api/kb/')) {
       const body = ['GET', 'HEAD'].includes(req.method) ? null : await readBody(req)
       const qs = url.search
@@ -427,6 +470,7 @@ async function shutdown() {
   log('关闭中…')
   server.close()
   try { if (harnessPromise) await (await harnessPromise).close() } catch (e) { log('子进程关闭异常: ' + (e && e.message)) }
+  await sessionStore.close()
   process.exit(0)
 }
 process.on('SIGINT', shutdown)

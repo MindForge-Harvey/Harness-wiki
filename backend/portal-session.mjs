@@ -1,7 +1,7 @@
 /** Identity comes from the portal's signed cookie, not a username in the request body. */
 export async function portalIdentity(req, { baseUrl = process.env.PORTAL_AUTH_URL, fetcher = fetch, allowLocal = process.env.NODE_ENV !== 'production' } = {}) {
   if (!baseUrl) {
-    if (allowLocal) return { username: 'local' };
+    if (allowLocal) return { username: 'local', uid: 'local' };
     throw Object.assign(new Error('认证服务未配置'), { status: 503 });
   }
   try {
@@ -11,7 +11,8 @@ export async function portalIdentity(req, { baseUrl = process.env.PORTAL_AUTH_UR
     });
     if (!response.ok) throw Object.assign(new Error('认证服务暂不可用'), { status: 503 });
     const identity = await response.json();
-    if (identity.authenticated !== true || !identity.user?.username) throw Object.assign(new Error('请登录后再操作'), { status: 401 });
+    if (identity.authenticated !== true || !identity.user?.username || !identity.user?.uid) throw Object.assign(new Error('请登录后再操作'), { status: 401 });
+    if (req.headers['x-portal-user'] && req.headers['x-portal-user'] !== identity.user.uid) throw Object.assign(new Error('登录账号已切换，请刷新后继续'), { status: 401 });
     return identity.user;
   } catch (error) {
     if (error.status) throw error;

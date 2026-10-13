@@ -18,7 +18,7 @@ async function check(result, { cookie = '', baseUrl = 'http://portal-auth:8080' 
 
 test('only a portal-validated identity can access the app', async () => {
   assert.equal(await check({ authenticated: false }, { cookie: 'portal_session=forged' }), 401);
-  assert.equal(await check({ authenticated: true, user: { username: 'demo' } }, { cookie: 'portal_session=validated' }), 204);
+  assert.equal(await check({ authenticated: true, user: { username: 'demo', uid: 'user-demo' } }, { cookie: 'portal_session=validated' }), 204);
   assert.equal(await check({ authenticated: true }), 401);
 });
 test('missing configuration or unavailable authentication fails closed', async () => {
@@ -30,7 +30,7 @@ test('missing configuration or unavailable authentication fails closed', async (
 test('answer votes use the portal identity and cannot accept a caller-supplied username', async () => {
   const user = await portalIdentity({ headers: { cookie: 'validated', 'x-user': 'forged' } }, {
     baseUrl: 'http://portal-auth:8080',
-    fetcher: async () => ({ ok: true, json: async () => ({ authenticated: true, user: { username: 'alice' } }) }),
+    fetcher: async () => ({ ok: true, json: async () => ({ authenticated: true, user: { username: 'alice', uid: 'user-alice' } }) }),
   });
   assert.equal(user.username, 'alice');
   await assert.rejects(portalIdentity({ headers: {} }, { baseUrl: '', allowLocal: false }), { status: 503 });
