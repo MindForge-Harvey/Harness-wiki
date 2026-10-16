@@ -7,11 +7,12 @@ import React, {
   useState,
 } from "react";
 import {
+  ArrowLeft,
   ArrowUp,
   CaretDown,
   CaretRight,
   CheckCircle,
-  CirclesThreePlus,
+  ArrowsClockwise,
   ClockCounterClockwise,
   Copy,
   FileText,
@@ -25,8 +26,6 @@ import {
   ShareNetwork,
   StackSimple,
   Square,
-  ThumbsDown,
-  ThumbsUp,
   Trash,
   UserCircle,
   X,
@@ -38,7 +37,10 @@ import { copyText } from "../lib/copy-text.mjs";
 import { useAttachments } from "../lib/use-attachments";
 import { hasTransferFiles, transferFiles } from "../lib/attachments.mjs";
 import { AttachmentList, AttachmentPreview } from "./ChatAttachments";
+import { AnswerVoteButton } from "./AnswerVoteButton";
+import { FeedbackFlywheel } from "./FeedbackFlywheel";
 import assistantHead from "../assets/assistant-head.webp";
+import knowledgeBook from "../assets/knowledge-book.png";
 import { agents } from "../data/agents";
 import {
   loadSessions,
@@ -52,7 +54,7 @@ import {
   decideApproval,
   fetchAnswerVotes,
   voteOnAnswer,
-  shareAnswer as createAnswerShare,
+  deleteFeedbackRecord,
   fetchSharedAnswer,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
@@ -325,14 +327,15 @@ function RobotAvatar({ activity = "waiting", compact = false, hero = false }) {
   );
 }
 
-function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = false, pending = false, activityText = "" }) {
+function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pending = false, activityText = "" }) {
   const [copied, setCopied] = useState(false);
   const feedback = message.feedback || null;
   const [actionBusy, setActionBusy] = useState(null);
   const [actionStatus, setActionStatus] = useState(null);
-  const [shareUrl, setShareUrl] = useState(null);
+  const [reaction, setReaction] = useState(null);
+  const reactionIdRef = useRef(0);
+  const reactionTimerRef = useRef(null);
   const statusTimerRef = useRef(null);
-  const shareButtonRef = useRef(null);
   const canAct = Number.isSafeInteger(message.seq);
 
   const fullText = message.content || "";
@@ -364,7 +367,13 @@ function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = fal
   useEffect(() => () => {
     window.clearTimeout(timerRef.current);
     window.clearTimeout(statusTimerRef.current);
+    window.clearTimeout(reactionTimerRef.current);
   }, []);
+  useEffect(() => {
+    if (!actionStatus || actionStatus.error) return undefined;
+    const timeout = window.setTimeout(() => setActionStatus(null), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [actionStatus]);
   const growing = shown < fullText.length;
   useEffect(() => {
     if (growing) onGrow?.();
@@ -384,29 +393,19 @@ function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = fal
     }
   };
 
-  const shareAnswer = async () => {
-    setActionStatus(null);
-    setActionBusy("share");
-    try {
-      setShareUrl(await onShare(message));
-    } catch (error) { setActionStatus({ error: true, text: error.message }); }
-    finally { setActionBusy(null); }
-  };
-
-  const copyShareLink = async () => {
-    try {
-      await copyText(shareUrl);
-      setActionStatus({ text: "分享链接已复制" });
-    } catch (error) { setActionStatus({ error: true, text: error.message }); }
-  };
-
   const rate = async (value) => {
     const next = feedback === value ? null : value;
     setActionStatus(null);
+    setReaction(null);
+    window.clearTimeout(reactionTimerRef.current);
     setActionBusy("feedback");
     try {
       await onFeedback(message, next);
-      setActionStatus({ text: next === null ? "反馈已取消" : next === "up" ? "已记录：回答有帮助" : "已记录：回答需改进" });
+      if (next) {
+        setReaction({ value: next, id: ++reactionIdRef.current });
+        reactionTimerRef.current = window.setTimeout(() => setReaction(null), 1000);
+      }
+      setActionStatus({ text: next === null ? "反馈已取消" : next === "up" ? "已点赞，收进数据飞轮" : "已标记待改进，收进数据飞轮" });
     } catch (error) { setActionStatus({ error: true, text: error.message }); }
     finally { setActionBusy(null); }
   };
@@ -444,42 +443,9 @@ function AssistantMessage({ message, onFeedback, onShare, onGrow, readOnly = fal
               title={copied ? "已复制" : "复制回答"}
               onClick={copyAnswer}
             >
-              <Copy size={15} />
+              {copied ? <CheckCircle size={15} weight="fill" /> : <Copy size={15} />}
             </button>
-            {!readOnly && <button
-              className={feedback === "up" ? "is-active" : ""}
-              type="button"
-              aria-label="回答有帮助"
-              aria-pressed={feedback === "up"}
-              title="回答有帮助"
-              disabled={!!actionBusy || !canAct}
-              onClick={() => rate("up")}
-            >
-              <ThumbsUp size={15} />
-            </button>}
-            {!readOnly && <button
-              className={feedback === "down" ? "is-active" : ""}
-              type="button"
-              aria-label="回答需改进"
-              aria-pressed={feedback === "down"}
-              title="回答需改进"
-              disabled={!!actionBusy || !canAct}
-              onClick={() => rate("down")}
-            >
-              <ThumbsDown size={15} />
-            </button>}
-            {!readOnly && <button ref={shareButtonRef} type="button" aria-label="分享回答" title="分享回答" disabled={!!actionBusy || !canAct} onClick={shareAnswer}>
-              <ShareNetwork size={15} />
-            </button>}
-          </div>
-        ) : null}
-        {shareUrl ? (
-          <div className="chat-share-panel" role="dialog" aria-label="分享这条回答" onKeyDown={event => {
-            if (event.key === "Escape") { event.stopPropagation(); setShareUrl(null); shareButtonRef.current?.focus(); }
-          }}>
-            <div className="chat-share-heading"><strong>分享这条回答</strong><button type="button" aria-label="关闭分享" onClick={() => { setShareUrl(null); shareButtonRef.current?.focus(); }}><X size={16} /></button></div>
-            <p>链接仅包含这条问答，登录后即可查看。</p>
-            <div className="chat-share-link"><input aria-label="分享链接" value={shareUrl} readOnly onFocus={event => event.target.select()} /><button type="button" onClick={copyShareLink}>复制链接</button></div>
+            {!readOnly && ["up", "down"].map(value => <AnswerVoteButton key={value} value={value} feedback={feedback} reaction={reaction} disabled={!!actionBusy || !canAct} onClick={() => rate(value)} />)}
           </div>
         ) : null}
         {actionStatus ? <p className={`chat-action-status${actionStatus.error ? " is-error" : ""}`} role={actionStatus.error ? "alert" : "status"}>{actionStatus.text}</p> : null}
@@ -571,44 +537,6 @@ function clockTime() {
   }).format(new Date());
 }
 
-function BrandMark() {
-  return (
-    <span className="chat-brand-symbol" aria-hidden="true">
-      <svg className="chat-brand-galaxy" viewBox="0 0 40 40" fill="none">
-        <circle className="chat-brand-halo" cx="20" cy="20" r="7" />
-        <g className="chat-brand-orbit is-outer" transform="translate(20 20) rotate(-28)">
-          <ellipse rx="17" ry="9" />
-          <g transform="scale(1 .5294)">
-            <g className="chat-brand-orbit-spin">
-              <circle className="chat-brand-star" cx="17" r="1.9" />
-            </g>
-          </g>
-        </g>
-        <g className="chat-brand-orbit is-middle" transform="translate(20 20) rotate(48)">
-          <ellipse rx="15.5" ry="7.8" />
-          <g transform="scale(1 .5032)">
-            <g className="chat-brand-orbit-spin">
-              <path className="chat-brand-star" d="m15.5-2.6.8 1.8L18.1 0l-1.8.8-.8 1.8-.8-1.8L12.9 0l1.8-.8Z" />
-            </g>
-          </g>
-        </g>
-        <g className="chat-brand-orbit is-inner" transform="translate(20 20) rotate(110)">
-          <ellipse rx="13" ry="6.4" />
-          <g transform="scale(1 .4923)">
-            <g className="chat-brand-orbit-spin">
-              <circle className="chat-brand-star" cx="13" r="2.2" />
-            </g>
-          </g>
-        </g>
-        <circle className="chat-brand-core" cx="20" cy="20" r="3.7" />
-        <circle className="chat-brand-core-light" cx="18.9" cy="18.8" r="1.1" />
-        <path className="chat-brand-twinkle" d="m5 3 .6 1.4L7 5l-1.4.6L5 7l-.6-1.4L3 5l1.4-.6Z" />
-        <path className="chat-brand-twinkle is-distant" d="m34 32 .5 1.5 1.5.5-1.5.5L34 36l-.5-1.5-1.5-.5 1.5-.5Z" />
-      </svg>
-    </span>
-  );
-}
-
 /* ---------------------------------------------------------------- 主组件 */
 
 export default function AgentChat() {
@@ -636,7 +564,8 @@ export default function AgentChat() {
   const [isThinking, setIsThinking] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
-  const [capabilityOpen, setCapabilityOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [activityText, setActivityText] = useState("");
   const messagesEndRef = useRef(null);
@@ -712,7 +641,7 @@ export default function AgentChat() {
 
     input.style.height = "0px";
     const contentHeight = input.scrollHeight;
-    const nextHeight = Math.min(Math.max(contentHeight, 44), 176);
+    const nextHeight = Math.min(Math.max(contentHeight, 60), 176);
     input.style.height = `${nextHeight}px`;
     input.style.overflowY = contentHeight > 176 ? "auto" : "hidden";
   }, [draft, hasMessages]);
@@ -722,7 +651,7 @@ export default function AgentChat() {
       if (event.key === "Escape") {
         setHistoryOpen(false);
         setPlannerOpen(false);
-        setCapabilityOpen(false);
+        setFeedbackOpen(false);
       }
     };
     window.addEventListener("keydown", handleEscape);
@@ -747,6 +676,8 @@ export default function AgentChat() {
       accountRef.current = null;
       setActiveAccount(null);
       setUser(null);
+      setFeedbackOpen(false);
+      setFeedbackVersion(0);
       setSessions([]);
       setSessionId(null);
       setMessages([]);
@@ -848,12 +779,20 @@ export default function AgentChat() {
   /** The server binds votes to the persisted answer and authenticated user. */
   const handleFeedback = useCallback(async (message, rating) => {
     const epoch = accountEpoch.current;
+    const requestId = historyRequestRef.current;
     const savedRating = await voteOnAnswer({ sessionId, messageSeq: message.seq, rating });
     if (epoch !== accountEpoch.current) return;
-    setMessages(items => items.map(item => item.id === message.id ? { ...item, feedback: savedRating } : item));
+    setFeedbackVersion(value => value + 1);
+    if (requestId === historyRequestRef.current) setMessages(items => items.map(item => item.id === message.id ? { ...item, feedback: savedRating } : item));
   }, [sessionId]);
 
-  const handleShare = useCallback(message => createAnswerShare({ sessionId, messageSeq: message.seq }), [sessionId]);
+  const handleDeleteFeedbackRecord = useCallback(async record => {
+    const epoch = accountEpoch.current;
+    const requestId = historyRequestRef.current;
+    await deleteFeedbackRecord(record);
+    if (epoch !== accountEpoch.current || requestId !== historyRequestRef.current || record.sessionId !== sessionId) return;
+    setMessages(items => items.map(item => item.role === 'assistant' && item.seq === record.messageSeq ? { ...item, feedback: null } : item));
+  }, [sessionId]);
 
   const handleNotification = useCallback((notification) => {
     if (notification.method === "session.status") {
@@ -1389,13 +1328,10 @@ export default function AgentChat() {
         />
 
         <aside className={`chat-history${historyOpen ? " is-open" : ""}`} aria-label="历史对话">
-          <div className="chat-sidebar-home">
-            <a className="chat-home-link" href="/?agent=knowledge-harness" aria-label="返回智能体首页">
-              <BrandMark />
-              <span className="chat-home-copy">
-                <strong>智能体首页</strong>
-                <small>返回门户</small>
-              </span>
+          <div className="chat-sidebar-top">
+            <a className="chat-sidebar-back" href="/?agent=knowledge-harness" aria-label="返回智能体首页">
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span>返回首页</span>
             </a>
             <button
               className="chat-panel-close"
@@ -1407,8 +1343,8 @@ export default function AgentChat() {
             </button>
           </div>
 
-          <nav className="chat-sidebar-tools" aria-label="工作区入口" data-active={capabilityOpen ? "capabilities" : attachments.length ? "upload" : !hasMessages && !sharedId ? "new" : "none"}>
-            <button type="button" aria-label="新对话" aria-current={!hasMessages && !sharedId && !capabilityOpen && !attachments.length ? "page" : undefined} onClick={startNewChat}>
+          <nav className="chat-sidebar-tools" aria-label="工作区入口" data-active={feedbackOpen ? "feedback" : attachments.length ? "upload" : !hasMessages && !sharedId ? "new" : "none"}>
+            <button type="button" aria-label="新对话" aria-current={!hasMessages && !sharedId && !feedbackOpen && !attachments.length ? "page" : undefined} onClick={startNewChat}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <Plus size={18} />
               </span>
@@ -1417,16 +1353,16 @@ export default function AgentChat() {
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" aria-label="能力中心" aria-expanded={capabilityOpen} onClick={() => setCapabilityOpen(true)}>
+            <button type="button" aria-label="数据飞轮" aria-haspopup="dialog" aria-expanded={feedbackOpen} disabled={!user} onClick={() => { setHistoryOpen(false); setFeedbackOpen(true); }}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
-                <CirclesThreePlus size={18} />
+                <ArrowsClockwise size={18} />
               </span>
               <span>
-                <strong>能力中心</strong>
+                <strong>数据飞轮</strong>
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" aria-label="上传文档" aria-pressed={!capabilityOpen && attachments.length > 0} onClick={() => { setHistoryOpen(false); fileInputRef.current?.click(); }}>
+            <button type="button" aria-label="上传文档" aria-pressed={!feedbackOpen && attachments.length > 0} onClick={() => { setHistoryOpen(false); fileInputRef.current?.click(); }}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <FileArrowUp size={18} />
               </span>
@@ -1513,7 +1449,7 @@ export default function AgentChat() {
               <SidebarSimple size={20} />
             </button>
             <div className="chat-agent-identity">
-              <RobotAvatar activity={activity} />
+              <img className="chat-agent-mark" src={knowledgeBook} alt="" aria-hidden="true" draggable="false" width="46" height="46" />
               <div>
                 <h1>{sharedId ? "分享的回答" : kbAgent.short}</h1>
                 <div className={`chat-agent-status is-${activity}`} aria-live="polite">
@@ -1534,7 +1470,7 @@ export default function AgentChat() {
           </header>
 
           <div className={`chat-messages${messages.length ? " has-messages" : ""}`}>
-            {pageError ? <p className="chat-page-error" role="alert">{pageError}</p> : null}
+            {pageError && (messages.length || sharedId) ? <p className="chat-page-error" role="alert">{pageError}</p> : null}
             {sharedId ? <div className="chat-shared-notice"><span>{sharedLoading ? "正在加载分享的回答…" : "这是一条分享的问答"}</span><button type="button" onClick={startNewChat}>开始新对话</button></div> : null}
             {!messages.length && !sharedId ? (
               <section className="chat-welcome" aria-labelledby="chat-welcome-title">
@@ -1542,6 +1478,7 @@ export default function AgentChat() {
                   <h2 id="chat-welcome-title">今天想了解什么？</h2>
                   <p>查阅知识，整理资料，或从图谱中找到关联。</p>
                 </div>
+                {pageError ? <p className="chat-page-error" role="alert">{pageError}</p> : null}
                 {composer}
                 <div className="chat-starter-grid" aria-label="快捷提问">
                   {quickPrompts.map(({ title, icon: Icon, prompt }) => (
@@ -1568,7 +1505,6 @@ export default function AgentChat() {
                       key={message.id}
                       message={message}
                       onFeedback={handleFeedback}
-                      onShare={handleShare}
                       readOnly={!!sharedId}
                       onGrow={scrollDuringTyping}
                     />
@@ -1593,61 +1529,7 @@ export default function AgentChat() {
         />
       </div>
 
-      {capabilityOpen ? (
-        <div className="chat-capability-layer">
-          <button
-            className="chat-capability-backdrop"
-            type="button"
-            aria-label="关闭能力中心"
-            onClick={() => setCapabilityOpen(false)}
-          />
-          <section
-            className="chat-capability-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="capability-dialog-title"
-          >
-            <header>
-              <span className="chat-capability-emblem" aria-hidden="true">
-                <CirclesThreePlus size={22} weight="duotone" />
-              </span>
-              <div>
-                <span>当前智能体</span>
-                <h2 id="capability-dialog-title">能力中心</h2>
-              </div>
-              <button type="button" aria-label="关闭能力中心" onClick={() => setCapabilityOpen(false)}>
-                <X size={18} />
-              </button>
-            </header>
-            <div className="chat-capability-intro">
-              <p>{kbAgent.name}</p>
-              <span>在对话里直接描述目标，我会选择合适的能力完成。</span>
-            </div>
-            <div className="chat-capability-list">
-              {kbAgent.capabilities.map(([title, body], index) => (
-                <article key={title}>
-                  <span className="chat-capability-index">{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <strong>{title}</strong>
-                    <p>{body}</p>
-                  </div>
-                  <span className="chat-capability-status">
-                    <i aria-hidden="true" />
-                    可用
-                  </span>
-                </article>
-              ))}
-            </div>
-            <footer>
-              <span>基于知识库证据回答；文档替换、退役和图谱变更先请求你的批准。</span>
-              <button type="button" onClick={() => setCapabilityOpen(false)}>
-                开始对话
-                <ArrowUp size={14} weight="bold" aria-hidden="true" />
-              </button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
+      {feedbackOpen && user ? <FeedbackFlywheel key={user.uid} accountUid={user.uid} version={feedbackVersion} onClose={() => setFeedbackOpen(false)} onOpenSession={item => { setFeedbackOpen(false); void resumeSession(item); }} onDeleteRecord={handleDeleteFeedbackRecord} /> : null}
     </main>
   );
 }

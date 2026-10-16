@@ -374,6 +374,41 @@ const server = http.createServer(async (req, res) => {
       return stream.pipe(res)
     }
 
+    if (p === '/api/chat/feedback/records' && req.method === 'GET') {
+      const qs = new URLSearchParams({ actor: req.identity.username })
+      const [r, owned] = await Promise.all([
+        proxy('/kb/feedback/answers?' + qs, req, null),
+        sessionStore.list(req.identity.uid, { all: true }),
+      ])
+      const data = JSON.parse(r.body.toString('utf8'))
+      if (r.status !== 200 || data.ok !== true) return json(res, r.status, data)
+      const titles = new Map(owned.map(item => [item.sessionId, item.title]))
+      const records = data.records
+        .filter(row => titles.has(row.session_id) && Number.isSafeInteger(Number(row.message_id)))
+        .map(row => ({ id: row.feedback_id, sessionId: row.session_id, messageSeq: Number(row.message_id),
+          sessionTitle: titles.get(row.session_id), question: row.query, answer: row.answer,
+          rating: row.rating === 'positive' ? 'up' : 'down', note: row.note || '', createdAt: row.created_at,
+          updatedAt: row.updated_at || row.created_at }))
+      return json(res, 200, { ok: true, records })
+    }
+
+    const feedbackRecord = p.match(/^\/api\/chat\/feedback\/records\/([\w-]{1,200})$/)
+    if (feedbackRecord && ['PATCH', 'DELETE'].includes(req.method)) {
+      let body
+      try { body = JSON.parse((await readBody(req, 32 * 1024)).toString('utf8')) } catch (error) {
+        return json(res, error.status || 400, { ok: false, error: '请求体不是合法 JSON' })
+      }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { ok: false, error: '请求体必须是对象' })
+      await sessionStore.require(req.identity.uid, body.sessionId)
+      if (req.method === 'PATCH' && (typeof body.note !== 'string' || body.note.length > 4000)) {
+        return json(res, 400, { ok: false, error: '备注须为不超过 4000 字的文本' })
+      }
+      const payload = Buffer.from(JSON.stringify({ actor: req.identity.username, session_id: body.sessionId,
+        ...(req.method === 'PATCH' ? { note: body.note } : {}) }))
+      const r = await proxy('/kb/feedback/answers/' + feedbackRecord[1], req, payload)
+      return json(res, r.status, JSON.parse(r.body.toString('utf8')))
+    }
+
     if (p === '/api/chat/feedback' && req.method === 'GET') {
       res.setHeader('Cache-Control', 'no-store')
       const actor = req.identity.username

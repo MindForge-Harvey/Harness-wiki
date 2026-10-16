@@ -107,7 +107,7 @@ export function createFeedbackLedger({ dir, logger = () => {} } = {}) {
     if (current?.rating === input.rating) return current;
     const row = rowFrom({ ...input, actor, session_id: session, message_id: message,
       issue_type: input.rating === 'negative' ? 'other' : null,
-      ...(current ? { feedback_id: current.feedback_id, created_at: current.created_at } : {}),
+      ...(current ? { feedback_id: current.feedback_id, created_at: current.created_at, note: current.note } : {}),
     });
     return append({ ...row, ...(current ? { updated_at: new Date().toISOString() } : {}) });
   }
@@ -115,6 +115,37 @@ export function createFeedbackLedger({ dir, logger = () => {} } = {}) {
   function votes({ actor, session_id }) {
     return [...rows.values()].filter(r => r.actor === actor && r.session_id === session_id && r.status !== 'deleted')
       .map(r => ({ message_id: r.message_id, rating: r.rating }));
+  }
+
+  /** Personal answer snapshots, filtered before sorting so other users cannot crowd them out. */
+  function answerFeedback({ actor }) {
+    if (!actor) throw Object.assign(new Error('缺少反馈用户'), { status: 400 });
+    return [...rows.values()]
+      .filter(r => r.actor === actor && r.session_id && r.message_id && r.status !== 'deleted')
+      .sort((a, b) => (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at))
+      .map(({ feedback_id, session_id, message_id, query, answer, rating, note, created_at, updated_at }) =>
+        ({ feedback_id, session_id, message_id, query, answer, rating, note, created_at, updated_at }));
+  }
+
+  function requireAnswerFeedback(id, { actor, session_id }) {
+    const row = rows.get(id);
+    if (!actor || !session_id || !row || row.status === 'deleted' || !row.message_id || row.actor !== actor || row.session_id !== session_id) {
+      throw Object.assign(new Error('反馈不存在或已删除'), { status: 404 });
+    }
+    return row;
+  }
+
+  function updateAnswerFeedback(id, input) {
+    requireAnswerFeedback(id, input);
+    if (typeof input.note !== 'string' || input.note.length > 4000) {
+      throw Object.assign(new Error('备注须为不超过 4000 字的文本'), { status: 400 });
+    }
+    return update(id, { note: input.note });
+  }
+
+  function removeAnswerFeedback(id, input) {
+    requireAnswerFeedback(id, input);
+    return remove(id);
   }
 
   function updateStatus(id, status, extra = {}) {
@@ -164,5 +195,5 @@ export function createFeedbackLedger({ dir, logger = () => {} } = {}) {
     }
     return { total, open }
   }
-  return { record, list, vote, votes, get: (id) => rows.get(id) || null, updateStatus, update, remove, stats }
+  return { record, list, vote, votes, answerFeedback, updateAnswerFeedback, removeAnswerFeedback, get: (id) => rows.get(id) || null, updateStatus, update, remove, stats }
 }

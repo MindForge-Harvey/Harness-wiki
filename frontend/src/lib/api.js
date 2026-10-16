@@ -8,8 +8,17 @@ import { appUrl } from "./app-url";
 let activeAccount = null;
 export const setActiveAccount = uid => { activeAccount = uid; };
 export async function fetchIdentity() {
-  const response = await fetch('/api/auth/me', { cache: 'no-store' });
-  if (!response.ok) throw new Error('登录状态检查失败');
+  const unavailable = import.meta.env.DEV
+    ? '本地后端未就绪，请运行 ./start.sh 后重试'
+    : '登录服务暂不可用，请稍后重试';
+  let response;
+  try { response = await fetch(appUrl('api/auth/me'), { cache: 'no-store' }); }
+  catch { throw new Error(unavailable); }
+  if (response.status === 401) return null;
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.error || unavailable);
+  }
   const data = await response.json();
   return data.authenticated && data.user?.uid ? data.user : null;
 }
@@ -188,6 +197,24 @@ async function answerRequest(path, options = {}) {
 export async function fetchAnswerVotes(sessionId) {
   const body = await answerRequest(`api/chat/feedback?sessionId=${encodeURIComponent(sessionId)}`);
   return Object.fromEntries(body.votes.map(vote => [vote.message_id, vote.rating === 'negative' ? 'down' : 'up']));
+}
+
+export async function fetchFeedbackRecords({ signal } = {}) {
+  return (await answerRequest('api/chat/feedback/records', { signal })).records;
+}
+
+export async function updateFeedbackNote(record, note, { signal } = {}) {
+  return answerRequest(`api/chat/feedback/records/${encodeURIComponent(record.id)}`, {
+    method: 'PATCH', signal, headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId: record.sessionId, note }),
+  });
+}
+
+export async function deleteFeedbackRecord(record, { signal } = {}) {
+  return answerRequest(`api/chat/feedback/records/${encodeURIComponent(record.id)}`, {
+    method: 'DELETE', signal, headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId: record.sessionId }),
+  });
 }
 
 export async function voteOnAnswer({ sessionId, messageSeq, rating }) {

@@ -525,6 +525,18 @@ export function apply(ctx) {
     catch (e) { err(res, e); }
   }
 
+  function handleAnswerFeedback(req, res) {
+    try { json(res, 200, { ok: true, records: feedback.answerFeedback(queryParams(req)) }); }
+    catch (e) { err(res, e); }
+  }
+
+  function handleAnswerFeedbackMutation(req, res, id) {
+    readJsonBody(req, 32 * 1024).then(body => {
+      const row = req.method === 'PATCH' ? feedback.updateAnswerFeedback(id, body) : feedback.removeAnswerFeedback(id, body);
+      json(res, 200, { ok: true, note: row.note || '', updatedAt: row.updated_at });
+    }).catch(e => err(res, e));
+  }
+
   /** 手动修正反馈（问题类型 / 说明 / 状态），供工作台反馈管理入口。 */
   function handleFeedbackUpdate(req, res, id) {
     readJsonBody(req, 256 * 1024).then((body) => {
@@ -974,6 +986,9 @@ export function apply(ctx) {
     ['POST', /^\/kb\/feedback$/, handleFeedback],
     ['POST', /^\/kb\/feedback\/vote$/, handleAnswerVote],
     ['GET', /^\/kb\/feedback\/votes$/, handleAnswerVotes],
+    ['GET', /^\/kb\/feedback\/answers$/, handleAnswerFeedback],
+    ['PATCH', /^\/kb\/feedback\/answers\/([\w-]+)$/, handleAnswerFeedbackMutation],
+    ['DELETE', /^\/kb\/feedback\/answers\/([\w-]+)$/, handleAnswerFeedbackMutation],
     ['PATCH', /^\/kb\/feedback\/([^/]+)$/, handleFeedbackUpdate],
     ['DELETE', /^\/kb\/feedback\/([^/]+)$/, handleFeedbackDelete],
     ['GET', /^\/kb\/feedback$/, handleFeedbackList],

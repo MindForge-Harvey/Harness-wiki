@@ -159,6 +159,20 @@ VITE_KEY_ACCOUNT_COMPARISON_URL=http://127.0.0.1:9100/vip_139/report/api/auth/ss
 
 ## 本地联调
 
+### 知识库工作台
+
+后端需要支持内置 SQLite 的 Node.js 22.19 以上版本，推荐 Node.js 24。准备好 `backend/.env` 后，在仓库根目录执行：
+
+```bash
+./start.sh
+```
+
+启动脚本会选择可用的 Node.js，启动后端 `3088` 和前端 `5173`，并检查服务是否就绪。访问 `http://localhost:5173/chat`；停止服务使用 `./stop.sh`。也可用 `NODE_BIN=/absolute/path/to/node ./start.sh` 指定运行时。
+
+本地未设置 `PORTAL_AUTH_URL` 时使用开发身份；生产环境仍要求门户认证。不需要为独立的工作台开发启动 CAS。只运行前端时，登录检查、历史对话和消息发送均无法连接后端。
+
+以下步骤用于另外联调门户 SSO。
+
 ### 1. 启动项目内置 CAS 认证服务
 
 CAS 已收入本项目 `cas-server/`，为独立认证系统（不再依赖外部 mock-cas-server 项目）。

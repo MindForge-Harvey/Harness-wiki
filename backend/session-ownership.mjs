@@ -52,8 +52,8 @@ export async function createSessionStore({ databaseUrl = process.env.HARNESS_DAT
         [id, uid, String(title || '新对话').slice(0, 100), time]);
       return id;
     },
-    async list(uid) {
-      return (await query('SELECT session_id,title,updated_at FROM harness_sessions WHERE owner_uid=$1 AND deleted=0 ORDER BY updated_at DESC LIMIT 200', [uid]))
+    async list(uid, { all = false } = {}) {
+      return (await query('SELECT session_id,title,updated_at FROM harness_sessions WHERE owner_uid=$1 AND deleted=0 ORDER BY updated_at DESC' + (all ? '' : ' LIMIT 200'), [uid]))
         .map(row => ({ sessionId: row.session_id, title: row.title, time: Number(row.updated_at) }));
     },
     async touch(uid, id) {
