@@ -14,6 +14,8 @@ services:
       DSH_PROFILE: rag-kb
       DSH_HOME_DIR: dsh/home
       PORTAL_AUTH_URL: http://portal-auth:8080
+      VOICE_API_BASE_URL: http://speech-recognition-agent:8765
+      VOICE_PUBLIC_BASE_PATH: /speech-recognition
       LIGHTRAG_BASE_URL: http://lightrag:9621
       KB_RAG_STORAGE: /data/rag_storage
       KB_LIGHTRAG_INPUTS_DIR: /data/inputs

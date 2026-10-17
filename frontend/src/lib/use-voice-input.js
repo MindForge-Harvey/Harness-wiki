@@ -10,6 +10,8 @@ export function useVoiceInput(onTranscript) {
   useEffect(() => {
     controller.current = createVoiceInput({
       apiBase: appUrl('api/v1/voice/'),
+      configUrl: appUrl('api/v1/voice/config'),
+      authReturnPath: appUrl('api/health'),
       onState: setState,
       onTranscript: text => callback.current(text),
     });

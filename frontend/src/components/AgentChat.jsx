@@ -1283,7 +1283,7 @@ export default function AgentChat() {
           </button>
           <span className="chat-composer-hint" id="chat-composer-hint" role="status">
             {voice.active ? (
-              <>{voice.status === "listening" ? <span className="chat-voice-wave" aria-hidden="true"><i /><i /><i /><i /></span> : <ArrowsClockwise size={16} className="chat-voice-processing" aria-hidden="true" />}{voice.status === "starting" ? "正在连接麦克风…" : voice.status === "stopping" ? voice.message || "正在订正语音文字…" : "正在聆听，点击麦克风结束"}</>
+              <>{voice.status === "listening" ? <span className="chat-voice-wave" aria-hidden="true"><i /><i /><i /><i /></span> : <ArrowsClockwise size={16} className="chat-voice-processing" aria-hidden="true" />}{voice.status === "starting" ? voice.message || "正在连接麦克风…" : voice.status === "stopping" ? voice.message || "正在订正语音文字…" : "正在聆听，点击麦克风结束"}</>
             ) : uploads.blocked ? "附件正在准备，请等待或移除失败项" : <><span className="chat-upload-hint">{attachments.length ? `${attachments.length} 个附件` : "粘贴或拖入附件"}<span aria-hidden="true"> · </span></span>Shift + Enter 换行</>}
           </span>
           <button
@@ -1313,7 +1313,7 @@ export default function AgentChat() {
         </div>
       </div>
       {uploads.error ? <p className="chat-upload-error" role="alert">{uploads.error}<button type="button" aria-label="关闭附件提示" onClick={uploads.dismissError}><X size={14} /></button></p> : null}
-      {voice.error ? <p className="chat-voice-error" role="alert">{voice.error}</p> : null}
+      {voice.error ? <p className="chat-voice-error" role="alert">{voice.error}{voice.actionUrl ? <> <a href={voice.actionUrl} target="_blank" rel="noopener noreferrer">打开语音服务</a></> : null}</p> : null}
       {voice.warning ? <p className="chat-voice-error" role="status">{voice.warning}</p> : null}
     </footer>
   );

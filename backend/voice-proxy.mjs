@@ -5,8 +5,10 @@ const RETENTION_MS = 15 * 60 * 1000;
 
 /** Authenticated same-origin bridge; upstream receives no portal cookies. */
 export function createVoiceProxy({ baseUrl = process.env.VOICE_API_BASE_URL || 'http://127.0.0.1:8765',
+  publicBasePath = process.env.VOICE_PUBLIC_BASE_PATH || '',
   identify, fetcher = fetch, now = Date.now } = {}) {
   const base = new URL(baseUrl.replace(/\/+$/, '') + '/');
+  if (publicBasePath && (!/^\/[A-Za-z0-9/_-]+$/.test(publicBasePath) || publicBasePath.startsWith('//'))) throw new Error('VOICE_PUBLIC_BASE_PATH 必须是同域固定路径');
   if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) {
     throw new Error('VOICE_API_BASE_URL 必须是无凭据的 HTTP(S) 服务根地址');
   }
@@ -26,6 +28,11 @@ export function createVoiceProxy({ baseUrl = process.env.VOICE_API_BASE_URL || '
 
   return {
     async handle(req, res, pathname) {
+      if (pathname === PREFIX + '/config' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ public_base_path: publicBasePath, uid: req.identity.uid }));
+        return true;
+      }
       const match = pathname.match(/^\/api\/v1\/voice\/sessions\/([a-f0-9]{32})(\/cancel)?$/);
       const capabilities = pathname === PREFIX + '/capabilities' && req.method === 'GET';
       if (!capabilities && !(match && req.method === (match[2] ? 'POST' : 'GET'))) return false;

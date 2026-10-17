@@ -115,3 +115,15 @@ test('unavailable upstream returns an actionable service error', async t => {
   assert.equal(response.status, 503);
   assert.equal((await response.json()).error, '实时语音服务连接失败，请检查后台服务。');
 });
+
+test('runtime connection config follows the validated portal account and requires login', async t => {
+  const f = await fixture(t, { publicBasePath: '/speech-recognition' });
+  const response = await f.request('config');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { public_base_path: '/speech-recognition', uid: 'alice' });
+  assert.equal((await f.request('config', '')).status, 401);
+  assert.equal(f.upstreamRequests.length, 0);
+  for (const publicBasePath of ['//evil.example', 'https://evil.example', '/speech/../other']) {
+    assert.throws(() => createVoiceProxy({ publicBasePath }));
+  }
+});

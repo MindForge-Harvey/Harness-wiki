@@ -28,11 +28,22 @@ ZIP 可以包含一个技能，也可以包含多个独立技能目录；系统�
 2. `backend/.env` 可设置 `VOICE_API_BASE_URL=http://127.0.0.1:8765`（默认即为此地址）。填**服务根地址**，不要追加 `/api/v1/voice`；服务若部署在子路径下，可填带该前缀的根地址。
 3. 在本项目执行 `./start.sh`，打开 `http://localhost:5173/chat`，允许麦克风权限。
 
-浏览器访问同域 `/api/v1/voice/*`（线上前缀为 `/harness-wiki/api/v1/voice/*`），由后端代理就绪检查、WebSocket、会话查询和取消接口。代理沿用门户身份校验，HTTP 查询与取消按账号限制；WebSocket 校验页面来源，登录 Cookie 不会传给语音服务。音频使用 AudioWorklet 采集为 16 kHz、单声道、小端 PCM16，600 ms 一块，并兼容设备的 44.1/48 kHz 采样率。录音只由语音服务在内存处理，不进入聊天附件或上传历史。
+前端先通过受门户身份校验保护的 `/api/v1/voice/config` 获取接入方式与当前账号。本地未设置 `VOICE_PUBLIC_BASE_PATH` 时，浏览器访问本应用 `/api/v1/voice/*`，后端代理本机服务；查询与取消按账号限制，WebSocket 校验页面来源，登录 Cookie 不会传给本机上游。音频使用 AudioWorklet 采集为 16 kHz、单声道、小端 PCM16，600 ms 一块，并兼容设备的 44.1/48 kHz 采样率。录音只由语音服务在内存处理，不进入聊天附件或上传历史。
 
-结束听录后 WebSocket 保持连接直到收到最终结果；此阶段断线时自动查询会话结果，最多等待 120 秒。听录期间断线则结束采集并保留已收到的文字，需重新点击开始。服务繁忙、权限拒绝和订正失败会显示提示；订正降级时仍可使用转写文字。服务目前只支持一路同时听录，其他用户遇到繁忙提示需稍后重试。代理的会话归属仅保存在当前后端进程内，重启后正在等待的结果无法通过代理恢复。
+正式部署的 `docker-compose.server.yml` 设置 `VOICE_PUBLIC_BASE_PATH=/speech-recognition`。浏览器直接使用同域语音服务 API，自动携带其路径范围内的 `speech_session` Cookie；POST 请求附带 `X-Speech-Request: 1`。首次使用若尚未建立语音登录，会通过隐藏的同域页面复用现有 CAS 登录，固定回调完成后回到健康检查页面，原工作台和草稿保持不变。开始采集前核对语音账号与门户账号一致；账号不一致或登录未完成会停止启动并提供语音服务入口，不会自动切换账号。服务不提供免认证的内部调用口，不能用门户 Cookie 代替语音服务 Cookie。
 
-未来公网部署时，将语音服务部署到 harness-wiki 后端可达的位置，再修改 `VOICE_API_BASE_URL` 并重启后端。容器内的 `127.0.0.1` 指向容器自身，不能指向开发机。需要同步更新外层 `deploy/outer-nginx.conf` 和容器内 Nginx 的 WebSocket Upgrade 配置；仓库已包含这些配置。前端和用户操作无需再切换，也无需在浏览器暴露模型密钥。当前改动仅在本地验证，未部署公网。
+| 用途 | 正式地址 |
+| --- | --- |
+| 语音服务入口 | `https://www.agent-show.com/speech-recognition/` |
+| Voice API | `https://www.agent-show.com/speech-recognition/api/v1/voice/` |
+| 实时 WebSocket | `wss://www.agent-show.com/speech-recognition/api/v1/voice/ws` |
+| 固定 CAS 回调 | `https://www.agent-show.com/speech-recognition/api/auth/sso/login` |
+| 健康检查 | `https://www.agent-show.com/speech-recognition/healthz` |
+| 容器内服务根地址 | `http://speech-recognition-agent:8765` |
+
+结束听录后 WebSocket 保持连接直到收到最终结果；此阶段断线时自动查询会话结果，最多等待 120 秒。听录期间断线则结束采集并保留已收到的文字，需重新点击开始。服务繁忙、权限拒绝和订正失败会显示提示；订正降级时仍可使用转写文字。服务目前只支持一路同时听录，其他用户遇到繁忙提示需稍后重试。本机代理的会话归属仅保存在当前后端进程内，重启后正在等待的结果无法通过代理恢复；正式接入的会话由语音服务按 CAS 账号隔离，语音服务重启后内存会话失效。
+
+线上语音服务已经部署到共享 `proxy-tier` 网络，由自身 HTTPS 路由承接 WebSocket，harness-wiki 无需共享或持有语音服务的会话签名密钥。接入地址通过后端环境变量和运行时配置提供，前端无需重新设置密钥。若要在本地验证正式子路径，可临时设置 `VOICE_PUBLIC_BASE_PATH=/speech-recognition`；Vite 将此路径代理到本机 8765（可通过 `VITE_SPEECH_SERVER_TARGET` 调整）。本地测试通过并提交 Git 后，才发布应用到服务器；发布时保留服务器 `.env` 和数据卷。
 
 验证：`npm --prefix frontend run test:chat`、`node --test backend/dev/contract-voice-proxy.mjs`、`npm --prefix frontend run build`。
 

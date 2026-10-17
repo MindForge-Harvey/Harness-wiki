@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test:chat": "node --test dev/contract-chat-progress.mjs dev/contract-voice-input.mjs dev/contract-copy-text.mjs dev/contract-attachments.mjs dev/contract-skills-draft.mjs",
+    "test:chat": "node --test dev/contract-chat-progress.mjs dev/contract-voice-input.mjs dev/contract-voice-auth.mjs dev/contract-copy-text.mjs dev/contract-attachments.mjs dev/contract-skills-draft.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

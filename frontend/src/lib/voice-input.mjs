@@ -1,3 +1,5 @@
+import { resolveVoiceConnection } from './voice-auth.mjs';
+
 const microphoneErrors = {
   NotAllowedError: '麦克风访问未获允许，请在浏览器中开启权限后重试。',
   NotFoundError: '未找到可用的麦克风，请检查设备后重试。',
@@ -5,15 +7,15 @@ const microphoneErrors = {
 };
 
 /** One user action owns one capture session, including its final rewrite. */
-export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/voice/',
+export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/voice/', configUrl, authReturnPath,
   workletUrl = new URL('./pcm-capture-worklet.js', import.meta.url).href, onState, onTranscript }) {
   let session = null, disposed = false, silent = false;
   const current = s => !disposed && session === s;
-  const emit = (status, error = '', message = '', warning = '') => {
-    if (!disposed && !silent) onState({ status, error, message, warning });
+  const emit = (status, error = '', message = '', warning = '', actionUrl = '') => {
+    if (!disposed && !silent) onState({ status, error, message, warning, actionUrl });
   };
   const base = new URL(apiBase.replace(/\/?$/, '/'), environment.location?.href || 'http://localhost/');
-  const endpoint = path => new URL(path, base).href;
+  const endpoint = (s, path) => new URL(path, s.connection?.base || base).href;
 
   function releaseAudio(s) {
     s.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
@@ -37,8 +39,8 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
   }
 
   async function request(s, path, options = {}) {
-    const response = await environment.fetch(endpoint(path), {
-      ...options, cache: 'no-store', headers: { 'X-Harness-Request': '1' },
+    const response = await environment.fetch(endpoint(s, path), {
+      ...options, credentials: 'same-origin', cache: 'no-store', headers: s.connection.headers,
       signal: AbortSignal.any([s.abort.signal, AbortSignal.timeout(5000)]),
     });
     const data = await response.json().catch(() => ({}));
@@ -46,7 +48,7 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
     return data;
   }
 
-  function finish(s, error = '', warning = '') {
+  function finish(s, error = '', warning = '', actionUrl = '') {
     if (!current(s)) return;
     session = null;
     s.abort.abort();
@@ -56,7 +58,7 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
     s.resolveFlush?.();
     detachSocket(s);
     void releaseAudio(s);
-    emit('idle', error, '', warning);
+    emit('idle', error, '', warning, actionUrl);
   }
 
   function result(s, data) {
@@ -98,8 +100,8 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
     const s = session;
     if (!s) { emit('idle'); return; }
     if (s.id) {
-      void environment.fetch(endpoint('sessions/' + s.id + '/cancel'), {
-        method: 'POST', headers: { 'X-Harness-Request': '1' }, signal: AbortSignal.timeout(5000),
+      void environment.fetch(endpoint(s, 'sessions/' + s.id + '/cancel'), {
+        method: 'POST', credentials: 'same-origin', headers: s.connection.headers, signal: AbortSignal.timeout(5000),
       }).catch(() => {});
     }
     if (s.socket?.readyState === 1) s.socket.send(JSON.stringify({ type: 'cancel' }));
@@ -122,6 +124,9 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
         s.context = new AudioContext({ sampleRate: 16000 });
         await s.context.resume();
         if (!current(s)) return;
+        s.connection = await resolveVoiceConnection({ environment, apiBase, configUrl, authReturnPath,
+          signal: s.abort.signal, onStatus: message => { if (current(s)) emit('starting', '', message); } });
+        if (!current(s)) return;
         const caps = await request(s, 'capabilities');
         if (!current(s)) return;
         if (caps.protocol_version !== 1 || caps.audio?.encoding !== 'pcm_s16le' || caps.audio?.sample_rate !== 16000 || caps.audio?.channels !== 1) {
@@ -136,7 +141,7 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
         await s.context.audioWorklet.addModule(workletUrl);
         if (!current(s)) return;
         s.processor = new environment.AudioWorkletNode(s.context, 'pcm-capture');
-        const socketUrl = new URL('ws', base);
+        const socketUrl = new URL('ws', s.connection.base);
         socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
         const socket = s.socket = new environment.WebSocket(socketUrl.href);
         await new Promise((resolve, reject) => {
@@ -185,7 +190,7 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
         s.status = 'listening';
         emit('listening');
       } catch (error) {
-        if (current(s)) finish(s, microphoneErrors[error.name] || (error.name === 'TypeError' ? '实时语音服务连接失败，请检查后台服务。' : error.message));
+        if (current(s)) finish(s, microphoneErrors[error.name] || (error.name === 'TypeError' ? '实时语音服务连接失败，请检查后台服务。' : error.message), '', error.actionUrl);
       }
     },
     async stop() {
