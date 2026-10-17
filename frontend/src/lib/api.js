@@ -46,6 +46,18 @@ export const fetchSkills = options => skillsRequest('', options);
 export const parseSkillFile = (markdown, signal) => skillsRequest('/parse', { method: 'POST', body: { markdown }, signal }).then(data => data.skill);
 export const saveSkill = (skill, signal) => skillsRequest(skill.id ? '/' + skill.id : '', { method: skill.id ? 'PUT' : 'POST', body: skill, signal }).then(data => data.skill);
 export const deleteSkill = (skill, signal) => skillsRequest('/' + skill.id, { method: 'DELETE', body: { version: skill.version }, signal });
+export async function previewSkillArchive(file, signal) {
+  const response = await personalFetch(appUrl('api/chat/skills/imports?name=' + encodeURIComponent(file.name)), {
+    method: 'POST', body: file, signal, headers: { 'content-type': 'application/zip' },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || '技能包解析失败，请检查 ZIP 文件后重试');
+  return data.preview;
+}
+export const installSkillArchive = (id, replacements, signal) => skillsRequest('/imports/' + id, { method: 'POST', body: { replacements }, signal }).then(data => data.skills);
+export const discardSkillArchive = (id, signal) => skillsRequest('/imports/' + id, { method: 'DELETE', signal });
+export const fetchSkillFiles = (id, signal) => skillsRequest('/' + id + '/files', { signal }).then(data => data.files);
+export const skillFileUrl = (id, path) => appUrl('api/chat/skills/' + id + '/file?path=' + encodeURIComponent(path));
 
 export async function loadSessions() {
   const response = await personalFetch(appUrl('api/chat/sessions'));

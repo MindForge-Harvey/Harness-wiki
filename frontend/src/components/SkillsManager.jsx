@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, CheckCircle, Code, FileArrowUp, FileText, MagnifyingGlass, Plus, PuzzlePiece, Trash, X } from '@phosphor-icons/react';
-import { fetchSkills, parseSkillFile, saveSkill, deleteSkill } from '../lib/api';
+import { fetchSkills, parseSkillFile, saveSkill, deleteSkill, previewSkillArchive, installSkillArchive, discardSkillArchive } from '../lib/api';
 import { Markdown } from '../lib/markdown';
 import { hasSkillChanges } from '../lib/skills-draft.mjs';
+import { SkillArchivePreview, SkillPackageFiles } from './SkillPackage';
 import './skills-manager.css';
 
 const emptySkill = { title: '', name: '', description: '', content: '', enabled: true };
@@ -16,6 +17,7 @@ export function SkillsManager({ onClose }) {
   const fileRef = useRef(null);
   const operationRef = useRef(null);
   const discardCancelRef = useRef(null);
+  const importRef = useRef(null);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -31,6 +33,7 @@ export function SkillsManager({ onClose }) {
   const [notice, setNotice] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
   const dirty = hasSkillChanges(draft, baseline);
   const confirmingDiscard = !!pendingAction && dirty;
   const enabledCount = skills.filter(skill => skill.enabled).length;
@@ -41,7 +44,7 @@ export function SkillsManager({ onClose }) {
     const dialog = dialogRef.current;
     const previous = document.activeElement;
     dialog.showModal();
-    return () => { operationRef.current?.abort(); dialog.close(); previous?.focus(); };
+    return () => { operationRef.current?.abort(); if (importRef.current) void discardSkillArchive(importRef.current.id).catch(() => {}); dialog.close(); previous?.focus(); };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -80,6 +83,8 @@ export function SkillsManager({ onClose }) {
     else { setPendingAction(null); run(); }
   }
   function select(skill, isNew = false) {
+    if (importRef.current) { void discardSkillArchive(importRef.current.id).catch(() => {}); importRef.current = null; }
+    setImportPreview(null);
     const next = { ...skill };
     setDraft(next); setBaseline(isNew ? 'null' : JSON.stringify(next));
     setError(''); setConflict(false); setNotice(''); setConfirmDelete(false); setPendingAction(null); setTab('edit');
@@ -118,10 +123,34 @@ export function SkillsManager({ onClose }) {
     event.target.value = '';
     if (!file) return;
     await operate(async signal => {
+      if (/\.zip$/i.test(file.name)) {
+        if (file.size > 20 * 1024 * 1024) throw new Error('ZIP 技能包最多 20 MB');
+        const preview = await previewSkillArchive(file, signal);
+        if (signal.aborted) return;
+        if (importRef.current) void discardSkillArchive(importRef.current.id).catch(() => {});
+        importRef.current = preview; setImportPreview(preview); setDraft(null); setBaseline('null');
+        return;
+      }
       if (file.size > 128 * 1024) throw new Error('SKILL.md 文件过大，最多 128 KB');
       const parsed = await parseSkillFile(await file.text(), signal);
       if (!signal.aborted) select(parsed, true);
     });
+  }
+
+  async function installArchive(replacements) {
+    await operate(async signal => {
+      const installed = await installSkillArchive(importPreview.id, replacements, signal);
+      if (signal.aborted) return;
+      importRef.current = null;
+      setSkills(items => [...items.filter(item => !installed.some(skill => skill.id === item.id)), ...installed]);
+      setQuery(''); setOnlyEnabled(false);
+      select(installed[0]);
+      setNotice(`已导入 ${installed.length} 个技能，脚本和附件已就绪`);
+    });
+  }
+  function cancelArchive() {
+    if (skills.length) select(skills[0]);
+    else { if (importRef.current) void discardSkillArchive(importRef.current.id).catch(() => {}); importRef.current = null; setImportPreview(null); setError(''); }
   }
 
   async function reloadLatest() {
@@ -156,15 +185,16 @@ export function SkillsManager({ onClose }) {
           {loading ? <div className="skills-loading" role="status">正在读取技能…<i /><i /><i /></div> : loadError ? <div className="skills-list-empty"><p role="alert">{loadError}</p><button type="button" onClick={() => setRefresh(value => value + 1)}>重新加载</button></div> : visible.length ? visible.map(skill => <button key={skill.id} type="button" disabled={busy} aria-current={draft?.id === skill.id ? 'true' : undefined} className={`skills-list-item${draft?.id === skill.id ? ' is-selected' : ''}`} onClick={() => requestAction(() => select(skill))}>
             <span className="skills-item-top"><FileText size={18} /><strong>{skill.title}</strong><span className={`skills-dot${skill.enabled ? '' : ' is-off'}`} aria-label={skill.enabled ? '已启用' : '已停用'} /></span>
             <span className="skills-item-description">{skill.description}</span><code>/{skill.name}</code>
-          </button>) : <div className="skills-list-empty"><PuzzlePiece size={28} weight="light" /><p>{skills.length ? '没有匹配的技能' : '还没有配置技能'}</p><span>{skills.length ? '试试其他关键词或筛选条件' : '新建一个，或导入 SKILL.md'}</span></div>}
+          </button>) : <div className="skills-list-empty"><PuzzlePiece size={28} weight="light" /><p>{skills.length ? '没有匹配的技能' : '还没有配置技能'}</p><span>{skills.length ? '试试其他关键词或筛选条件' : '新建一个，或导入 ZIP / SKILL.md'}</span></div>}
         </div>
-        <button className="skills-import" type="button" disabled={busy || loading || !!loadError} onClick={() => requestAction(() => fileRef.current?.click())}><FileArrowUp size={18} />导入 SKILL.md</button>
-        <input ref={fileRef} type="file" accept=".md,text/markdown,text/plain" hidden onChange={importFile} />
-        <p className="skills-library-note">仅对当前账号生效<br />单文件指令，不含脚本及附件</p>
+        <button className="skills-import" type="button" disabled={busy || loading || !!loadError} onClick={() => requestAction(() => fileRef.current?.click())}><FileArrowUp size={18} />导入技能包</button>
+        <input ref={fileRef} type="file" accept=".zip,.md,application/zip,application/x-zip-compressed,text/markdown,text/plain" hidden onChange={importFile} />
+        <p className="skills-library-note">支持 ZIP / SKILL.md<br />包含脚本、参考资料和附件</p>
       </aside>
-      {draft ? <form className="skills-editor" onSubmit={save} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); event.currentTarget.requestSubmit(); } }}>
+      {importPreview ? <SkillArchivePreview key={importPreview.id} preview={importPreview} busy={busy} error={error} onInstall={installArchive} onCancel={cancelArchive} /> : draft ? <form className="skills-editor" onSubmit={save} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); event.currentTarget.requestSubmit(); } }}>
         <div className="skills-editor-scroll">
           <div className="skills-editor-heading"><div><span>{draft.id ? '编辑技能' : '新建技能'}</span><h3>{draft.title || '定义你的工作方法'}</h3></div><label className="skills-enable"><span>{draft.enabled ? '启用' : '停用'}</span><input type="checkbox" role="switch" aria-label="启用技能" checked={draft.enabled} disabled={busy} onChange={event => change('enabled', event.target.checked)} /><i /></label></div>
+          {draft.modelInvocable === false ? <p className="skills-invocation-note">仅手动调用：在对话中输入 /{draft.name} 使用。</p> : draft.userInvocable === false ? <p className="skills-invocation-note">由助手按需调用，不通过 /技能名 手动指定。</p> : null}
           <div className="skills-field-row">
             <label className="skills-field">技能名称<input required maxLength={60} placeholder="例如：规范回答格式" value={draft.title} disabled={busy} onChange={event => change('title', event.target.value)} /></label>
             <label className="skills-field">调用名称<span className="skills-name-input"><span aria-hidden="true">/</span><input aria-label="调用名称" aria-describedby="skill-name-hint" required maxLength={64} pattern="[a-z0-9]+(-[a-z0-9]+)*" title="小写英文、数字和连字符" placeholder="answer-format" value={draft.name} disabled={busy} onChange={event => change('name', event.target.value)} /></span><small id="skill-name-hint">小写英文、数字与连字符</small></label>
@@ -174,6 +204,7 @@ export function SkillsManager({ onClose }) {
             <textarea id="skill-content" className={tab === 'edit' ? '' : 'is-hidden'} required={tab === 'edit'} maxLength={32000} spellCheck={false} aria-label="技能指令" placeholder={'# 工作步骤\n\n写下助手应遵循的方法、输出格式和注意事项。'} value={draft.content} disabled={busy} onChange={event => change('content', event.target.value)} />
             {tab === 'preview' ? <div className="skills-markdown">{draft.content ? <Markdown>{draft.content}</Markdown> : <p className="skills-preview-empty">写下指令后，在这里预览。</p>}</div> : null}
           </section>
+          {draft.package ? <SkillPackageFiles key={draft.id + ':' + draft.version} skill={draft} /> : null}
           <p className="skills-runtime-hint"><CheckCircle size={16} />保存后，新对话和当前对话的下一次提问都会使用最新配置。</p>
         </div>
         <footer className="skills-editor-footer">
@@ -192,7 +223,7 @@ export function SkillsManager({ onClose }) {
         <div className="skills-welcome-footer"><Code size={17} /><span>在对话中输入 <code>/技能名</code>，也可以直接指定使用。</span></div>
       </section>}
     </div>
-    {!draft && (error || notice) ? <div className={error ? 'skills-global-message skills-error' : 'skills-global-message'} role={error ? 'alert' : 'status'}>{error || notice}</div> : null}
+    {!draft && !importPreview && (error || notice) ? <div className={error ? 'skills-global-message skills-error' : 'skills-global-message'} role={error ? 'alert' : 'status'}>{error || notice}</div> : null}
     {confirmingDiscard ? <div className="skills-discard-overlay">
       <section className="skills-discard-card" role="alertdialog" aria-modal="true" aria-labelledby="skills-discard-title" aria-describedby="skills-discard-description">
         <h3 id="skills-discard-title">{pendingAction.close ? '放弃修改并关闭？' : '放弃未保存的修改？'}</h3>

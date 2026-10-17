@@ -36,7 +36,7 @@ export PATH="$(dirname "$NODE_BIN"):$PATH"
 echo "▶️  使用 Node.js $("$NODE_BIN" --version)"
 
 # 首次运行准备：适配层依赖 + profile 插件链接（幂等）
-if [ ! -d "$HERE/backend/node_modules/@deepseek-ai/dsh-sdk-client" ] || [ ! -d "$HERE/backend/node_modules/pg" ]; then
+if [ ! -d "$HERE/backend/node_modules/@deepseek-ai/dsh-sdk-client" ] || [ ! -d "$HERE/backend/node_modules/pg" ] || [ ! -d "$HERE/backend/node_modules/yaml" ] || [ ! -d "$HERE/backend/node_modules/yauzl" ]; then
   echo "▶️  安装适配层依赖 (npm ci) ..."
   (cd "$HERE/backend" && npm ci --no-fund --no-audit)
 fi

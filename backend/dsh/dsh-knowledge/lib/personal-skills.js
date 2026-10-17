@@ -15,10 +15,12 @@ function loadedSkillNames(session) {
 }
 
 export function personalSkillProvider(store, uid) {
-  const invocation = { modelInvocable: true, userInvocable: true };
-  const definition = skill => ({ name: skill.name, description: skill.description, content: skill.content,
-    source: 'personal', provider: 'personal-skills', invocation,
-    resourceBase: { kind: 'opaque', description: '在 Skills 配置中保存的单文件技能；未提供额外脚本或附件。' } });
+  const definition = skill => {
+    const directory = store.resourceBase(uid, skill);
+    return { name: skill.name, description: skill.description, content: skill.content,
+      source: 'personal', provider: 'personal-skills', invocation: { modelInvocable: skill.modelInvocable !== false, userInvocable: skill.userInvocable !== false },
+      resourceBase: directory ? { kind: 'directory', path: directory } : { kind: 'opaque', description: '用户在 Skills 配置中保存的指令。' } };
+  };
   return {
     name: 'personal-skills',
     async list() {
@@ -61,7 +63,12 @@ export function mountPersonalSkills(ctx) {
     const active = changed.skills.filter(skill => skill.enabled).map(skill => skill.name);
     const message = createUserMessage({ source: { kind: 'personal-skill-config', revision: changed.revision }, content: [{ type: 'text', text:
       `用户已更新个人 Skills 配置，此配置替换此前的个人技能配置。当前启用的个人技能：${active.join('、') || '无'}。未列出的个人技能已停用或删除，请勿继续沿用旧指令。已经使用过且本次修改的技能，其最新完整指令附在此提醒之后，替换此前同名技能内容。只在任务适用时遵循技能；尚未加载过的技能仍通过 skill 工具按需加载。直接完成用户任务，不要只回复准备加载技能。` }] });
-    const updates = refreshed.map(skill => createUserMessage({ source: { kind: 'personal-skill-refresh', name: skill.name, version: skill.version }, content: [{ type: 'text', text: renderSkillContent({ name: skill.name, provider: 'personal-skills', content: skill.content, resourceBase: { kind: 'opaque', description: '用户在 Skills 配置中保存的单文件指令。' } }) }] }));
-    return { ...decision, messages: [...decision.messages, message, ...updates] };
+    const provider = personalSkillProvider(store, state?.uid);
+    const updates = await Promise.all(refreshed.map(async skill => {
+      const definition = await provider.get({ locator: skill.id, name: skill.name });
+      if (!definition) return null;
+      return createUserMessage({ source: { kind: 'personal-skill-refresh', name: skill.name, version: skill.version }, content: [{ type: 'text', text: renderSkillContent(definition) }] });
+    }));
+    return { ...decision, messages: [...decision.messages, message, ...updates.filter(Boolean)] };
   });
 }

@@ -71,7 +71,9 @@ test('import validates YAML, invocation controls, size and path-like names witho
   assert.equal(parsed.name, 'test-notes');
   assert.equal(parsed.enabled, true);
   assert.equal(parsed.content, '# 规则\n\n不补写原文没有的信息。');
-  for (const raw of ['# no metadata', '---\nname: ../bad\ndescription: demo\n---\ncontent', '---\nname: x\nname: y\ndescription: demo\n---\ncontent', '---\nname: x\ndescription: !!js/function x\n---\ncontent', '---\nname: x\ndescription: test\ndisable-model-invocation: true\n---\ncontent', 'x'.repeat(131073)]) assert.throws(() => parseSkillMarkdown(raw), { status: 400 });
+  const manual = parseSkillMarkdown('---\nname: manual-skill\ndescription: test\ndisable-model-invocation: true\n---\ncontent');
+  assert.equal(manual.modelInvocable, false);
+  for (const raw of ['# no metadata', '---\nname: ../bad\ndescription: demo\n---\ncontent', '---\nname: x\nname: y\ndescription: demo\n---\ncontent', '---\nname: x\ndescription: !!js/function x\n---\ncontent', '---\nname: x\ndescription: test\ndisable-model-invocation: maybe\n---\ncontent', 'x'.repeat(131073)]) assert.throws(() => parseSkillMarkdown(raw), { status: 400 });
   const dir = temp();
   try {
     const store = createSkillsStore(dir);

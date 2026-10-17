@@ -27,6 +27,7 @@ import { selectAnswer, createAnswerShareStore } from './answer-actions.mjs'
 import { createChatAttachmentStore, validateAttachments } from './chat-attachments.mjs'
 import { createSkillsStore, parseSkillMarkdown } from './skills-store.mjs'
 import { loadStarterSkills, STARTER_SKILLS_BUNDLE } from './starter-skills.mjs'
+import { parseSkillArchive, SKILL_ARCHIVE_LIMITS } from './skill-archive.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -355,6 +356,29 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/auth/me' && req.method === 'GET') return json(res, 200, { authenticated: true, user: req.identity })
     if (p === '/api/chat/skills' && req.method === 'GET') return json(res, 200, { ok: true, ...skillsStore.seed(req.identity.uid, starterSkills, STARTER_SKILLS_BUNDLE) })
+    if (p === '/api/chat/skills/imports' && req.method === 'POST') {
+      const archive = await parseSkillArchive(await readBody(req, SKILL_ARCHIVE_LIMITS.compressed), parseSkillMarkdown)
+      return json(res, 201, { ok: true, preview: skillsStore.stageImport(req.identity.uid, archive, url.searchParams.get('name') || 'skills.zip') })
+    }
+    const importMatch = p.match(/^\/api\/chat\/skills\/imports\/([a-f0-9-]{36})$/)
+    if (importMatch && req.method === 'POST') {
+      const body = JSON.parse((await readBody(req, 64 * 1024)).toString('utf8'))
+      return json(res, 200, { ok: true, skills: skillsStore.installImport(req.identity.uid, importMatch[1], body?.replacements) })
+    }
+    if (importMatch && req.method === 'DELETE') {
+      skillsStore.discardImport(req.identity.uid, importMatch[1])
+      return json(res, 200, { ok: true })
+    }
+    const skillFilesMatch = p.match(/^\/api\/chat\/skills\/([a-f0-9-]{36})\/(files|file)$/)
+    if (skillFilesMatch && req.method === 'GET') {
+      if (skillFilesMatch[2] === 'files') return json(res, 200, { ok: true, files: skillsStore.files(req.identity.uid, skillFilesMatch[1]) })
+      const file = skillsStore.file(req.identity.uid, skillFilesMatch[1], url.searchParams.get('path'))
+      res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': file.size,
+        'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`, 'x-content-type-options': 'nosniff', 'content-security-policy': 'sandbox' })
+      const stream = fs.createReadStream(file.path)
+      stream.on('error', () => res.destroy())
+      return stream.pipe(res)
+    }
     if (p === '/api/chat/skills/parse' && req.method === 'POST') {
       const body = JSON.parse((await readBody(req, 160 * 1024)).toString('utf8'))
       return json(res, 200, { ok: true, skill: parseSkillMarkdown(body?.markdown) })
