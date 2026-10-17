@@ -115,6 +115,14 @@ test('editing or changing chats cancels processing and ignores late events', asy
   f.controller.dispose();
 });
 
+test('cancelling a recording closes capture without querying a discarded session', async () => {
+  const f = fixture(), socket = await f.begin();
+  f.controller.cancel();
+  assert.ok(socket.closed); assert.ok(f.tracks[0].stopped);
+  assert.equal(f.requests.filter(r => r.options.method === 'POST').length, 0);
+  assert.equal(f.states.at(-1).status, 'idle');
+});
+
 test('permission denial and service readiness fail cleanly before any socket is opened', async () => {
   for (const overrides of [
     { navigator: { mediaDevices: { getUserMedia: async () => { throw Object.assign(new Error('denied'), { name: 'NotAllowedError' }); } } } },

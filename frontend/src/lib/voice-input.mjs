@@ -99,7 +99,9 @@ export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/
   function cancel() {
     const s = session;
     if (!s) { emit('idle'); return; }
-    if (s.id) {
+    if (s.id && s.stopSent) {
+      // A recording socket's close already discards its audio. After stop, the
+      // queued rewrite survives disconnect and needs an explicit HTTP cancel.
       void environment.fetch(endpoint(s, 'sessions/' + s.id + '/cancel'), {
         method: 'POST', credentials: 'same-origin', headers: s.connection.headers, signal: AbortSignal.timeout(5000),
       }).catch(() => {});
