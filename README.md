@@ -45,6 +45,8 @@ ZIP 可以包含一个技能，也可以包含多个独立技能目录；系统�
 
 线上语音服务已经部署到共享 `proxy-tier` 网络，由自身 HTTPS 路由承接 WebSocket，harness-wiki 无需共享或持有语音服务的会话签名密钥。接入地址通过后端环境变量和运行时配置提供，前端无需重新设置密钥。若要在本地验证正式子路径，可临时设置 `VOICE_PUBLIC_BASE_PATH=/speech-recognition`；Vite 将此路径代理到本机 8765（可通过 `VITE_SPEECH_SERVER_TARGET` 调整）。本地测试通过并提交 Git 后，才发布应用到服务器；发布时保留服务器 `.env` 和数据卷。
 
+部署配置为 HTML 入口返回 `Cache-Control: no-store`，带指纹的 `/assets/` 资源仍长期缓存。已经打开的旧标签页须刷新后才会加载新版；若仍在使用浏览器内置 `webkitSpeechRecognition`，录音可能自行结束，也不会执行本服务的文字订正。排查时应核对标签页实际加载的脚本，不能仅凭服务器接入配置判断。
+
 验证：`npm --prefix frontend run test:chat`、`node --test backend/dev/contract-voice-proxy.mjs`、`npm --prefix frontend run build`。
 
 ## 目录结构
