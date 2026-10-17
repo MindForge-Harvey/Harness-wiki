@@ -30,9 +30,10 @@ import { createOpsMetrics } from './ops.js'
 import { createImageLinker } from './images.js'
 import { validateDiagnosisCases } from './diagnosis-submit.js'
 import { readBody, readJsonBody, json, queryParams, err } from './http.js'
+import { mountPersonalSkills } from './personal-skills.js'
 
 export const name = 'dsh-knowledge'
-export const inject = ['webServer', 'tools', 'approval']
+export const inject = ['webServer', 'tools', 'approval', 'skills', 'agents']
 
 const KBS = {
   company: { id: 'company', name: '公司知识库', default: true },
@@ -94,6 +95,7 @@ function resolveInWorkspace(filePath) {
 }
 
 export function apply(ctx) {
+  mountPersonalSkills(ctx)
   const webServer = ctx.webServer
   const tools = ctx.tools
   const approval = ctx.approval

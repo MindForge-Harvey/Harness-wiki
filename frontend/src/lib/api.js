@@ -34,6 +34,19 @@ async function personalFetch(url, options = {}) {
   return response;
 }
 
+async function skillsRequest(endpoint = '', { method = 'GET', body, signal } = {}) {
+  const response = await personalFetch(appUrl('api/chat/skills' + endpoint), {
+    method, signal, ...(body ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(data.error || '技能配置操作失败，请重试'), { status: response.status });
+  return data;
+}
+export const fetchSkills = options => skillsRequest('', options);
+export const parseSkillFile = (markdown, signal) => skillsRequest('/parse', { method: 'POST', body: { markdown }, signal }).then(data => data.skill);
+export const saveSkill = (skill, signal) => skillsRequest(skill.id ? '/' + skill.id : '', { method: skill.id ? 'PUT' : 'POST', body: skill, signal }).then(data => data.skill);
+export const deleteSkill = (skill, signal) => skillsRequest('/' + skill.id, { method: 'DELETE', body: { version: skill.version }, signal });
+
 export async function loadSessions() {
   const response = await personalFetch(appUrl('api/chat/sessions'));
   if (!response.ok) throw new Error('历史对话加载失败');

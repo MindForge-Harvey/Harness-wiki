@@ -21,6 +21,7 @@ import {
   ListChecks,
   FileArrowUp,
   Paperclip,
+  PuzzlePiece,
   SidebarSimple,
   Plus,
   ShareNetwork,
@@ -39,6 +40,7 @@ import { hasTransferFiles, transferFiles } from "../lib/attachments.mjs";
 import { AttachmentList, AttachmentPreview } from "./ChatAttachments";
 import { AnswerVoteButton } from "./AnswerVoteButton";
 import { FeedbackFlywheel } from "./FeedbackFlywheel";
+import { SkillsManager } from "./SkillsManager";
 import assistantHead from "../assets/assistant-head.webp";
 import knowledgeBook from "../assets/knowledge-book.png";
 import { agents } from "../data/agents";
@@ -565,6 +567,7 @@ export default function AgentChat() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [activityText, setActivityText] = useState("");
@@ -677,6 +680,7 @@ export default function AgentChat() {
       setActiveAccount(null);
       setUser(null);
       setFeedbackOpen(false);
+      setSkillsOpen(false);
       setFeedbackVersion(0);
       setSessions([]);
       setSessionId(null);
@@ -1343,8 +1347,8 @@ export default function AgentChat() {
             </button>
           </div>
 
-          <nav className="chat-sidebar-tools" aria-label="工作区入口" data-active={feedbackOpen ? "feedback" : attachments.length ? "upload" : !hasMessages && !sharedId ? "new" : "none"}>
-            <button type="button" aria-label="新对话" aria-current={!hasMessages && !sharedId && !feedbackOpen && !attachments.length ? "page" : undefined} onClick={startNewChat}>
+          <nav className="chat-sidebar-tools" aria-label="工作区入口" data-active={skillsOpen ? "skills" : feedbackOpen ? "feedback" : !hasMessages && !sharedId ? "new" : "none"}>
+            <button type="button" aria-label="新对话" aria-current={!hasMessages && !sharedId && !feedbackOpen && !skillsOpen ? "page" : undefined} onClick={startNewChat}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <Plus size={18} />
               </span>
@@ -1362,13 +1366,14 @@ export default function AgentChat() {
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" aria-label="上传文档" aria-pressed={!feedbackOpen && attachments.length > 0} onClick={() => { setHistoryOpen(false); fileInputRef.current?.click(); }}>
+            <button type="button" aria-label="Skills 配置" aria-haspopup="dialog" aria-expanded={skillsOpen} disabled={!user} onClick={() => { setHistoryOpen(false); setSkillsOpen(true); }}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
-                <FileArrowUp size={18} />
+                <PuzzlePiece size={18} />
               </span>
               <span>
-                <strong>上传文档</strong>
+                <strong>Skills 配置</strong>
               </span>
+              <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
           </nav>
 
@@ -1530,6 +1535,7 @@ export default function AgentChat() {
       </div>
 
       {feedbackOpen && user ? <FeedbackFlywheel key={user.uid} accountUid={user.uid} version={feedbackVersion} onClose={() => setFeedbackOpen(false)} onOpenSession={item => { setFeedbackOpen(false); void resumeSession(item); }} onDeleteRecord={handleDeleteFeedbackRecord} /> : null}
+      {skillsOpen && user ? <SkillsManager key={user.uid} onClose={() => setSkillsOpen(false)} /> : null}
     </main>
   );
 }

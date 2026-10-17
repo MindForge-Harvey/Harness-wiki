@@ -25,6 +25,8 @@ import { checkPortalSession, portalIdentity } from './portal-session.mjs'
 import { createSessionStore, validSessionId, ownedApprovals } from './session-ownership.mjs'
 import { selectAnswer, createAnswerShareStore } from './answer-actions.mjs'
 import { createChatAttachmentStore, validateAttachments } from './chat-attachments.mjs'
+import { createSkillsStore, parseSkillMarkdown } from './skills-store.mjs'
+import { loadStarterSkills, STARTER_SKILLS_BUNDLE } from './starter-skills.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -43,6 +45,9 @@ const SPOOL_DIR = path.join(here, '.spool')
 const chatAttachments = createChatAttachmentStore(SPOOL_DIR)
 const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || 'dsh/home') // settings/profiles/sessions
 const answerShares = createAnswerShareStore(path.join(DSH_HOME, 'storages', 'answer-shares'))
+const SKILLS_DIR = path.join(DSH_HOME, 'storages', 'personal-skills')
+const skillsStore = createSkillsStore(SKILLS_DIR)
+const starterSkills = loadStarterSkills()
 
 const sessionStore = await createSessionStore({ sqlitePath: path.join(DSH_HOME, 'storages', 'chat-sessions.sqlite') })
 const approvalCalls = new Map()
@@ -69,6 +74,7 @@ function getHarness() {
       env: {
         ...process.env,
         KB_ALLOWED_PATHS: SPOOL_DIR,
+        HARNESS_SKILLS_DIR: SKILLS_DIR,
       },
     })
     await harness.start()
@@ -184,6 +190,8 @@ async function handleChatStream(req, res) {
   res.on('close', () => { closed = true })
 
   const runOnce = async (handle, id) => {
+    skillsStore.seed(uid, starterSkills, STARTER_SKILLS_BUNDLE)
+    skillsStore.bindSession(uid, id)
     const result = await handle.run(attachmentTurn.content, {
       onNotification: (n) => {
         const event = n.params?.event
@@ -346,6 +354,22 @@ const server = http.createServer(async (req, res) => {
       if (!['GET', 'HEAD'].includes(req.method) && process.env.NODE_ENV === 'production' && req.headers['x-harness-request'] !== '1') return json(res, 403, { ok: false, error: '请求来源无效' })
     }
     if (p === '/api/auth/me' && req.method === 'GET') return json(res, 200, { authenticated: true, user: req.identity })
+    if (p === '/api/chat/skills' && req.method === 'GET') return json(res, 200, { ok: true, ...skillsStore.seed(req.identity.uid, starterSkills, STARTER_SKILLS_BUNDLE) })
+    if (p === '/api/chat/skills/parse' && req.method === 'POST') {
+      const body = JSON.parse((await readBody(req, 160 * 1024)).toString('utf8'))
+      return json(res, 200, { ok: true, skill: parseSkillMarkdown(body?.markdown) })
+    }
+    if (p === '/api/chat/skills' && req.method === 'POST') {
+      const body = JSON.parse((await readBody(req, 160 * 1024)).toString('utf8'))
+      return json(res, 201, { ok: true, skill: skillsStore.save(req.identity.uid, body) })
+    }
+    const skillMatch = p.match(/^\/api\/chat\/skills\/([a-f0-9-]{36})$/)
+    if (skillMatch && ['PUT', 'DELETE'].includes(req.method)) {
+      const body = JSON.parse((await readBody(req, 160 * 1024)).toString('utf8'))
+      if (req.method === 'PUT') return json(res, 200, { ok: true, skill: skillsStore.save(req.identity.uid, body, skillMatch[1]) })
+      skillsStore.remove(req.identity.uid, skillMatch[1], body?.version)
+      return json(res, 200, { ok: true })
+    }
     if (p === '/api/chat/sessions' && req.method === 'GET') return json(res, 200, { ok: true, sessions: await sessionStore.list(req.identity.uid), user: req.identity })
     if (p === '/api/chat/sessions' && req.method === 'DELETE') {
       await sessionStore.clear(req.identity.uid)
@@ -490,7 +514,7 @@ const server = http.createServer(async (req, res) => {
     json(res, 404, { ok: false, error: 'not found' })
   } catch (e) {
     log('请求失败 ' + req.method + ' ' + p + ': ' + (e && e.message ? e.message : e))
-    if (!res.headersSent) json(res, e && e.status ? e.status : 502, { ok: false, error: String(e && e.message ? e.message : e) })
+    if (!res.headersSent) json(res, e instanceof SyntaxError ? 400 : e && e.status ? e.status : 502, { ok: false, error: e instanceof SyntaxError ? '请求体不是合法 JSON' : String(e && e.message ? e.message : e) })
     else res.end()
   }
 })

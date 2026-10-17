@@ -1,6 +1,11 @@
 # rag-kb profile 用户层：SDK JSON-RPC（stdio）+ webserver REST（3090）+ 知识库助手 persona。
 # 注意：patch 会整体替换目标行的 config，覆盖行必须重述它拥有的每一个键。
 
+# Web 工作台只提供当前账号在 Skills 配置中管理的技能，避免混入宿主机的个人开发技能。
+- id: skill-filesystem
+  config:
+    includeDefaultRoots: false
+
 - id: system-prompt
   config:
     personaSuffix: Your working directory is {{cwd}}.

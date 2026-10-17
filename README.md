@@ -2,6 +2,16 @@
 
 基于 DeepSeek Harness SDK（npm 包 `@deepseek-ai/dsh-sdk-client`）的知识库智能体适配层，外加蓝白视觉的产品门户（Vite + React 前端、轻量门户认证适配和 Nginx 静态服务）。自包含仓库：不依赖 DeepSeek Harness 源码仓。
 
+## 对话工作台的 Skills 配置
+
+左侧「Skills 配置」支持新建、导入单文件 `SKILL.md`、编辑和预览 Markdown 指令、启停及删除。填写技能名称、英文调用名称、适用场景与指令后，点击「保存并生效」；助手从下一次提问开始按适用场景调用，也可以在对话中输入 `/调用名称` 明确使用。导入暂不包含脚本、附件和外部资源目录。
+
+首次打开配置或发起问答时，会为当前账号安装并启用 4 个初始技能：`grill-me`（需求追问，适配自现有同名技能）、`knowledge-qa`（知识检索问答）、`meeting-notes`（会议纪要）、`document-compare`（文档对比）。源码位于 `backend/starter-skills/`，随应用一起打包。初始化只执行一次：保留用户已有的同名技能，后续编辑、停用、删除不会被重新覆盖或自动恢复。
+
+配置按已验证的账号隔离，保存在 `DSH_HOME/storages/personal-skills/`，沿用现有持久化存储。适配层在校验会话归属后绑定账号，运行时通过各 agent 的独立 Skill Provider 提供指令；每步检查配置版本，更新目录并刷新会话已加载且被修改的技能内容。停用、删除会撤销目录并提示助手停止沿用旧指令，无需重启服务。知识库写操作仍走原有审批流程。
+
+验证命令：`node --test backend/dev/contract-skills.mjs`；前端使用 `npm run test:chat` 和 `npm run build`。
+
 ## 目录结构
 
 ```text

@@ -90,7 +90,7 @@ body.chat-view {
 }
 .chat-page .chat-sidebar-tools[data-active="new"]::before { opacity: 1; }
 .chat-page .chat-sidebar-tools[data-active="feedback"]::before { opacity: 1; transform: translateY(calc(var(--tool-height) + var(--tool-gap))); }
-.chat-page .chat-sidebar-tools[data-active="upload"]::before { opacity: 1; transform: translateY(calc(2 * (var(--tool-height) + var(--tool-gap)))); }
+.chat-page .chat-sidebar-tools[data-active="skills"]::before { opacity: 1; transform: translateY(calc(2 * (var(--tool-height) + var(--tool-gap)))); }
 .chat-page .chat-sidebar-tools > button {
   position: relative;
   grid-template-columns: 22px minmax(0, 1fr);
