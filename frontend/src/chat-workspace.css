@@ -337,6 +337,8 @@ body.chat-view {
 .chat-voice-wave i:nth-child(3) { height: 11px; animation-delay: -500ms; }
 .chat-voice-wave i:nth-child(4) { height: 6px; animation-delay: -350ms; }
 @keyframes voice-wave { to { transform: scaleY(0.4); } }
+.chat-voice-processing { animation: voice-processing 1.4s linear infinite; }
+@keyframes voice-processing { to { transform: rotate(360deg); } }
 
 .chat-page .chat-starter-grid {
   display: flex;
@@ -578,6 +580,7 @@ body.chat-view {
 
 @media (prefers-reduced-motion: reduce) {
   .chat-voice-wave i { animation: none; }
+  .chat-voice-processing { animation: none; }
 }
 
 /* Attachments share one tray from selection through conversation history. */

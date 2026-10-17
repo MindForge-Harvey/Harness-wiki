@@ -9,10 +9,13 @@ export default defineConfig({
       "/api": {
         target: process.env.VITE_RAG_SERVER_TARGET || "http://127.0.0.1:3088",
         changeOrigin: false,
+        ws: true,
       },
     },
   },
   build: {
     sourcemap: true,
+    // A data: worklet would be blocked by the production script-src 'self' policy.
+    assetsInlineLimit: filePath => filePath.endsWith('pcm-capture-worklet.js') ? false : undefined,
   },
 });

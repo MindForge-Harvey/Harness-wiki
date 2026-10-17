@@ -28,6 +28,7 @@ import { createChatAttachmentStore, validateAttachments } from './chat-attachmen
 import { createSkillsStore, parseSkillMarkdown } from './skills-store.mjs'
 import { loadStarterSkills, STARTER_SKILLS_BUNDLE } from './starter-skills.mjs'
 import { parseSkillArchive, SKILL_ARCHIVE_LIMITS } from './skill-archive.mjs'
+import { createVoiceProxy } from './voice-proxy.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -38,6 +39,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 try { process.loadEnvFile(path.join(here, '.env')) } catch { /* 缺 backend/.env：沿用下方内置默认值 */ }
 
 const PORT = Number(process.env.PORT) || 3088
+const voiceProxy = createVoiceProxy({ identify: portalIdentity })
 const HOST = '127.0.0.1'
 const CHILD_HTTP = `http://127.0.0.1:${process.env.DSH_CHILD_HTTP_PORT || 3090}`
 const PROFILE = process.env.DSH_PROFILE || 'rag-kb'
@@ -355,6 +357,7 @@ const server = http.createServer(async (req, res) => {
       if (!['GET', 'HEAD'].includes(req.method) && process.env.NODE_ENV === 'production' && req.headers['x-harness-request'] !== '1') return json(res, 403, { ok: false, error: '请求来源无效' })
     }
     if (p === '/api/auth/me' && req.method === 'GET') return json(res, 200, { authenticated: true, user: req.identity })
+    if (await voiceProxy.handle(req, res, p)) return
     if (p === '/api/chat/skills' && req.method === 'GET') return json(res, 200, { ok: true, ...skillsStore.seed(req.identity.uid, starterSkills, STARTER_SKILLS_BUNDLE) })
     if (p === '/api/chat/skills/imports' && req.method === 'POST') {
       const archive = await parseSkillArchive(await readBody(req, SKILL_ARCHIVE_LIMITS.compressed), parseSkillMarkdown)
@@ -543,6 +546,8 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
+server.on('upgrade', (req, socket, head) => { void voiceProxy.upgrade(req, socket, head) })
+
 server.listen(PORT, HOST, () => {
   log('适配层就绪 http://' + HOST + ':' + PORT + '（子进程 HTTP ' + CHILD_HTTP + '，工作区 ' + WORKSPACE_CWD + '）')
   // 预热子进程：3090 通道（/kb/* 与 /approvals/*）常在，聊天首条消息不再等 spawn
@@ -551,6 +556,7 @@ server.listen(PORT, HOST, () => {
 
 async function shutdown() {
   log('关闭中…')
+  voiceProxy.close()
   server.close()
   try { if (harnessPromise) await (await harnessPromise).close() } catch (e) { log('子进程关闭异常: ' + (e && e.message)) }
   await sessionStore.close()

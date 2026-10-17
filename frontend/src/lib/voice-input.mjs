@@ -1,83 +1,221 @@
-const errors = {
-  'not-allowed': '麦克风访问未获允许，请在浏览器中开启权限后重试。',
-  'service-not-allowed': '浏览器的语音服务不可用，请改用文字输入。',
-  'audio-capture': '未找到可用的麦克风，请检查设备后重试。',
-  'no-speech': '没有听到语音，请再试一次。',
-  network: '语音服务连接失败，请检查网络后重试。',
-  'language-not-supported': '当前语音服务不支持中文，请改用文字输入。',
+const microphoneErrors = {
+  NotAllowedError: '麦克风访问未获允许，请在浏览器中开启权限后重试。',
+  NotFoundError: '未找到可用的麦克风，请检查设备后重试。',
+  NotReadableError: '麦克风无法使用，请检查是否被其他程序占用。',
 };
 
-/** Browser speech recognition is started only by a user action. */
-export function createVoiceInput({ environment = globalThis, onState, onTranscript }) {
-  let recognition = null, disposed = false;
-  const emit = (status, error = '') => { if (!disposed) onState({ status, error }); };
-  const detach = instance => {
-    instance.onstart = instance.onresult = instance.onerror = instance.onend = null;
+/** One user action owns one capture session, including its final rewrite. */
+export function createVoiceInput({ environment = globalThis, apiBase = '/api/v1/voice/',
+  workletUrl = new URL('./pcm-capture-worklet.js', import.meta.url).href, onState, onTranscript }) {
+  let session = null, disposed = false, silent = false;
+  const current = s => !disposed && session === s;
+  const emit = (status, error = '', message = '', warning = '') => {
+    if (!disposed && !silent) onState({ status, error, message, warning });
   };
+  const base = new URL(apiBase.replace(/\/?$/, '/'), environment.location?.href || 'http://localhost/');
+  const endpoint = path => new URL(path, base).href;
+
+  function releaseAudio(s) {
+    s.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
+    s.stream = null;
+    s.source?.disconnect();
+    s.processor?.disconnect();
+    if (s.processor) s.processor.port.onmessage = null;
+    s.source = s.processor = null;
+    const context = s.context;
+    s.context = null;
+    return context && context.state !== 'closed' ? context.close().catch(() => {}) : Promise.resolve();
+  }
+
+  function detachSocket(s) {
+    const socket = s.socket;
+    s.socket = null;
+    if (socket) {
+      socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
+      socket.close();
+    }
+  }
+
+  async function request(s, path, options = {}) {
+    const response = await environment.fetch(endpoint(path), {
+      ...options, cache: 'no-store', headers: { 'X-Harness-Request': '1' },
+      signal: AbortSignal.any([s.abort.signal, AbortSignal.timeout(5000)]),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(typeof data.error === 'string' ? data.error : data.detail || '语音服务暂不可用，请稍后重试。'), { status: response.status });
+    return data;
+  }
+
+  function finish(s, error = '', warning = '') {
+    if (!current(s)) return;
+    session = null;
+    s.abort.abort();
+    clearTimeout(s.timer);
+    clearTimeout(s.pollTimer);
+    s.rejectPending?.(new Error('cancelled'));
+    s.resolveFlush?.();
+    detachSocket(s);
+    void releaseAudio(s);
+    emit('idle', error, '', warning);
+  }
+
+  function result(s, data) {
+    if (!current(s)) return;
+    if (data.text) onTranscript(data.text);
+    const warnings = (data.warnings || []).filter(value => typeof value === 'string');
+    if (['fallback', 'partial'].includes(data.rewrite?.status)) warnings.unshift('语音已转写，文字订正未完整完成。');
+    finish(s, '', [...new Set(warnings)].join(' '));
+  }
+
+  async function recover(s) {
+    if (!current(s) || s.recovering) return;
+    if (!s.stopSent || !s.id) {
+      finish(s, '实时语音连接已中断，已收到的文字仍可编辑。请重新开始录音。');
+      return;
+    }
+    s.recovering = true;
+    detachSocket(s);
+    const poll = async () => {
+      if (!current(s)) return;
+      try {
+        const data = await request(s, 'sessions/' + s.id);
+        if (!current(s)) return;
+        if (data.state === 'completed') return result(s, data);
+        if (['failed', 'cancelled', 'listening'].includes(data.state)) {
+          return finish(s, data.error?.message || '语音处理未完成，已收到的文字仍可编辑。');
+        }
+        emit('stopping', '', data.message || '正在等待语音订正…');
+      } catch (error) {
+        if (!current(s)) return;
+        if ([401, 403, 404].includes(error.status)) return finish(s, error.message);
+      }
+      s.pollTimer = setTimeout(poll, 1000);
+    };
+    await poll();
+  }
 
   function cancel() {
-    const current = recognition;
-    recognition = null;
-    if (current) {
-      detach(current);
-      try { current.abort(); } catch { /* Recognition may have ended already. */ }
+    const s = session;
+    if (!s) { emit('idle'); return; }
+    if (s.id) {
+      void environment.fetch(endpoint('sessions/' + s.id + '/cancel'), {
+        method: 'POST', headers: { 'X-Harness-Request': '1' }, signal: AbortSignal.timeout(5000),
+      }).catch(() => {});
     }
-    emit('idle');
+    if (s.socket?.readyState === 1) s.socket.send(JSON.stringify({ type: 'cancel' }));
+    finish(s);
   }
 
   return {
-    start() {
-      if (disposed || recognition) return;
-      const Recognition = environment.SpeechRecognition || environment.webkitSpeechRecognition;
-      if (!Recognition) {
-        emit('idle', '当前浏览器不支持语音输入，请使用支持语音识别的浏览器或直接输入文字。');
-        return;
+    async start() {
+      if (disposed || session) return;
+      const AudioContext = environment.AudioContext || environment.webkitAudioContext;
+      if (environment.isSecureContext === false) return emit('idle', '语音输入需要 HTTPS 或本机 localhost 页面。');
+      if (!environment.navigator?.mediaDevices?.getUserMedia || !AudioContext || !environment.AudioWorkletNode || !environment.WebSocket) {
+        return emit('idle', '当前浏览器无法采集实时语音，请使用较新版本的浏览器或直接输入文字。');
       }
-      if (environment.isSecureContext === false) {
-        emit('idle', '语音输入需要 HTTPS 或本机 localhost 页面。');
-        return;
-      }
-      let current;
+      const s = { abort: new AbortController(), status: 'starting' };
+      session = s;
+      emit('starting');
       try {
-        current = new Recognition();
-        recognition = current;
-        current.lang = 'zh-CN';
-        current.continuous = true;
-        current.interimResults = true;
-        current.maxAlternatives = 1;
-        current.onstart = () => { if (recognition === current) emit('listening'); };
-        current.onresult = event => {
-          if (recognition !== current || disposed) return;
-          // Interim results replace earlier guesses; they must not append duplicates.
-          const text = Array.from(event.results, result => result[0]?.transcript || '').join('').trim();
-          if (text) onTranscript(text);
+        // Resume within the click gesture, before any network request.
+        s.context = new AudioContext({ sampleRate: 16000 });
+        await s.context.resume();
+        if (!current(s)) return;
+        const caps = await request(s, 'capabilities');
+        if (!current(s)) return;
+        if (caps.protocol_version !== 1 || caps.audio?.encoding !== 'pcm_s16le' || caps.audio?.sample_rate !== 16000 || caps.audio?.channels !== 1) {
+          throw new Error('语音服务协议不兼容，请检查服务配置。');
+        }
+        if (!caps.ready) throw new Error('实时语音服务尚未就绪，请稍后重试。');
+        const stream = await environment.navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false,
+        });
+        if (!current(s)) { stream.getTracks().forEach(track => track.stop()); return; }
+        s.stream = stream;
+        await s.context.audioWorklet.addModule(workletUrl);
+        if (!current(s)) return;
+        s.processor = new environment.AudioWorkletNode(s.context, 'pcm-capture');
+        const socketUrl = new URL('ws', base);
+        socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = s.socket = new environment.WebSocket(socketUrl.href);
+        await new Promise((resolve, reject) => {
+          s.rejectPending = reject;
+          s.timer = setTimeout(() => reject(new Error('实时语音服务连接超时，请检查后台服务。')), 15000);
+          socket.onopen = () => {
+            if (current(s)) socket.send(JSON.stringify({ type: 'start', sample_rate: 16000, channels: 1, encoding: 'pcm_s16le' }));
+          };
+          socket.onmessage = event => {
+            if (!current(s)) return;
+            let data;
+            try { data = JSON.parse(event.data); } catch { finish(s, '语音服务返回了无效消息，请重试。'); return; }
+            if (data.type === 'ready' && !s.id) {
+              if (!/^[a-f0-9]{32}$/.test(data.session_id)) return finish(s, '语音服务返回了无效会话，请重试。');
+              s.id = data.session_id;
+              clearTimeout(s.timer);
+              s.rejectPending = null;
+              resolve();
+            } else if (data.type === 'transcript') {
+              if (data.text) onTranscript(data.text); // Cumulative previews replace previous guesses.
+            } else if (data.type === 'result') {
+              result(s, data);
+            } else if (data.type === 'error') {
+              if (data.fatal === false && s.stopSent) void recover(s);
+              else finish(s, data.error?.message || data.message || '语音识别未完成，请重试。');
+            } else if (data.type === 'state' && data.ui_state === 'rewriting') {
+              emit('stopping', '', data.message || '正在订正语音文字…');
+            } else if (data.type === 'state' && data.state === 'cancelled') {
+              finish(s);
+            }
+          };
+          socket.onerror = socket.onclose = () => { if (current(s)) void recover(s); };
+        });
+        if (!current(s)) return;
+        s.processor.port.onmessage = event => {
+          if (!current(s)) return;
+          if (event.data.type === 'audio' && socket.readyState === 1) {
+            if (socket.bufferedAmount > 1024 * 1024) return finish(s, '音频传输积压，请检查网络后重新录音。');
+            socket.send(event.data.pcm);
+          } else if (event.data.type === 'flushed') s.resolveFlush?.();
         };
-        current.onerror = event => {
-          if (recognition !== current) return;
-          recognition = null;
-          detach(current);
-          try { current.abort(); } catch { /* Ended recognition needs no cleanup. */ }
-          emit('idle', event.error === 'aborted' ? '' : errors[event.error] || '语音识别未完成，请重试或直接输入文字。');
-        };
-        current.onend = () => {
-          if (recognition !== current) return;
-          recognition = null;
-          detach(current);
-          emit('idle');
-        };
-        emit('starting');
-        current.start();
-      } catch {
-        cancel();
-        emit('idle', '无法启动语音输入，请检查麦克风权限后重试。');
+        s.source = s.context.createMediaStreamSource(s.stream);
+        s.source.connect(s.processor);
+        s.processor.connect(s.context.destination);
+        s.stream.getTracks().forEach(track => { track.onended = () => { if (current(s)) void this.stop(); }; });
+        s.status = 'listening';
+        emit('listening');
+      } catch (error) {
+        if (current(s)) finish(s, microphoneErrors[error.name] || (error.name === 'TypeError' ? '实时语音服务连接失败，请检查后台服务。' : error.message));
       }
     },
-    stop() {
-      if (!recognition) return;
-      emit('stopping');
-      try { recognition.stop(); } catch { cancel(); }
+    async stop() {
+      const s = session;
+      if (!s || s.status === 'stopping') return;
+      if (s.status === 'starting') { cancel(); return; }
+      s.status = 'stopping';
+      emit('stopping', '', '正在结束听录…');
+      try {
+        s.source.disconnect();
+        await new Promise((resolve, reject) => {
+          s.rejectPending = reject;
+          s.timer = setTimeout(() => reject(new Error('麦克风未能及时结束，已收到的文字仍可编辑。')), 3000);
+          s.resolveFlush = () => { clearTimeout(s.timer); s.rejectPending = null; resolve(); };
+          s.processor.port.postMessage({ type: 'flush' });
+        });
+        if (!current(s)) return;
+        await releaseAudio(s);
+        if (!current(s)) return;
+        if (s.socket?.readyState !== 1) throw new Error('实时语音连接已中断，已收到的文字仍可编辑。');
+        s.stopSent = true;
+        s.socket.send(JSON.stringify({ type: 'stop' }));
+        s.timer = setTimeout(() => {
+          if (!current(s)) return;
+          cancel();
+          emit('idle', '等待语音订正超时，已收到的文字仍可编辑。');
+        }, 120000);
+      } catch (error) { if (current(s)) finish(s, error.message); }
     },
     cancel,
-    dispose() { disposed = true; cancel(); },
+    dispose() { silent = true; cancel(); disposed = true; },
   };
 }

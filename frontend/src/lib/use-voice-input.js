@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { createVoiceInput } from './voice-input.mjs';
+import { appUrl } from './app-url';
 
 export function useVoiceInput(onTranscript) {
-  const [state, setState] = useState({ status: 'idle', error: '' });
+  const [state, setState] = useState({ status: 'idle', error: '', message: '', warning: '' });
   const controller = useRef(null);
   const callback = useRef(onTranscript);
   callback.current = onTranscript;
   useEffect(() => {
     controller.current = createVoiceInput({
+      apiBase: appUrl('api/v1/voice/'),
       onState: setState,
       onTranscript: text => callback.current(text),
     });

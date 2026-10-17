@@ -18,6 +18,24 @@ ZIP 可以包含一个技能，也可以包含多个独立技能目录；系统�
 
 验证命令：`node --test backend/dev/contract-skills.mjs backend/dev/contract-skill-archive.mjs`；前端使用 `npm run test:chat` 和 `npm run build`。
 
+## 实时语音输入
+
+聊天输入框的麦克风现通过 `speech-recognition-agent` 的 Voice API v1 实时转写。点击开始后，文字持续回填；点击结束或按回车后，先完整提交最后一段音频并关闭麦克风，再等待重新识别、补标点和文字订正。最终文字替换本次录音的预览，保留开始录音前的草稿，用户确认后自行发送。手动编辑、切换会话或退出页面会取消听录和订正，迟到的结果不会覆盖新内容。
+
+本地使用：
+
+1. 在 `speech-recognition-agent` 项目执行 `./run.sh`，等待服务就绪。
+2. `backend/.env` 可设置 `VOICE_API_BASE_URL=http://127.0.0.1:8765`（默认即为此地址）。填**服务根地址**，不要追加 `/api/v1/voice`；服务若部署在子路径下，可填带该前缀的根地址。
+3. 在本项目执行 `./start.sh`，打开 `http://localhost:5173/chat`，允许麦克风权限。
+
+浏览器访问同域 `/api/v1/voice/*`（线上前缀为 `/harness-wiki/api/v1/voice/*`），由后端代理就绪检查、WebSocket、会话查询和取消接口。代理沿用门户身份校验，HTTP 查询与取消按账号限制；WebSocket 校验页面来源，登录 Cookie 不会传给语音服务。音频使用 AudioWorklet 采集为 16 kHz、单声道、小端 PCM16，600 ms 一块，并兼容设备的 44.1/48 kHz 采样率。录音只由语音服务在内存处理，不进入聊天附件或上传历史。
+
+结束听录后 WebSocket 保持连接直到收到最终结果；此阶段断线时自动查询会话结果，最多等待 120 秒。听录期间断线则结束采集并保留已收到的文字，需重新点击开始。服务繁忙、权限拒绝和订正失败会显示提示；订正降级时仍可使用转写文字。服务目前只支持一路同时听录，其他用户遇到繁忙提示需稍后重试。代理的会话归属仅保存在当前后端进程内，重启后正在等待的结果无法通过代理恢复。
+
+未来公网部署时，将语音服务部署到 harness-wiki 后端可达的位置，再修改 `VOICE_API_BASE_URL` 并重启后端。容器内的 `127.0.0.1` 指向容器自身，不能指向开发机。需要同步更新外层 `deploy/outer-nginx.conf` 和容器内 Nginx 的 WebSocket Upgrade 配置；仓库已包含这些配置。前端和用户操作无需再切换，也无需在浏览器暴露模型密钥。当前改动仅在本地验证，未部署公网。
+
+验证：`npm --prefix frontend run test:chat`、`node --test backend/dev/contract-voice-proxy.mjs`、`npm --prefix frontend run build`。
+
 ## 目录结构
 
 ```text
