@@ -39,3 +39,6 @@ backend/dsh/home/task-board/
 
 # dsh 运行时生成，不入库
 backend/dsh/home/.anonymous-user-id
+
+# 本地知识库评测与诊断报告不入库
+backend/dsh/dsh-knowledge/reports/
