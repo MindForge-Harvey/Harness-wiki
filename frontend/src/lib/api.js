@@ -171,6 +171,22 @@ export async function fetchChatHistory(sessionId) {
   }
 }
 
+/** 拉取本会话生成的文档列表（适配层扫描 harness 工作区）。失败抛错由调用方展示。 */
+export async function fetchDocuments(sessionId, signal) {
+  const res = await personalFetch(appUrl(`api/chat/documents?sessionId=${encodeURIComponent(sessionId)}`), { signal });
+  if (!res.ok) throw new Error("文档列表加载失败（HTTP " + res.status + "）");
+  const data = await res.json();
+  return Array.isArray(data.documents) ? data.documents : [];
+}
+
+/** 文档下载地址（带会话归属校验）。 */
+export const documentUrl = (sessionId, path) =>
+  appUrl(`api/chat/documents/file?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(path)}`);
+
+/** 文档内联预览地址：会话标识在路径段中，HTML 引用的相对资源才能解析到同一路由。 */
+export const documentViewUrl = (sessionId, path) =>
+  appUrl(`api/chat/doc-view/${encodeURIComponent(sessionId)}/${path.split("/").map(encodeURIComponent).join("/")}`);
+
 export async function fetchPendingApprovals() {
   const r = await personalFetch(appUrl("api/approvals/pending"));
   if (!r.ok) return [];

@@ -29,6 +29,7 @@ import { createSkillsStore, parseSkillMarkdown } from './skills-store.mjs'
 import { loadStarterSkills, STARTER_SKILLS_BUNDLE } from './starter-skills.mjs'
 import { parseSkillArchive, SKILL_ARCHIVE_LIMITS } from './skill-archive.mjs'
 import { createVoiceProxy } from './voice-proxy.mjs'
+import { createDocumentStore } from './documents.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -51,11 +52,46 @@ const answerShares = createAnswerShareStore(path.join(DSH_HOME, 'storages', 'ans
 const SKILLS_DIR = path.join(DSH_HOME, 'storages', 'personal-skills')
 const skillsStore = createSkillsStore(SKILLS_DIR)
 const starterSkills = loadStarterSkills()
+const documents = createDocumentStore(WORKSPACE_CWD)
+
+/** 内联预览按扩展名返回内容类型，HTML 演示文稿才能正常渲染并加载其图片。 */
+const PREVIEW_MIME = {
+  html: 'text/html; charset=utf-8', htm: 'text/html; charset=utf-8',
+  css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+  svg: 'image/svg+xml', webp: 'image/webp', avif: 'image/avif', ico: 'image/x-icon',
+  woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf',
+}
 
 const sessionStore = await createSessionStore({ sqlitePath: path.join(DSH_HOME, 'storages', 'chat-sessions.sqlite') })
 const approvalCalls = new Map()
 
+/**
+ * 历史文档归属回填：只为尚未登记的文档按生成时间找会话，已有归属保持不变。
+ * 没有归属的旧文档会在升级后从文档面板消失，因此启动时补齐一次。
+ */
+async function backfillDocumentOwnership() {
+  const sessions = await sessionStore.sessions()
+  if (!sessions.length) return
+  const known = new Set(await sessionStore.documentPaths())
+  let owned = 0
+  for (const doc of documents.list(0)) {
+    if (known.has(doc.path)) continue
+    // 优先落在生成时间所属的会话窗口内，否则退回归档时间之前最近创建的会话。
+    const owner = sessions
+      .filter((s) => doc.mtime >= s.createdAt - 5000 && doc.mtime <= s.updatedAt + 30 * 60 * 1000)
+      .sort((a, b) => b.createdAt - a.createdAt)[0]
+      ?? sessions.filter((s) => doc.mtime >= s.createdAt - 5000).sort((a, b) => b.createdAt - a.createdAt)[0]
+    if (!owner) continue
+    await sessionStore.recordDocuments(owner.sessionId, [doc])
+    known.add(doc.path)
+    owned += 1
+  }
+  if (owned) log(`已回填 ${owned} 份历史文档的会话归属`)
+}
+
 function log(msg) { console.log('[rag-kb-server] ' + msg) }
+await backfillDocumentOwnership()
 
 // ---------------------------------------------------------------- harness 单例与会话表
 
@@ -71,9 +107,10 @@ function getHarness() {
       dshHome: DSH_HOME,
       // 模型路由与 key 均来自 backend/.env（provider 对应 dsh/home/settings.yaml 的 providers 项）
       provider: process.env.LLM_PROVIDER || 'qwen-token-plan',
-      model: process.env.LLM_MODEL || 'glm-5.2',
+      model: process.env.LLM_MODEL || 'qwen3.8-flash',
       // 与宿主 GUI 的 agent-default-model.reasoningEffort 保持一致：没有它模型不回传思考（reasoning 块）
-      reasoningEffort: process.env.LLM_REASONING_EFFORT || 'max',
+      // off=关闭思考（最快），high=开启思考；档位需在 settings.yaml 对应模型的 reasoningEfforts 中声明
+      reasoningEffort: process.env.LLM_REASONING_EFFORT || 'off',
       env: {
         ...process.env,
         KB_ALLOWED_PATHS: SPOOL_DIR,
@@ -105,9 +142,9 @@ async function getSession(sessionId) {
 
 // ---------------------------------------------------------------- HTTP 基础
 
-function json(res, code, data) {
+function json(res, code, data, headers = {}) {
   const body = JSON.stringify(data)
-  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' })
+  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...headers })
   res.end(body)
 }
 
@@ -195,6 +232,8 @@ async function handleChatStream(req, res) {
   const runOnce = async (handle, id) => {
     skillsStore.seed(uid, starterSkills, STARTER_SKILLS_BUNDLE)
     skillsStore.bindSession(uid, id)
+    // 只登记本轮真正新增或改写的文档，文档面板按会话隔离展示。
+    const before = documents.snapshot()
     const result = await handle.run(attachmentTurn.content, {
       onNotification: (n) => {
         const event = n.params?.event
@@ -202,6 +241,12 @@ async function handleChatStream(req, res) {
         if (!closed) send('notification', n)
       },
     })
+    try {
+      await sessionStore.recordDocuments(id, documents.changedSince(before))
+      await sessionStore.touch(uid, id)
+    } catch (error) {
+      log('文档归属登记失败 ' + id + '：' + (error && error.message ? error.message : error))
+    }
     if (!closed) send('done', { sessionId: id, finalResponse: result.finalResponse })
     log('run 完成 ' + id + '（' + result.events.length + ' 事件）')
   }
@@ -320,6 +365,9 @@ function projectHistory(events, sessionId) {
           try { out[idx].queryId = JSON.parse(resultText).query_id || null } catch {
             out[idx].queryId = resultText.match(/查询\s*id[：:]\s*([\w-]+)/i)?.[1] || null
           }
+          // 引用行在长文本末尾，先于截断从完整结果里取出来，历史回放才能展示检索来源。
+          const rendered = resultText.match(/(?:^|\n)引用[：:]\s*([^\n]+)/)?.[1]
+          out[idx].references = rendered ? rendered.split('、').map((file) => file.trim()).filter(Boolean) : []
         }
         break
       }
@@ -331,6 +379,18 @@ function projectHistory(events, sessionId) {
       case 'approval/decided': {
         const idx = pendingApprovals.shift()
         if (idx !== undefined) out[idx].status = d.outcome === 'allowed-once' ? 'allowed' : 'rejected'
+        break
+      }
+      case 'compaction/start': {
+        out.push({ seq: e.seq, time: e.time, kind: 'compaction', status: 'running', message: '' })
+        break
+      }
+      case 'compaction/end': {
+        const idx = out.findLastIndex((item) => item.kind === 'compaction' && item.status === 'running')
+        if (idx < 0) break
+        const message = typeof d.error === 'string' ? d.error : d.error?.message || ''
+        out[idx].status = message ? 'error' : 'done'
+        out[idx].message = message
         break
       }
       case 'turn/end': {
@@ -397,7 +457,11 @@ const server = http.createServer(async (req, res) => {
       skillsStore.remove(req.identity.uid, skillMatch[1], body?.version)
       return json(res, 200, { ok: true })
     }
-    if (p === '/api/chat/sessions' && req.method === 'GET') return json(res, 200, { ok: true, sessions: await sessionStore.list(req.identity.uid), user: req.identity })
+    if (p === '/api/chat/sessions' && req.method === 'GET') {
+      // running 让会话列表能标出后台仍在执行的会话，切走再切回也看得见。
+      const sessions = (await sessionStore.list(req.identity.uid)).map((item) => ({ ...item, running: activeRuns.has(item.sessionId) }))
+      return json(res, 200, { ok: true, sessions })
+    }
     if (p === '/api/chat/sessions' && req.method === 'DELETE') {
       await sessionStore.clear(req.identity.uid)
       return json(res, 200, { ok: true })
@@ -407,6 +471,54 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true })
     }
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
+
+    if (p === '/api/chat/documents' && req.method === 'GET') {
+      const sessionId = url.searchParams.get('sessionId') || ''
+      if (!sessionId) return json(res, 400, { ok: false, error: '缺少会话标识' })
+      await sessionStore.require(req.identity.uid, sessionId)
+      // 只列登记到本会话的文档，其他会话生成的文件不会串进来。
+      const listed = []
+      for (const row of await sessionStore.listDocuments(sessionId)) {
+        try {
+          documents.resolve(row.path)
+        } catch {
+          continue // 文件已被删除或移出工作区，跳过失效记录。
+        }
+        listed.push({ ...row, ext: path.extname(row.path).slice(1).toLowerCase() })
+      }
+      return json(res, 200, { ok: true, documents: listed }, { 'cache-control': 'no-store' })
+    }
+
+    if (p === '/api/chat/documents/file' && req.method === 'GET') {
+      await sessionStore.require(req.identity.uid, url.searchParams.get('sessionId') || '')
+      const file = documents.resolve(url.searchParams.get('path') || '')
+      res.writeHead(200, {
+        'content-type': 'application/octet-stream',
+        'content-length': file.size,
+        'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+        'x-content-type-options': 'nosniff',
+        'cache-control': 'no-store',
+      })
+      const stream = fs.createReadStream(file.path)
+      stream.on('error', () => res.destroy())
+      return stream.pipe(res)
+    }
+
+    // 内联预览：会话标识放在路径里，HTML 引用的同目录图片/样式才会按相对路径命中同一路由。
+    const viewMatch = p.match(/^\/api\/chat\/doc-view\/([^/]+)\/(.+)$/)
+    if (req.method === 'GET' && viewMatch) {
+      await sessionStore.require(req.identity.uid, decodeURIComponent(viewMatch[1]))
+      const file = documents.resolveAsset(decodeURIComponent(viewMatch[2]))
+      res.writeHead(200, {
+        'content-type': PREVIEW_MIME[path.extname(file.name).slice(1).toLowerCase()] || 'application/octet-stream',
+        'content-length': file.size,
+        'x-content-type-options': 'nosniff',
+        'cache-control': 'no-store',
+      })
+      const stream = fs.createReadStream(file.path)
+      stream.on('error', () => res.destroy())
+      return stream.pipe(res)
+    }
 
     if (req.method === 'GET' && /^\/api\/chat\/attachments\/([^/]+)\/([^/]+)$/.test(p)) {
       const [, sessionId, id] = p.match(/^\/api\/chat\/attachments\/([^/]+)\/([^/]+)$/)

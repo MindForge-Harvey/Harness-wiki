@@ -9,6 +9,13 @@ const missing = () => Object.assign(new Error('技能不存在'), { status: 404 
 const hash = value => createHash('sha256').update(value).digest('hex');
 export const SKILL_LIMITS = { count: 50, title: 60, name: 64, description: 1000, content: 32000, totalBytes: 512 * 1024 };
 
+/** 内核只接受 kebab-case 调用名称，这里把用户输入统一规范化。 */
+export function normalizeSkillName(value) {
+  return value.trim().toLowerCase().replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+const KERNEL_SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 function validate(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw invalid('技能配置必须是对象');
   const data = {};
@@ -17,7 +24,9 @@ function validate(input) {
     data[key] = input[key].trim();
     if (data[key].length > SKILL_LIMITS[key]) throw invalid(`${{ title: '技能名称', name: '调用名称', description: '触发说明', content: '技能指令' }[key]}超过长度限制`);
   }
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.name)) throw invalid('调用名称仅支持小写英文、数字和连字符，例如 answer-format');
+  if (!/^[A-Za-z0-9 _-]+$/.test(data.name)) throw invalid('调用名称仅支持英文、数字、空格和连字符，例如 Answer Format');
+  data.name = normalizeSkillName(data.name);
+  if (!data.name) throw invalid('调用名称需包含英文字母或数字');
   if (typeof input.enabled !== 'boolean') throw invalid('启用状态无效');
   for (const key of ['modelInvocable', 'userInvocable']) if (input[key] !== undefined && typeof input[key] !== 'boolean') throw invalid('技能调用方式无效');
   return { ...data, enabled: input.enabled, ...(input.modelInvocable === false ? { modelInvocable: false } : {}), ...(input.userInvocable === false ? { userInvocable: false } : {}) };
@@ -49,6 +58,23 @@ function updatedSkillMarkdown(skill, original) {
   return `---\n${stringify(meta)}---\n\n${skill.content}\n`;
 }
 
+/** 把历史数据里不符合内核规则的调用名称就地规范化，名称冲突时追加序号。 */
+function migrateSkillNames(data) {
+  const taken = new Set(data.skills.map(skill => skill.name).filter(name => KERNEL_SKILL_NAME.test(name)));
+  let changed = false;
+  for (const skill of data.skills) {
+    if (KERNEL_SKILL_NAME.test(skill.name)) continue;
+    const base = normalizeSkillName(String(skill.name || '')) || 'skill';
+    let candidate = base, index = 2;
+    while (taken.has(candidate)) candidate = `${base}-${index++}`;
+    taken.add(candidate);
+    skill.name = candidate;
+    changed = true;
+  }
+  if (changed) data.revision += 1;
+  return changed;
+}
+
 /** Atomic, account-scoped configuration on the existing persistent storages volume. */
 export function createSkillsStore(root) {
   if (!root) throw new Error('Missing skills storage directory');
@@ -71,7 +97,11 @@ export function createSkillsStore(root) {
     try { fs.writeFileSync(tmp, bytes, { mode: 0o600, flag: 'wx' }); fs.renameSync(tmp, file); }
     finally { fs.rmSync(tmp, { force: true }); }
   };
-  const list = uid => read(accountFile(uid)) || { revision: 0, skills: [] };
+  const list = uid => {
+    const data = read(accountFile(uid)) || { revision: 0, skills: [] };
+    if (migrateSkillNames(data)) write(accountFile(uid), data);
+    return data;
+  };
   const bundleDir = (uid, id) => {
     accountFile(uid);
     if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id)) throw missing();
@@ -135,6 +165,7 @@ export function createSkillsStore(root) {
       const id = randomUUID(), dir = bundleDir(uid, id);
       const existing = list(uid).skills;
       const files = archive.files.map(file => ({ path: file.path, size: file.bytes.length, executable: file.executable }));
+      const invalid = archive.invalid || [];
       const skills = archive.skills.map(skill => {
         const prefix = skill.root ? skill.root + '/' : '';
         const ownFiles = files.filter(file => file.path.startsWith(prefix)).map(file => ({ ...file, path: file.path.slice(prefix.length) }));
@@ -148,9 +179,9 @@ export function createSkillsStore(root) {
           fs.writeFileSync(target, file.bytes, { mode: file.executable ? 0o700 : 0o600, flag: 'wx' });
         }
         write(path.join(dir, 'manifest.json'), { createdAt: Date.now(), filename: String(filename).slice(0, 200), files, totalBytes: archive.totalBytes });
-        write(path.join(dir, 'import.json'), { skills });
+        write(path.join(dir, 'import.json'), { skills, invalid });
       } catch (error) { fs.rmSync(dir, { recursive: true, force: true }); throw error; }
-      return { id, filename, skills, fileCount: files.length, totalBytes: archive.totalBytes };
+      return { id, filename, skills, invalid, fileCount: files.length, totalBytes: archive.totalBytes };
     },
     installImport(uid, id, replacements = {}) {
       const dir = bundleDir(uid, id), info = manifest(uid, id), staged = read(path.join(dir, 'import.json'));
@@ -159,6 +190,7 @@ export function createSkillsStore(root) {
       const result = [], replaced = [];
       for (const draft of staged.skills) {
         const value = validate(draft);
+        if (result.some(item => item.name === value.name)) throw invalid(`包内有两个技能规范化后都叫「${value.name}」，请修改后重新导入`);
         const previous = data.skills.find(skill => skill.name === value.name);
         if (previous && (replacements?.[value.name]?.id !== previous.id || replacements?.[value.name]?.version !== previous.version)) throw Object.assign(new Error(`「${previous.title}」已存在或已更新，请重新预览并确认替换`), { status: 409 });
         const now = new Date().toISOString();

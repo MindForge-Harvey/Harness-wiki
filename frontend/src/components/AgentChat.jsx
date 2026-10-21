@@ -14,8 +14,12 @@ import {
   CheckCircle,
   ArrowsClockwise,
   ClockCounterClockwise,
+  CornersOut,
+  ArrowClockwise,
   Copy,
+  DownloadSimple,
   FileText,
+  Files,
   MagnifyingGlass,
   Microphone,
   ListChecks,
@@ -31,7 +35,8 @@ import {
   UserCircle,
   X,
 } from "@phosphor-icons/react";
-import { toolLabel, taskProgress, visibleTool, groupTaskMessages } from "../lib/task-progress.mjs";
+import { DocumentPreview, DocumentBody, previewIcon, useDocumentContent } from "./DocumentPreview";
+import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
 import { appUrl } from "../lib/app-url";
 import { copyText } from "../lib/copy-text.mjs";
@@ -58,6 +63,8 @@ import {
   voteOnAnswer,
   deleteFeedbackRecord,
   fetchSharedAnswer,
+  fetchDocuments,
+  documentUrl,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
 
@@ -223,52 +230,105 @@ function GraphCard({ entities, relations, truncated }) {
   );
 }
 
-/* ---------------------------------------------------------------- 任务阶段 */
+/* ---------------------------------------------------------------- 执行过程 */
 
-function ToolCard({ card }) {
+const formatDuration = ms => (ms < 60000 ? `${Math.max(1, Math.round(ms / 1000))} 秒` : `${Math.floor(ms / 60000)} 分 ${Math.round((ms % 60000) / 1000)} 秒`);
+
+const firstLine = (text, limit = 48) => {
+  const line = String(text || "").split("\n").map(part => part.trim()).find(Boolean) || "";
+  return line.length > limit ? `${line.slice(0, limit)}…` : line;
+};
+
+/** 过程里的单条：推理、旁白、工具阶段、审批或异常，点击展开明细。 */
+function ProcessStep({ step }) {
   const [open, setOpen] = useState(false);
-  const progress = taskProgress(card);
-  const running = progress.status === "running";
-  const graphCall = (card.calls || [card]).findLast(call => call.status === "done" && call.resultJson?.entities?.length);
-  const json = graphCall?.resultJson || card.resultJson;
-  const graphText = card.name === "kb_graph_search" && !json && card.resultText;
-  const expandable = progress.summaries.length > 1 || Boolean(graphText);
-  const briefs = progress.summaries.map(summary => progress.references.length ? summary.replace(/；引用：.*$/, "") : summary);
-  const Head = expandable ? "button" : "div";
+  const parts = step.role === "note" ? step.parts : [];
+  const narration = parts.findLast(part => part.role === "assistant");
+  const tool = step.role === "tool" ? taskProgress(step) : null;
+  const status = tool ? tool.status
+    : step.role === "error" ? "error"
+      : step.role === "compaction" ? (step.status === "running" ? "running" : step.status === "error" ? "error" : "done")
+        : step.role === "approval" ? (step.status === "pending" ? "running" : "done") : "done";
+  const title = step.role === "note" ? "思考"
+    : step.role === "approval" ? `执行审批 · ${toolLabel(step.toolName)}`
+      : step.role === "error" ? (step.title || "本轮异常结束")
+        : step.role === "compaction" ? "压缩上下文"
+          : step.role === "tool" ? tool.title : "处理资料";
+  const brief = step.role === "note" ? firstLine(narration?.content || parts.at(-1)?.text, 44)
+    : step.role === "approval" ? (step.status === "allowed" ? "已批准" : step.status === "rejected" ? "已拒绝" : "等待你的决定")
+      : step.role === "error" ? firstLine(step.message, 44)
+        : step.role === "compaction" ? (step.status === "error" ? firstLine(step.message, 44) : "整理较早的对话，保持后续回答可用")
+          : tool && tool.status === "error" && step.calls.length > 1 ? `连续 ${step.calls.length} 次未成功`
+            : tool && step.calls.length > 1 ? `${tool.brief} 等 ${step.calls.length} 项`
+              : tool ? tool.brief || tool.summaries[0] : "";
+  const detail = step.role === "note" ? parts.map(part => part.role === "assistant" ? part.content : part.text).join("\n\n")
+    : step.role === "approval" ? step.reason
+      : step.role === "error" ? step.message
+        : step.role === "compaction" ? (step.message || "")
+          : tool ? tool.detail : "";
+  const references = tool?.references || [];
+  const graphJson = step.role === "tool" && step.name === "kb_graph_search" && step.status === "done"
+    ? (step.calls.find(call => call.resultJson?.entities?.length)?.resultJson || step.resultJson) : null;
+  const expandable = Boolean(detail) || references.length > 0 || Boolean(graphJson?.entities?.length);
+
   return (
-    <article className={`chat-tool-card is-${progress.status}${expandable && open ? " is-open" : ""}`}>
-      <Head className="chat-tool-head" {...(expandable ? { type: "button", onClick: () => setOpen(v => !v), "aria-expanded": open } : {})}>
-        <span className="chat-tool-spin" aria-hidden="true">
-          {running ? <React.Fragment><i /><i /><i /></React.Fragment>
-            : progress.status === "done" ? <CheckCircle size={14} weight="fill" />
-              : progress.status === "error" ? <X size={14} /> : <ClockCounterClockwise size={14} />}
+    <li className={`chat-process-step is-${status}`}>
+      <button className="chat-process-step-head" type="button" disabled={!expandable} aria-expanded={expandable ? open : undefined} onClick={() => setOpen(value => !value)}>
+        <span className="chat-process-dot" aria-hidden="true">
+          {status === "running" ? <React.Fragment><i /><i /><i /></React.Fragment>
+            : status === "error" ? <X size={11} /> : status === "done" ? <CheckCircle size={12} weight="fill" /> : <ClockCounterClockwise size={11} />}
         </span>
-        <strong>{progress.title}</strong>
-        <span className="chat-tool-brief">{briefs.join("；")}</span>
-        {expandable ? <CaretDown size={13} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} /> : null}
-      </Head>
-      {progress.references.length ? (
-        <section className="chat-source-strip" aria-label="检索来源">
-          <span className="chat-source-label">检索来源 <small>{progress.references.length} 份</small></span>
-          <ul>
-            {progress.references.map(file => (
-              <li key={file} title={file}>
-                <FileText size={15} aria-hidden="true" />
-                <span>{file}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {card.name === "kb_graph_search" && card.status === "done" && json?.entities?.length
-        ? <GraphCard entities={json.entities} relations={json.relations} truncated={json.is_truncated} /> : null}
+        <strong>{title}</strong>
+        {brief ? <span className="chat-process-brief">{brief}</span> : null}
+        {expandable ? <CaretDown size={12} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} /> : null}
+      </button>
       {expandable && open ? (
-        <div className="chat-tool-body">
-          {progress.summaries.map(summary => <p key={summary}>{summary}</p>)}
-          {graphText ? <p className="chat-tool-graph-text">{graphText}</p> : null}
+        <div className="chat-process-detail">
+          {detail ? <p>{detail}</p> : null}
+          {graphJson?.entities?.length ? (
+            <GraphCard entities={graphJson.entities} relations={graphJson.relations} truncated={graphJson.is_truncated} />
+          ) : null}
+          {references.length ? (
+            <ul className="chat-process-refs">
+              {references.map(file => <li key={file}><FileText size={13} aria-hidden="true" /><span>{file}</span></li>)}
+            </ul>
+          ) : null}
         </div>
       ) : null}
-    </article>
+    </li>
+  );
+}
+
+/** 一轮执行过程：运行中展开显示当前步骤，完成后收成一行摘要。 */
+function ProcessBlock({ block, live, activityText }) {
+  const [open, setOpen] = useState(Boolean(live));
+  const listRef = useRef(null);
+  // 运行中自动展开，本轮结束后自动收成一行摘要。
+  useEffect(() => { setOpen(Boolean(live)); }, [live]);
+  const running = block.running || live;
+  const duration = block.end > block.start ? formatDuration(block.end - block.start) : "";
+  const summary = running ? (activityText || "正在处理…") : `已完成 ${block.steps.length} 个步骤`;
+  // 运行中始终展示最新一步。
+  useEffect(() => {
+    if (running && open) listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [running, open, block.steps.length]);
+
+  return (
+    <section className={`chat-process${open ? " is-open" : ""}${running ? " is-running" : ""}`} aria-label="执行过程">
+      <button className="chat-process-head" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
+        <span className="chat-process-state" aria-hidden="true">
+          {running ? <span className="chat-tool-spin"><i /><i /><i /></span> : <CheckCircle size={15} weight="fill" />}
+        </span>
+        <span className="chat-process-summary">{summary}</span>
+        {!running && duration ? <span className="chat-process-duration">{duration}</span> : null}
+        <CaretDown size={13} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} />
+      </button>
+      {open ? (
+        <ol className="chat-process-list" ref={listRef}>
+          {block.steps.map((step, index) => <ProcessStep key={step.id || `step-${index}`} step={step} />)}
+        </ol>
+      ) : null}
+    </section>
   );
 }
 
@@ -329,7 +389,7 @@ function RobotAvatar({ activity = "waiting", compact = false, hero = false }) {
   );
 }
 
-function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pending = false, activityText = "" }) {
+function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pending = false, activityText = "", instant = message.instant }) {
   const [copied, setCopied] = useState(false);
   const feedback = message.feedback || null;
   const [actionBusy, setActionBusy] = useState(null);
@@ -342,11 +402,11 @@ function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pendi
 
   const fullText = message.content || "";
 
-  /** 打字机渐显：新回答整段到达后逐字展开（历史/错误消息 instant 直出）。 */
-  const [shown, setShown] = useState(() => (message.instant ? fullText.length : 0));
+  /** 打字机渐显：仅本轮执行中的新回答逐字展开；历史、错误与切回会话直出。 */
+  const [shown, setShown] = useState(() => (instant ? fullText.length : 0));
   const timerRef = useRef(null);
   useEffect(() => {
-    if (message.instant || pending) return undefined;
+    if (instant || pending) return undefined;
     let cancelled = false;
     let current = 0;
     const total = fullText.length;
@@ -531,12 +591,91 @@ function TimelineDrawer({ open, onClose, timeline, activity }) {
   );
 }
 
+/** 右侧文档分栏：与聊天并排停靠，顶部标签切换多文档，可全屏细看。 */
+function DocumentPane({ onClose, sessionId, documents, error, activePath, onSelect, onFullscreen }) {
+  const doc = documents.find(item => item.path === activePath) || documents[0] || null;
+  const { state, reload } = useDocumentContent(sessionId, doc, true);
+  const Icon = doc ? previewIcon(doc.kind) : Files;
+  return (
+    <section className="chat-doc-pane" aria-label="文档预览">
+      <header className="doc-pane-heading">
+        <span className={`doc-pane-icon${doc ? ` is-${doc.ext}` : ""}`} aria-hidden="true">
+          <Icon size={20} />
+        </span>
+        <strong className="doc-pane-title" title={doc ? doc.path : "生成的文档"}>{doc ? doc.name : "生成的文档"}</strong>
+        <div className="doc-pane-actions">
+          {doc && (
+            <a className="doc-pane-action" href={documentUrl(sessionId, doc.path)} download={doc.name} title={`下载 ${doc.name}`} aria-label={`下载 ${doc.name}`}>
+              <DownloadSimple size={17} />
+            </a>
+          )}
+          {doc && (
+            <button className="doc-pane-action" type="button" title="重新加载" aria-label="重新加载预览" onClick={reload}>
+              <ArrowClockwise size={17} />
+            </button>
+          )}
+          {doc && (
+            <button className="doc-pane-action" type="button" title="全屏查看" aria-label="全屏查看文档" onClick={onFullscreen}>
+              <CornersOut size={17} />
+            </button>
+          )}
+          <button className="doc-pane-action" type="button" title="收起面板" aria-label="收起文档面板" onClick={onClose}>
+            <X size={17} />
+          </button>
+        </div>
+      </header>
+
+      {documents.length > 1 && (
+        <nav className="doc-pane-tabs" aria-label="切换文档">
+          {documents.map(item => (
+            <button
+              key={item.path}
+              type="button"
+              className={item.path === doc?.path ? "is-active" : ""}
+              onClick={() => onSelect(item.path)}
+              title={item.path}
+            >
+              {item.name}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      <div className="doc-pane-body" aria-live="polite">
+        {doc ? (
+          <div className="doc-pane-paper">
+            <DocumentBody doc={doc} state={state} />
+            {(state.status === "download-only" || (state.status === "ready" && (doc.ext === "ppt" || doc.ext === "pptx"))) && (
+              <div className="doc-preview-note">
+                <p>{doc.ext === "ppt" || doc.ext === "pptx" ? "PPT 暂不支持在线预览" : state.note}</p>
+                <p>请使用上方按钮下载后查看。</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="documents-empty">{error || "本轮还没有生成文档。让智能体整理成 Word、Excel、PPT 或 Markdown 后会出现在这里。"}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function clockTime() {
   return new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   }).format(new Date());
+}
+
+/** 最后一条用户消息之后是否已有最终回答；用于区分「已完成」与「执行结束但没内容」。 */
+const ANSWER = "本轮执行已结束，但没有生成最终回答，通常是执行被中断或失败。可以继续追问，或重新发送问题。";
+function hasAnswerAfterLastUser(messages) {
+  const lastUser = messages.findLastIndex((item) => item.role === "user");
+  if (lastUser < 0) return true;
+  return messages
+    .slice(lastUser + 1)
+    .some((item) => item.role === "assistant" && String(item.content || "").trim());
 }
 
 /* ---------------------------------------------------------------- 主组件 */
@@ -564,26 +703,37 @@ export default function AgentChat() {
   const [dragging, setDragging] = useState(false);
   const dragDepthRef = useRef(0);
   const [isThinking, setIsThinking] = useState(false);
+  // 会话级运行状态：切换会话时旧会话继续在后台接收，列表用它显示转圈。
+  const sessionStates = useRef(new Map());
+  const activeSessionRef = useRef(null);
+  const controllersRef = useRef(new Map());
+  // 主动停止的会话：abort 会触发 onError，这里避免再叠加一条「执行遇到问题：已停止接收」。
+  const stoppedRef = useRef(new Set());
+  const [backgroundRun, setBackgroundRun] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [documentsError, setDocumentsError] = useState("");
+  const [activeDocPath, setActiveDocPath] = useState(null);
+  const [docFullscreen, setDocFullscreen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [activityText, setActivityText] = useState("");
   const messagesEndRef = useRef(null);
-  const abortRef = useRef(null);
   const fileInputRef = useRef(null);
   const composerInputRef = useRef(null);
   const pendingUserTextRef = useRef(null);
-  const currentQueryIdRef = useRef(null);
-  const currentUserTextRef = useRef(null);
-  const sessionSeqRef = useRef(0);
   const historyRequestRef = useRef(0);
 
-  const activity = isThinking ? "working" : attachments.length ? "reading" : "waiting";
-  const activityLabel = isThinking ? activityText || "正在执行" : attachments.length ? "附件已准备" : "在线，可以开始";
+  // 后台回复由服务端继续执行，本页只轮询状态；用同一套「工作中」标识告诉用户它在跑。
+  const activity = isThinking || backgroundRun ? "working" : attachments.length ? "reading" : "waiting";
+  const activityLabel = isThinking ? activityText || "正在执行" : backgroundRun ? "正在后台回复" : attachments.length ? "附件已准备" : "在线，可以开始";
   const hasMessages = messages.length > 0;
+  // 一轮里的推理、工具与旁白收进执行过程，正文只留最终回答。
+  const conversation = useMemo(() => groupConversation(messages), [messages]);
 
   const quickPrompts = [
     { title: "检索知识", icon: MagnifyingGlass, prompt: "知识库里有哪些关于报销的制度？" },
@@ -661,7 +811,48 @@ export default function AgentChat() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, []);
 
-  useEffect(() => () => abortRef.current?.(), []);
+  // 卸载时断开所有仍在接收的会话流，避免后台请求泄漏。
+  useEffect(() => () => {
+    for (const stop of controllersRef.current.values()) stop();
+    controllersRef.current.clear();
+    for (const timer of watchTimersRef.current.values()) clearInterval(timer);
+    watchTimersRef.current.clear();
+  }, []);
+
+  const documentsCountRef = useRef(0);
+  const documentsFreshRef = useRef(false);
+
+  // 文档分栏：会话切换和每轮执行结束后扫描工作区；本轮新生成文档时自动展开并定位到最新一份。
+  useEffect(() => {
+    if (isThinking) documentsFreshRef.current = true;
+  }, [isThinking]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      documentsCountRef.current = 0;
+      documentsFreshRef.current = false;
+      setDocuments([]);
+      setActiveDocPath(null);
+      return;
+    }
+    let alive = true;
+    const controller = new AbortController();
+    fetchDocuments(sessionId, controller.signal)
+      .then((list) => {
+        if (!alive) return;
+        const fresh = list.length > documentsCountRef.current;
+        documentsCountRef.current = list.length;
+        setDocuments(list);
+        setDocumentsError("");
+        if (fresh && documentsFreshRef.current && list.length) {
+          documentsFreshRef.current = false;
+          setActiveDocPath(list[0].path);
+          setDocumentsOpen(true);
+        }
+      })
+      .catch((error) => { if (alive && error.name !== "AbortError") setDocumentsError(error.message); });
+    return () => { alive = false; controller.abort(); };
+  }, [sessionId, isThinking]);
 
   const timelineIdRef = useRef(0);
   const timelineCallRef = useRef(new Map());
@@ -673,8 +864,14 @@ export default function AgentChat() {
     const clearAccount = () => {
       accountEpoch.current += 1;
       historyRequestRef.current += 1;
-      abortRef.current?.();
-      abortRef.current = null;
+      for (const stop of controllersRef.current.values()) stop();
+      controllersRef.current.clear();
+      for (const timer of watchTimersRef.current.values()) clearInterval(timer);
+      watchTimersRef.current.clear();
+      sessionStates.current.clear();
+      stoppedRef.current.clear();
+      activeSessionRef.current = null;
+      setBackgroundRun(false);
       voice.cancel();
       accountRef.current = null;
       setActiveAccount(null);
@@ -693,8 +890,6 @@ export default function AgentChat() {
       setActivityText('');
       setHistoryQuery('');
       pendingUserTextRef.current = null;
-      currentUserTextRef.current = null;
-      currentQueryIdRef.current = null;
       timelineCallRef.current.clear();
       timelineApprovalRef.current.clear();
     };
@@ -733,7 +928,8 @@ export default function AgentChat() {
     void check();
     return () => {
       disposed = true;
-      abortRef.current?.();
+      for (const stop of controllersRef.current.values()) stop();
+      controllersRef.current.clear();
       setActiveAccount(null);
       window.clearInterval(timer);
       channel?.close();
@@ -743,21 +939,52 @@ export default function AgentChat() {
     };
   }, []);
 
-  const refreshSessions = async () => {
+  const refreshSessions = useCallback(async () => {
     const epoch = accountEpoch.current;
     try {
       const list = await loadSessions();
       if (epoch === accountEpoch.current) setSessions(list);
     } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
-  };
+  }, []);
 
+  // 有会话在后台执行时轮询列表，让转圈标识和完成状态自动更新。
+  const hasRunningSessions = sessions.some(item => item.running);
+  useEffect(() => {
+    if (!hasRunningSessions && !backgroundRun) return;
+    const timer = window.setInterval(() => { void refreshSessions(); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [hasRunningSessions, backgroundRun, refreshSessions]);
+
+
+  /** 取得（或创建）某个会话的本地运行状态，供后台流持续写入。 */
+  const sessionState = useCallback((sid) => {
+    let state = sessionStates.current.get(sid);
+    if (!state) {
+      state = { messages: [], timeline: [], isThinking: false, activityText: '', queryId: null, userText: '' };
+      sessionStates.current.set(sid, state);
+    }
+    return state;
+  }, []);
+
+  /** 只有当前正在查看的会话才同步到界面，后台会话只更新本地状态。 */
+  const commitSession = useCallback((sid) => {
+    if (!sid || sid !== activeSessionRef.current) return;
+    const state = sessionStates.current.get(sid);
+    if (!state) return;
+    setMessages(state.messages);
+    setTimeline(state.timeline);
+    setIsThinking(state.isThinking);
+    setActivityText(state.activityText);
+  }, []);
 
   /** 追加一条过程项（tool/approval/error），返回条目 id 供后续更新状态。 */
-  const pushTimelineItem = useCallback((item) => {
+  const pushTimelineItem = useCallback((sid, item) => {
     const id = `tl-${++timelineIdRef.current}`;
-    setTimeline((items) => [...items.slice(-80), { id, time: clockTime(), ...item }]);
+    const state = sessionState(sid);
+    state.timeline = [...state.timeline.slice(-80), { id, time: clockTime(), ...item }];
+    commitSession(sid);
     return id;
-  }, []);
+  }, [sessionState, commitSession]);
 
   /** 审批决定：用 callId 匹配审批桥的 pending 记录再提交。 */
   const handleDecide = useCallback(async (card, decision) => {
@@ -769,16 +996,16 @@ export default function AgentChat() {
     if (!match) throw new Error("审批请求已失效");
     await decideApproval(match.id, decision);
     if (epoch !== accountEpoch.current) return;
-    setMessages((items) =>
-      items.map((m) => (m.role === "approval" && m.approvalKey === card.approvalKey ? { ...m, status: decision === "allowed-once" ? "allowed" : "rejected" } : m)),
-    );
-    const tlId = timelineApprovalRef.current.get(card.approvalKey);
+    const sid = activeSessionRef.current;
+    if (!sid) return;
+    const state = sessionState(sid);
+    state.messages = state.messages.map((m) => (m.role === "approval" && m.approvalKey === card.approvalKey ? { ...m, status: decision === "allowed-once" ? "allowed" : "rejected" } : m));
+    const tlId = timelineApprovalRef.current.get(`${sid}:${card.approvalKey}`);
     if (tlId) {
-      setTimeline((items) =>
-        items.map((it) => (it.id === tlId ? { ...it, status: decision === "allowed-once" ? "allowed" : "rejected" } : it)),
-      );
+      state.timeline = state.timeline.map((it) => (it.id === tlId ? { ...it, status: decision === "allowed-once" ? "allowed" : "rejected" } : it));
     }
-  }, []);
+    commitSession(sid);
+  }, [sessionState, commitSession]);
 
   /** The server binds votes to the persisted answer and authenticated user. */
   const handleFeedback = useCallback(async (message, rating) => {
@@ -798,7 +1025,12 @@ export default function AgentChat() {
     setMessages(items => items.map(item => item.role === 'assistant' && item.seq === record.messageSeq ? { ...item, feedback: null } : item));
   }, [sessionId]);
 
-  const handleNotification = useCallback((notification) => {
+  const handleNotification = useCallback((sid, notification) => {
+    if (!sid) return;
+    const state = sessionState(sid);
+    const patch = (fn) => { state.messages = fn(state.messages); commitSession(sid); };
+    const patchTimeline = (fn) => { state.timeline = fn(state.timeline); commitSession(sid); };
+    const setActivity = (text) => { state.activityText = text; commitSession(sid); };
     if (notification.method === "session.status") {
       return;
     }
@@ -812,27 +1044,39 @@ export default function AgentChat() {
     }
 
     if (event.type === "step/start") {
-      setActivityText("正在分析问题与已有依据");
+      setActivity("正在分析问题与已有依据");
       return;
     }
 
     if (event.type === "assistant/message") {
       const blocks = data.message?.content || [];
+      const reasoning = blocks
+        .filter((b) => b && b.type === "reasoning")
+        .map((b) => b.text)
+        .join("\n\n");
+      if (reasoning) {
+        patch((items) => [
+          ...items,
+          { id: `thinking-${event.seq}`, seq: event.seq, role: "thinking", ts: Date.now(), text: reasoning },
+        ]);
+      }
       const text = blocks
         .filter((b) => b && b.type === "text")
         .map((b) => b.text)
         .join("");
+      setActivity(text ? "正在整理回答" : "正在思考");
       if (!text) return;
-      setMessages((items) => [
+      patch((items) => [
         ...items,
         {
           id: `assistant-${event.seq}`,
           seq: event.seq,
           role: "assistant",
+          ts: Date.now(),
           time: clockTime(),
           content: text,
-          queryId: currentQueryIdRef.current,
-          question: currentUserTextRef.current || "",
+          queryId: state.queryId,
+          question: state.userText || "",
         },
       ]);
       return;
@@ -843,7 +1087,7 @@ export default function AgentChat() {
       try {
         args = JSON.parse(data.arguments || "{}");
       } catch { /* 模型产生的 arguments 解析失败按空对象展示 */ }
-      setMessages((items) => [
+      patch((items) => [
         ...items,
         {
           id: `tool-${data.callId}`,
@@ -853,19 +1097,21 @@ export default function AgentChat() {
           args,
           argsText: typeof data.arguments === "string" ? data.arguments : JSON.stringify(args),
           status: "running",
+          ts: Date.now(),
           time: clockTime(),
         },
       ]);
       const card = { name: data.name, args, status: "running" };
+      // 所有工具都更新当前动作，折叠块顶部才能如实说明这一步在做什么。
+      setActivity(`正在${taskProgress(card).title}`);
       if (!visibleTool(card)) return;
-      setActivityText(`正在${taskProgress(card).title}`);
-      const tlId = pushTimelineItem({
+      const tlId = pushTimelineItem(sid, {
         kind: "tool",
         name: data.name, args, callId: data.callId,
         title: taskProgress(card).title,
         status: "running",
       });
-      if (data.callId) timelineCallRef.current.set(data.callId, tlId);
+      if (data.callId) timelineCallRef.current.set(`${sid}:${data.callId}`, tlId);
       return;
     }
 
@@ -874,18 +1120,18 @@ export default function AgentChat() {
       const block = data.message?.content?.find?.((b) => b?.type === "tool-result");
       const callId = block?.toolCallId;
       const json = resultJsonOf(text);
-      if (callId && json?.query_id) currentQueryIdRef.current = json.query_id;
+      if (callId && json?.query_id) state.queryId = json.query_id;
       const isError = Boolean(data.error || block?.isError);
-      setMessages((items) =>
+      patch((items) =>
         items.map((m) =>
           m.role === "tool" && (!callId || m.callId === callId) && m.status === "running"
             ? { ...m, status: isError ? "error" : "done", resultText: text, resultJson: json }
             : m,
         ),
       );
-      const tlId = callId ? timelineCallRef.current.get(callId) : null;
+      const tlId = callId ? timelineCallRef.current.get(`${sid}:${callId}`) : null;
       if (tlId) {
-        setTimeline((items) =>
+        patchTimeline((items) =>
           items.map((it) =>
             it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json, resultText: text } : it,
           ),
@@ -895,7 +1141,7 @@ export default function AgentChat() {
     }
 
     if (event.type === "approval/asked") {
-      setMessages((items) => [
+      patch((items) => [
         ...items,
         {
           id: `approval-${event.seq}`,
@@ -906,22 +1152,23 @@ export default function AgentChat() {
           callId: data.callId || "",
           reason: data.reason || "",
           status: "pending",
+          ts: Date.now(),
           time: clockTime(),
         },
       ]);
-      const apTlId = pushTimelineItem({
+      const apTlId = pushTimelineItem(sid, {
         kind: "approval",
         title: `${toolLabel(data.toolName)} 请求审批`,
         detail: data.reason || "",
         status: "pending",
       });
-      timelineApprovalRef.current.set(`approval-${event.seq}`, apTlId);
+      timelineApprovalRef.current.set(`${sid}:approval-${event.seq}`, apTlId);
       return;
     }
 
     if (event.type === "approval/decided") {
       // 决定已由 handleDecide 或其他端写入；把最早仍 pending 的同名审批卡标记完成
-      setMessages((items) => {
+      patch((items) => {
         const idx = items.findIndex((m) => m.role === "approval" && m.status === "pending");
         if (idx < 0) return items;
         const next = [...items];
@@ -931,7 +1178,7 @@ export default function AgentChat() {
         };
         return next;
       });
-      setTimeline((items) => {
+      patchTimeline((items) => {
         const idx = items.findIndex((it) => it.kind === "approval" && it.status === "pending");
         if (idx < 0) return items;
         const next = [...items];
@@ -941,10 +1188,31 @@ export default function AgentChat() {
       return;
     }
 
+    if (event.type === "compaction/start") {
+      setActivity("正在压缩上下文");
+      patch((items) => [
+        ...items,
+        { id: `compaction-${event.seq}`, seq: event.seq, role: "compaction", status: "running", ts: Date.now(), time: clockTime() },
+      ]);
+      return;
+    }
+
+    if (event.type === "compaction/end") {
+      const message = data.error ? (data.error.message || "压缩上下文失败") : "";
+      patch((items) => {
+        const idx = items.findLastIndex((item) => item.role === "compaction" && item.status === "running");
+        if (idx < 0) return items;
+        const next = [...items];
+        next[idx] = { ...next[idx], status: message ? "error" : "done", message };
+        return next;
+      });
+      return;
+    }
+
     if (event.type === "turn/end") {
       if (data.reason?.kind === "error") {
         const message = data.reason?.error?.message || "本轮执行失败";
-        setMessages((items) => [
+        patch((items) => [
           ...items,
           {
             id: `turn-error-${event.seq}`,
@@ -954,25 +1222,26 @@ export default function AgentChat() {
             instant: true,
           },
         ]);
-        pushTimelineItem({ kind: "error", title: "本轮异常结束", detail: message });
+        pushTimelineItem(sid, { kind: "error", title: "本轮异常结束", detail: message });
       }
     }
-  }, [pushTimelineItem]);
+  }, [pushTimelineItem, sessionState, commitSession]);
 
-  const resetTurnState = useCallback(() => {
-    setIsThinking(false);
-    setActivityText("");
-    setMessages(items => items.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
-    setTimeline(items => items.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
-    abortRef.current = null;
-    pendingUserTextRef.current = null;
-    currentQueryIdRef.current = null;
-  }, []);
+  /** 结束某个会话的流式状态：未完成的工具标为中断，状态落回该会话的本地记录。 */
+  const resetTurnState = useCallback((sid) => {
+    if (!sid) return;
+    const state = sessionState(sid);
+    state.isThinking = false;
+    state.activityText = '';
+    state.messages = state.messages.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
+    state.timeline = state.timeline.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
+    commitSession(sid);
+  }, [sessionState, commitSession]);
 
   const sendMessage = (preset) => {
     const typedContent = (typeof preset === "string" ? preset : draft).trim();
     if (!typedContent && !attachments.length) return;
-    if (isThinking || voice.active || uploads.blocked) return;
+    if (isThinking || backgroundRun || voice.active || uploads.blocked) return;
     if (!accountRef.current) { setPageError("请登录后开始对话"); return; }
     const epoch = accountEpoch.current;
     const guarded = handlers => Object.fromEntries(Object.entries(handlers).map(([name, handler]) => [name, (...args) => { if (epoch === accountEpoch.current) handler(...args); }]));
@@ -980,20 +1249,19 @@ export default function AgentChat() {
 
     const content = typedContent || `请处理${attachments.length > 1 ? "这些" : ""}附件：${attachments.map(item => item.name).join("、")}`;
     const timestamp = Date.now();
-
-    currentUserTextRef.current = content;
-    pendingUserTextRef.current = content;
-    currentQueryIdRef.current = null;
-    sessionSeqRef.current += 1;
-
-    setMessages((items) => [
-      ...items,
-      { id: `user-${timestamp}`, role: "user", time: clockTime(), content, attachments },
-    ]);
+    // 新会话还没有 id，先用本地键承载这一轮，收到 start 后迁移到真实会话 id。
+    let runSid = sessionId || `pending-${timestamp}`;
+    activeSessionRef.current = runSid;
+    const state = sessionState(runSid);
+    state.userText = content;
+    state.queryId = null;
+    state.messages = [...state.messages, { id: `user-${timestamp}`, role: "user", time: clockTime(), content, attachments }];
+    state.timeline = [];
+    state.isThinking = true;
+    state.activityText = "";
+    commitSession(runSid);
     setDraft("");
     uploads.clear();
-    setIsThinking(true);
-    setTimeline([]);
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
 
@@ -1001,34 +1269,90 @@ export default function AgentChat() {
       ? attachments.map(({ name, data, mimeType }) => ({ name, data, mimeType }))
       : undefined;
 
-    abortRef.current = streamChat(
+    /** 服务端分配会话 id 后，把本地临时状态搬到真实会话名下。 */
+    const adoptSession = (id) => {
+      if (runSid === id) return;
+      const from = sessionStates.current.get(runSid);
+      const target = sessionState(id);
+      if (from) {
+        target.messages = [...target.messages, ...from.messages];
+        target.timeline = from.timeline;
+        target.isThinking = from.isThinking;
+        target.activityText = from.activityText;
+        target.queryId = from.queryId;
+        target.userText = from.userText;
+        sessionStates.current.delete(runSid);
+      }
+      const control = controllersRef.current.get(runSid);
+      if (control) {
+        controllersRef.current.delete(runSid);
+        controllersRef.current.set(id, control);
+      }
+      // 用户可能已经切到别的会话：只在仍停留于这轮时才同步视图，避免被强行拉回。
+      const viewing = activeSessionRef.current === runSid;
+      runSid = id;
+      if (viewing) {
+        activeSessionRef.current = id;
+        setSessionId(id);
+        commitSession(id);
+      }
+    };
+
+    const controller = streamChat(
       { sessionId, message: content, attachments: attachmentPayload },
       guarded({
         onStart: (id, savedAttachments) => {
-          setSessionId(id);
-          if (savedAttachments?.length) setMessages(items => items.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item));
+          adoptSession(id);
+          if (savedAttachments?.length) {
+            const current = sessionState(id);
+            current.messages = current.messages.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item);
+            commitSession(id);
+          }
           void refreshSessions();
         },
-        onRenamed: ({ from, to, attachments: savedAttachments }) => {
-          setSessionId(to);
-          if (savedAttachments?.length) setMessages(items => items.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item));
+        onRenamed: ({ to, attachments: savedAttachments }) => {
+          adoptSession(to);
+          if (savedAttachments?.length) {
+            const current = sessionState(to);
+            current.messages = current.messages.map(item => item.id === `user-${timestamp}` ? { ...item, attachments: savedAttachments } : item);
+            commitSession(to);
+          }
           void refreshSessions();
-          setMessages((items) => [
-            ...items,
+          const current = sessionState(to);
+          current.messages = [
+            ...current.messages,
             {
               id: `renamed-${to}`,
               role: "assistant",
               time: clockTime(),
               content: "服务已重启，本会话已迁移到新会话继续。之前的上下文不会自动延续，如需引用请重新说明。",
             },
-          ]);
+          ];
+          commitSession(to);
         },
-        onNotification: handleNotification,
-        onDone: () => { resetTurnState(); void refreshSessions(); },
+        onNotification: (notification) => handleNotification(runSid, notification),
+        onDone: () => {
+          controllersRef.current.delete(runSid);
+          resetTurnState(runSid);
+          const current = sessionState(runSid);
+          // 执行结束却没有回答时补一条说明，避免只剩一个「已完成」过程块。
+          if (!hasAnswerAfterLastUser(current.messages)) {
+            current.messages = [
+              ...current.messages,
+              { id: `no-answer-${timestamp}`, role: "assistant", time: clockTime(), content: ANSWER, instant: true },
+            ];
+            commitSession(runSid);
+          }
+          void refreshSessions();
+        },
         onError: (message) => {
-          resetTurnState();
-          setMessages((items) => [
-            ...items,
+          controllersRef.current.delete(runSid);
+          resetTurnState(runSid);
+          // 用户主动停止时 stopResponse 已写说明，不再追加一条错误。
+          if (stoppedRef.current.delete(runSid)) { void refreshSessions(); return; }
+          const current = sessionState(runSid);
+          current.messages = [
+            ...current.messages,
             {
               id: `error-${timestamp}`,
               role: "assistant",
@@ -1036,36 +1360,50 @@ export default function AgentChat() {
               content: `执行遇到问题：${message}`,
               instant: true,
             },
-          ]);
+          ];
+          commitSession(runSid);
+          void refreshSessions();
         },
       }),
     );
+    controllersRef.current.set(runSid, controller);
   };
 
   const stopResponse = () => {
-    abortRef.current?.();
-    resetTurnState();
-    setMessages((items) => [
-      ...items,
+    const sid = activeSessionRef.current;
+    if (!sid) return;
+    stoppedRef.current.add(sid);
+    controllersRef.current.get(sid)?.();
+    controllersRef.current.delete(sid);
+    resetTurnState(sid);
+    const state = sessionState(sid);
+    state.messages = [
+      ...state.messages,
       {
         id: `stopped-${Date.now()}`,
         role: "assistant",
         time: clockTime(),
         content: "已停止接收本轮输出。服务端的执行会自然结束，你可以继续提问。",
       },
-    ]);
+    ];
+    commitSession(sid);
+    void refreshSessions();
   };
 
   const startNewChat = () => {
     historyRequestRef.current += 1;
     voice.cancel();
-    stopResponseSilently();
+    // 不中断后台会话：旧会话继续执行，列表会显示运行标识。
+    activeSessionRef.current = null;
     setSessionId(null);
     setMessages([]);
     setDraft("");
     uploads.clear();
     setPreview(null);
     setTimeline([]);
+    setIsThinking(false);
+    setActivityText("");
+    setBackgroundRun(false);
     timelineCallRef.current.clear();
     timelineApprovalRef.current.clear();
     setHistoryOpen(false);
@@ -1074,31 +1412,12 @@ export default function AgentChat() {
       window.history.replaceState(null, "", appUrl("chat"));
       setSharedId(null);
     }
+    void refreshSessions();
   };
 
-  const stopResponseSilently = () => {
-    abortRef.current?.();
-    resetTurnState();
-  };
-
-  const resumeSession = async (item) => {
+  /** 从后端历史恢复某个会话，仅在该会话仍是当前查看的会话时应用。 */
+  const loadHistoryInto = useCallback(async (item) => {
     const requestId = ++historyRequestRef.current;
-    voice.cancel();
-    stopResponseSilently();
-    setSessionId(item.sessionId);
-    setMessages([]);
-    setDraft("");
-    uploads.clear();
-    setPreview(null);
-    setTimeline([]);
-    setHistoryOpen(false);
-    setPageError("");
-    if (sharedId) {
-      window.history.replaceState(null, "", appUrl("chat"));
-      setSharedId(null);
-    }
-    timelineCallRef.current.clear();
-    timelineApprovalRef.current.clear();
     const [events, votes] = await Promise.all([
       fetchChatHistory(item.sessionId),
       fetchAnswerVotes(item.sessionId).catch(error => {
@@ -1106,17 +1425,24 @@ export default function AgentChat() {
         return {};
       }),
     ]);
-    if (requestId !== historyRequestRef.current) return;
+    if (requestId !== historyRequestRef.current || activeSessionRef.current !== item.sessionId) return;
+    const state = sessionState(item.sessionId);
     if (!events.length) {
-      setMessages([
+      state.messages = [
         {
           id: `resumed-${item.sessionId}`,
           role: "assistant",
           time: clockTime(),
-          content: `已切换到会话「${item.title}」，历史消息为空。继续提问即可开始。`,
+          content: item.running
+            ? "这个会话正在后台执行，完成后会自动刷新并显示回答。"
+            : `已切换到会话「${item.title}」，历史消息为空。继续提问即可开始。`,
           instant: true,
         },
-      ]);
+      ];
+      state.timeline = [];
+      state.isThinking = false;
+      state.activityText = "";
+      commitSession(item.sessionId);
       return;
     }
     const wallTime = (ms) =>
@@ -1127,9 +1453,9 @@ export default function AgentChat() {
           case "user":
             return { id: `h-u-${e.seq}`, role: "user", time, content: e.text, attachments: e.attachments };
           case "assistant":
-            return { id: `h-a-${e.seq}`, seq: e.seq, role: "assistant", time, content: e.text, feedback: votes[e.seq] || null, instant: true };
+            return { id: `h-a-${e.seq}`, seq: e.seq, role: "assistant", ts: e.time, time, content: e.text, feedback: votes[e.seq] || null, instant: true };
           case "thinking":
-            return null;
+            return { id: `h-th-${e.seq}`, seq: e.seq, role: "thinking", ts: e.time, time, text: e.text };
           case "tool": {
             let args = {};
             try {
@@ -1147,6 +1473,8 @@ export default function AgentChat() {
               status: e.status === "running" ? "interrupted" : e.status || "done",
               resultText: e.resultText || "",
               resultJson: e.resultJson || resultJsonOf(e.resultText),
+              references: e.references || [],
+              ts: e.time,
               time,
             };
           }
@@ -1159,23 +1487,105 @@ export default function AgentChat() {
               callId: e.callId || "",
               reason: e.reason || "",
               status: e.status || "rejected",
+              ts: e.time,
               time,
             };
+          case "compaction":
+            return { id: `h-cp-${e.seq}`, seq: e.seq, role: "compaction", status: e.status || "done", message: e.message || "", ts: e.time, time };
           case "error":
-            return { id: `h-e-${e.seq}`, role: "assistant", time, content: `执行遇到问题：${e.message}` };
+            return { id: `h-e-${e.seq}`, role: "error", ts: e.time, time, message: e.message || "本轮执行失败" };
           default:
             return null;
         }
       }).filter(Boolean);
-    setMessages(restored);
     const lastUser = restored.findLastIndex(message => message.role === "user");
     const restoredTimeline = restored.slice(lastUser + 1).filter(message => ["tool", "approval"].includes(message.role))
       .map(message => ({ ...message, kind: message.role, title: message.role === "approval" ? "执行审批" : taskProgress(message).title }));
-    for (const item of restoredTimeline) {
-      if (item.kind === "tool" && item.callId) timelineCallRef.current.set(item.callId, item.id);
-      if (item.kind === "approval" && item.approvalKey) timelineApprovalRef.current.set(item.approvalKey, item.id);
+    for (const entry of restoredTimeline) {
+      if (entry.kind === "tool" && entry.callId) timelineCallRef.current.set(`${item.sessionId}:${entry.callId}`, entry.id);
+      if (entry.kind === "approval" && entry.approvalKey) timelineApprovalRef.current.set(`${item.sessionId}:${entry.approvalKey}`, entry.id);
     }
-    setTimeline(restoredTimeline);
+    // 历史里只有执行过程、没有最终回答时给出说明，避免用户只看到一个「已完成」块。
+    if (!item.running && lastUser >= 0 && !hasAnswerAfterLastUser(restored)) {
+      restored.push({ id: `h-note-${item.sessionId}`, role: "assistant", time: clockTime(), content: ANSWER, instant: true });
+    }
+    state.messages = restored;
+    state.timeline = restoredTimeline;
+    state.isThinking = false;
+    state.activityText = "";
+    commitSession(item.sessionId);
+  }, [sessionState, commitSession]);
+
+  /** 后台会话结束前每 3 秒轮询一次，结束后自动拉取完整历史，避免停在“已完成但没内容”。 */
+  const watchTimersRef = useRef(new Map());
+  const watchBackgroundSession = useCallback((item) => {
+    if (watchTimersRef.current.has(item.sessionId)) return;
+    const timer = setInterval(async () => {
+      try {
+        const list = await loadSessions();
+        setSessions(list);
+        const current = list.find(entry => entry.sessionId === item.sessionId);
+        if (current?.running) return;
+        clearInterval(timer);
+        watchTimersRef.current.delete(item.sessionId);
+        if (activeSessionRef.current !== item.sessionId) return;
+        setBackgroundRun(false);
+        if (!sessionStates.current.get(item.sessionId)?.isThinking) void loadHistoryInto(item);
+      } catch { /* 轮询失败下一轮继续 */ }
+    }, 3000);
+    watchTimersRef.current.set(item.sessionId, timer);
+  }, [loadHistoryInto]);
+
+  const resumeSession = async (item) => {
+    historyRequestRef.current += 1;
+    voice.cancel();
+    activeSessionRef.current = item.sessionId;
+    setSessionId(item.sessionId);
+    setDraft("");
+    uploads.clear();
+    setPreview(null);
+    setHistoryOpen(false);
+    setPageError("");
+    timelineCallRef.current.clear();
+    timelineApprovalRef.current.clear();
+    if (sharedId) {
+      window.history.replaceState(null, "", appUrl("chat"));
+      setSharedId(null);
+    }
+
+    // 本页仍在接收这轮流：本地缓冲就是最完整的实时状态，直接恢复。
+    const local = sessionStates.current.get(item.sessionId);
+    const streaming = controllersRef.current.has(item.sessionId);
+    if (streaming && local) {
+      setMessages(local.messages);
+      setTimeline(local.timeline);
+      setIsThinking(local.isThinking);
+      setActivityText(local.activityText);
+      setBackgroundRun(false);
+      return;
+    }
+    // 已完成且本地有回答：直接复用本地结果（含停止、报错等未落盘的说明）。
+    if (local?.messages.length && !item.running && hasAnswerAfterLastUser(local.messages)) {
+      setMessages(local.messages);
+      setTimeline(local.timeline);
+      setIsThinking(false);
+      setActivityText("");
+      setBackgroundRun(false);
+      return;
+    }
+
+    // 页面刚刷新或由别的窗口发起：从持久化历史恢复，执行中则显示后台提示并轮询。
+    setMessages([]);
+    setTimeline([]);
+    setIsThinking(false);
+    setActivityText("");
+    setBackgroundRun(Boolean(item.running));
+    try {
+      await loadHistoryInto(item);
+    } catch (error) {
+      if (activeSessionRef.current === item.sessionId) setPageError("历史加载失败：" + error.message);
+    }
+    if (item.running) watchBackgroundSession(item);
   };
 
   const deleteSession = async (item) => {
@@ -1303,9 +1713,9 @@ export default function AgentChat() {
           <button
             className={`chat-send-button${isThinking ? " is-stopping" : ""}`}
             type="button"
-            disabled={!user || voice.active || (!isThinking && (uploads.blocked || (!draft.trim() && !attachments.length)))}
-            aria-label={isThinking ? "停止接收" : "发送消息"}
-            title={isThinking ? "停止接收" : "发送消息"}
+            disabled={!user || voice.active || backgroundRun || (!isThinking && (uploads.blocked || (!draft.trim() && !attachments.length)))}
+            aria-label={backgroundRun ? "会话正在后台回复" : isThinking ? "停止接收" : "发送消息"}
+            title={backgroundRun ? "会话正在后台回复，请稍候" : isThinking ? "停止接收" : "发送消息"}
             onClick={isThinking ? stopResponse : () => sendMessage()}
           >
             {isThinking ? <Square size={12} weight="fill" aria-hidden="true" /> : <ArrowUp size={18} weight="bold" aria-hidden="true" />}
@@ -1321,8 +1731,8 @@ export default function AgentChat() {
   return (
     <main className={`chat-page${isThinking ? " is-working" : ""}${messages.length ? " has-conversation" : " is-empty"}`}>
       {preview ? <AttachmentPreview key={preview.id} item={preview} onClose={() => setPreview(null)} /> : null}
-      <div className="chat-workspace">
-        <button
+      <div className={`chat-workspace${documentsOpen ? " has-doc-pane" : ""}`}>
+          <button
           className={`chat-drawer-backdrop${historyOpen || plannerOpen ? " is-visible" : ""}`}
           type="button"
           aria-label="关闭侧栏"
@@ -1408,6 +1818,9 @@ export default function AgentChat() {
                   <strong>{item.title}</strong>
                   <small>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(item.time)}</small>
                 </span>
+                {item.running ? (
+                  <span className="chat-history-spin" role="status" aria-label="正在回复" title="正在回复" />
+                ) : null}
                 <Trash
                   size={15}
                   aria-hidden="true"
@@ -1459,19 +1872,30 @@ export default function AgentChat() {
               <div>
                 <h1>{sharedId ? "分享的回答" : kbAgent.short}</h1>
                 <div className={`chat-agent-status is-${activity}`} aria-live="polite">
-                  {isThinking ? activityLabel : "知识问答与运营"}
+                  {isThinking || backgroundRun ? activityLabel : "知识问答与运营"}
                 </div>
               </div>
             </div>
             <button
               className="chat-planner-shortcut"
               type="button"
-              onClick={() => setPlannerOpen(value => !value)}
+              onClick={() => { setPlannerOpen(value => !value); setDocumentsOpen(false); }}
               aria-label={plannerOpen ? "收起任务进展" : "查看任务进展"}
               aria-expanded={plannerOpen}
               title="任务进展"
             >
               <ListChecks size={20} aria-hidden="true" />
+            </button>
+            <button
+              className={`chat-planner-shortcut chat-documents-shortcut${documents.length ? " has-items" : ""}`}
+              type="button"
+              onClick={() => { setDocumentsOpen(value => !value); setPlannerOpen(false); }}
+              aria-label={documentsOpen ? "收起生成的文档" : "查看生成的文档"}
+              aria-expanded={documentsOpen}
+              title="生成的文档"
+            >
+              <Files size={20} aria-hidden="true" />
+              {documents.length ? <span className="chat-documents-count" aria-hidden="true">{documents.length}</span> : null}
             </button>
           </header>
 
@@ -1500,9 +1924,18 @@ export default function AgentChat() {
                 <div className="chat-date-separator">
                   <span>今天</span>
                 </div>
-                {groupTaskMessages(messages).map((message) => {
+                {conversation.map((message, index) => {
                   if (message.role === "user") return <UserMessage key={message.id} message={message} onPreview={setPreview} />;
-                  if (message.role === "tool") return <ToolCard key={message.id} card={message} />;
+                  if (message.role === "process") {
+                    return (
+                      <ProcessBlock
+                        key={message.id}
+                        block={message}
+                        live={isThinking && index === conversation.length - 1}
+                        activityText={activityText}
+                      />
+                    );
+                  }
                   if (message.role === "approval") {
                     return <ApprovalCard key={message.id} card={message} onDecide={handleDecide} />;
                   }
@@ -1510,14 +1943,25 @@ export default function AgentChat() {
                     <AssistantMessage
                       key={message.id}
                       message={message}
+                      // 仅当前执行中的最后一条回答逐字展开；历史、旧回合与切回会话直接显示全文。
+                      instant={message.instant || !isThinking || index !== conversation.length - 1}
                       onFeedback={handleFeedback}
                       readOnly={!!sharedId}
                       onGrow={scrollDuringTyping}
                     />
                   );
                 })}
-                {isThinking ? (
+                {isThinking && !conversation.at(-1)?.role?.startsWith("process") ? (
                   <AssistantMessage pending activityText={activityText} message={{ id: "pending", time: clockTime() }} />
+                ) : null}
+                {backgroundRun ? (
+                  <div className="chat-background-note" role="status">
+                    <span className="chat-history-spin" aria-hidden="true" />
+                    <span>
+                      <strong>这个会话正在后台回复</strong>
+                      <small>完成后会自动刷新并显示完整回答；期间无需停留在此页面。</small>
+                    </span>
+                  </div>
                 ) : null}
                 <div ref={messagesEndRef} />
               </div>
@@ -1533,7 +1977,27 @@ export default function AgentChat() {
           timeline={timeline}
           activity={activity}
         />
+
+        {documentsOpen && (
+          <DocumentPane
+            sessionId={sessionId}
+            documents={documents}
+            error={documentsError}
+            activePath={activeDocPath}
+            onSelect={setActiveDocPath}
+            onClose={() => setDocumentsOpen(false)}
+            onFullscreen={() => setDocFullscreen(true)}
+          />
+        )}
       </div>
+
+      {docFullscreen && documents.length ? (
+        <DocumentPreview
+          sessionId={sessionId}
+          doc={documents.find(item => item.path === activeDocPath) || documents[0]}
+          onClose={() => setDocFullscreen(false)}
+        />
+      ) : null}
 
       {feedbackOpen && user ? <FeedbackFlywheel key={user.uid} accountUid={user.uid} version={feedbackVersion} onClose={() => setFeedbackOpen(false)} onOpenSession={item => { setFeedbackOpen(false); void resumeSession(item); }} onDeleteRecord={handleDeleteFeedbackRecord} /> : null}
       {skillsOpen && user ? <SkillsManager key={user.uid} onClose={() => setSkillsOpen(false)} /> : null}

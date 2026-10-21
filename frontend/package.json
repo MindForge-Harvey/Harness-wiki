@@ -14,11 +14,13 @@
     "@fontsource/outfit": "^5.2.8",
     "@phosphor-icons/react": "^2.1.10",
     "gsap": "^3.13.0",
+    "mammoth": "^1.13.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.4",

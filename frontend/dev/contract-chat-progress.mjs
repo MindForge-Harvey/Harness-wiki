@@ -56,14 +56,18 @@ test('repeated searches group within a stage while writes, answers and turns ret
   assert.notEqual(grouped[4].args.doc_id, grouped[5].args.doc_id);
 });
 
-test('unfinished and failed calls are visible without exposing reasoning or internal reads', () => {
+test('every tool call stays visible while reasoning is not exposed', () => {
   const messages = [
     { role: 'thinking', content: 'internal reasoning' }, tool('skill'), tool('read'),
     tool('read', { status: 'error' }), tool('kb_graph_search', { status: 'interrupted' }),
   ];
   const grouped = groupTaskMessages(messages);
-  assert.equal(grouped.length, 2);
-  assert.ok(grouped.every(card => taskProgress(card).status === 'error'));
+  // 所有工具都展示；连续同名读取合并为一组，失败的调用仍按错误呈现。
+  assert.deepEqual(grouped.map(card => card.name), ['skill', 'read', 'kb_graph_search']);
+  assert.equal(grouped[1].calls.length, 2);
+  assert.equal(taskProgress(grouped[1]).status, 'error');
+  assert.equal(taskProgress(grouped[2]).status, 'error');
+  assert.ok(!JSON.stringify(grouped).includes('internal reasoning'));
 });
 
 test('unhealthy services and rejected writes are distinguished from success', () => {

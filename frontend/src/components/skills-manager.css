@@ -161,6 +161,13 @@
 .skills-archive-replace small { display: block; margin-top: 4px; color: #b2988b; font-size: 12px; }
 .skills-archive-cancel { min-height: 38px; border: 1px solid #dce6f2; border-radius: 6px; padding: 7px 12px; color: #7894b1; background: #fff; font-size: 13px !important; }
 .skills-archive-cancel:hover:not(:disabled) { background: #f1f6fd; }
+.skills-archive-items > details.skills-archive-invalid { border-color: #e7d6c1; background: #fbf6ee; }
+.skills-archive-invalid summary { color: #b18e63; }
+.skills-archive-invalid summary strong { color: #9c7a50; }
+.skills-archive-invalid summary code { color: #bda787; }
+.skills-archive-invalid summary > small { color: #b18e63; }
+.skills-archive-items details > p.skills-archive-issue { margin: 0 0 14px; color: #ad6d79; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.skills-archive-summary strong.skills-archive-issue { color: #ad6d79; font-weight: 500; }
 .skills-package-files { margin: 18px 0 0; border: 1px solid #e1e9f3; border-radius: 7px; padding: 0 13px; background: #fbfcff; }
 .skills-package-files summary { display: flex; align-items: center; gap: 7px; padding: 12px 0; color: #7393b6; font-size: 13px; cursor: pointer; list-style: none; }
 .skills-package-files summary::-webkit-details-marker { display: none; }

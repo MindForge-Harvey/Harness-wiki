@@ -543,7 +543,35 @@ body.chat-view {
 .chat-page .chat-capability-dialog > footer { border-color: #e6eef9; background: #ffffff; }
 .chat-page .chat-capability-dialog > footer button { background: #2f5884; box-shadow: none; }
 
+/* 文档停靠分栏：聊天区与文档面板并排，文档约四成宽 */
+.chat-page .chat-workspace.has-doc-pane {
+  grid-template-columns: 280px minmax(0, 1fr) minmax(360px, 42%);
+}
+
+@media (max-width: 1260px) {
+  .chat-page .chat-workspace.has-doc-pane {
+    grid-template-columns: 240px minmax(0, 1fr) minmax(340px, 44%);
+  }
+}
+
+/* 窄屏回退：分栏改为右侧滑出抽屉，与历史侧栏的断点保持一致 */
 @media (max-width: 900px) {
+  .chat-page .chat-workspace.has-doc-pane {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-page .chat-doc-pane {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(460px, 96%);
+    box-shadow: -28px 0 80px rgba(17, 51, 89, 0.16);
+  }
+
+  .chat-page .doc-pane-paper { padding: 22px 20px 30px; }
+
   .chat-page .chat-workspace { grid-template-columns: minmax(0, 1fr); }
   .chat-page .chat-history { position: fixed; z-index: 30; inset: 0 auto 0 0; width: 248px; transform: translateX(-102%); transition: transform 200ms ease; }
   .chat-page .chat-history.is-open { transform: none; }

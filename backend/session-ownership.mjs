@@ -7,6 +7,11 @@ const schema = `CREATE TABLE IF NOT EXISTS harness_sessions (
   created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL,
   deleted INTEGER NOT NULL DEFAULT 0
 )`;
+/** 每轮结束时登记本会话生成或修改过的文档，文档面板只展示登记到当前会话的记录。 */
+const documentsSchema = `CREATE TABLE IF NOT EXISTS harness_session_documents (
+  session_id TEXT NOT NULL, path TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL,
+  size INTEGER NOT NULL, mtime DOUBLE PRECISION NOT NULL, PRIMARY KEY (session_id, path)
+)`;
 const missing = () => Object.assign(new Error('会话不存在'), { status: 404 });
 export function validSessionId(id) {
   if (typeof id !== 'string' || !/^[\w-]{1,200}$/.test(id)) throw Object.assign(new Error('会话标识无效'), { status: 400 });
@@ -36,6 +41,7 @@ export async function createSessionStore({ databaseUrl = process.env.HARNESS_DAT
     close = () => db.close();
   }
   await query(schema);
+  await query(documentsSchema);
   await query('CREATE INDEX IF NOT EXISTS harness_sessions_owner_time ON harness_sessions (owner_uid, updated_at)');
   const requireSession = async (uid, id) => {
     validSessionId(id);
@@ -63,8 +69,33 @@ export async function createSessionStore({ databaseUrl = process.env.HARNESS_DAT
     async remove(uid, id) {
       await requireSession(uid, id);
       await query('UPDATE harness_sessions SET deleted=1 WHERE session_id=$1 AND owner_uid=$2', [id, uid]);
+      await query('DELETE FROM harness_session_documents WHERE session_id=$1', [id]);
     },
     async clear(uid) { await query('UPDATE harness_sessions SET deleted=1 WHERE owner_uid=$1', [uid]); },
+    /** 登记一轮执行里生成或修改的文档；同一路径以最后一次写入为准。 */
+    async recordDocuments(sessionId, docs) {
+      for (const doc of docs) {
+        await query(`INSERT INTO harness_session_documents (session_id,path,name,kind,size,mtime)
+          VALUES ($1,$2,$3,$4,$5,$6)
+          ON CONFLICT (session_id,path) DO UPDATE SET
+            name=EXCLUDED.name, kind=EXCLUDED.kind, size=EXCLUDED.size, mtime=EXCLUDED.mtime`,
+          [sessionId, doc.path, doc.name, doc.kind, doc.size, doc.mtime]);
+      }
+    },
+    /** 当前会话登记过的文档，按修改时间倒序。 */
+    async listDocuments(sessionId) {
+      return (await query('SELECT path,name,kind,size,mtime FROM harness_session_documents WHERE session_id=$1 ORDER BY mtime DESC', [sessionId]))
+        .map(row => ({ path: row.path, name: row.name, kind: row.kind, size: Number(row.size), mtime: Number(row.mtime) }));
+    },
+    /** 已有归属记录的文档路径，用于启动时只补齐尚未归属的文档。 */
+    async documentPaths() {
+      return (await query('SELECT DISTINCT path FROM harness_session_documents', [])).map(row => row.path);
+    },
+    /** 所有未删除会话，供首次升级按时间窗口回填文档归属。 */
+    async sessions() {
+      return (await query('SELECT session_id,created_at,updated_at FROM harness_sessions WHERE deleted=0', []))
+        .map(row => ({ sessionId: row.session_id, createdAt: Number(row.created_at), updatedAt: Number(row.updated_at) }));
+    },
   };
 }
 

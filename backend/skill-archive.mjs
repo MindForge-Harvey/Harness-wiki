@@ -66,14 +66,35 @@ export async function parseSkillArchive(bytes, parseMarkdown) {
   for (const item of roots) if (!selected.some(parent => !parent.root || item.root.startsWith(parent.root + '/'))) selected.push(item);
   if (!selected.length) throw archiveError('ZIP 中没有找到 SKILL.md，请保留技能的目录结构');
   if (selected.length > 50) throw archiveError('一个技能包最多包含 50 个技能');
-  const skillNames = new Set();
-  const skills = selected.map(({ file, root }) => {
+  const skillNames = new Map();
+  const skills = [], invalid = [];
+  for (const { file, root } of selected) {
     let skill;
     try { skill = parseMarkdown(new TextDecoder('utf-8', { fatal: true }).decode(file.bytes)); }
-    catch (error) { throw error.status ? error : archiveError(`${file.path} 必须是有效的 UTF-8 文本`); }
-    if (skillNames.has(skill.name)) throw archiveError(`技能包包含重复的调用名称：${skill.name}`);
-    skillNames.add(skill.name);
-    return { ...skill, root };
-  });
-  return { files, skills, totalBytes: total };
+    catch (error) {
+      invalid.push({ path: file.path, root, error: error.status ? error.message : `${file.path} 必须是有效的 UTF-8 文本`, extracted: looseFrontmatter(file.bytes) });
+      continue;
+    }
+    const owner = skillNames.get(skill.name);
+    if (owner) {
+      invalid.push({ path: file.path, root, error: `调用名称 /${skill.name} 与 ${owner} 重复`,
+        extracted: { name: skill.name, title: skill.title, description: skill.description } });
+      continue;
+    }
+    skillNames.set(skill.name, file.path);
+    skills.push({ ...skill, root });
+  }
+  return { files, skills, invalid, totalBytes: total };
+}
+
+/** Best-effort display fields from raw SKILL.md bytes for previewing broken skills. */
+function looseFrontmatter(bytes) {
+  const text = new TextDecoder('utf-8').decode(bytes);
+  const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1] || '';
+  const extracted = {};
+  for (const key of ['name', 'title', 'description']) {
+    const value = frontmatter.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'))?.[1]?.trim().replace(/^['"]|['"]$/g, '');
+    if (value) extracted[key] = value.slice(0, 200);
+  }
+  return extracted;
 }

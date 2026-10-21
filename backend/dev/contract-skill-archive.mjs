@@ -31,7 +31,7 @@ test('single and multi-skill ZIPs retain directories, binary attachments, execut
 });
 
 test('invalid, traversing, linked, encrypted, corrupt and over-budget archives do not reach storage', async () => {
-  for (const files of [{ '../outside': 'bad', 'SKILL.md': markdown() }, { '/absolute': 'bad' }, { 'C:/drive': 'bad' }, { 'dir\\escape': 'bad' }, { 'SKILL.md': markdown(), 'skill.md': 'case collision' }, { 'SKILL.md': markdown(), foo: 'file', 'foo/bar': 'child' }, { 'one/SKILL.md': markdown(), 'two/SKILL.md': markdown() }, { 'readme.txt': 'no skill' }, { 'SKILL.md': new Uint8Array([0xff]) }]) await assert.rejects(parse(archive(files)), { status: 400 });
+  for (const files of [{ '../outside': 'bad', 'SKILL.md': markdown() }, { '/absolute': 'bad' }, { 'C:/drive': 'bad' }, { 'dir\\escape': 'bad' }, { 'SKILL.md': markdown(), 'skill.md': 'case collision' }, { 'SKILL.md': markdown(), foo: 'file', 'foo/bar': 'child' }, { 'readme.txt': 'no skill' }]) await assert.rejects(parse(archive(files)), { status: 400 });
   const linked = archive({ 'SKILL.md': markdown(), link: [strToU8('/etc/passwd'), { os: 3, attrs: (0o120777 << 16) >>> 0 }] });
   await assert.rejects(parse(linked), { status: 400 });
   await assert.rejects(parse(Buffer.from('not a zip')), { status: 400 });
@@ -46,6 +46,52 @@ test('invalid, traversing, linked, encrypted, corrupt and over-budget archives d
   oversized.writeUInt32LE(SKILL_ARCHIVE_LIMITS.file + 1, centralOffset(oversized) + 24);
   await assert.rejects(parse(oversized), { status: 413 });
   await assert.rejects(parse(Buffer.alloc(SKILL_ARCHIVE_LIMITS.compressed + 1)), { status: 413 });
+});
+
+test('a broken skill does not sink the archive: invalid entries carry path, reason and extracted metadata', async () => {
+  const mixed = await parse(archive({
+    'good/SKILL.md': markdown('good-skill'),
+    'bad-yaml/SKILL.md': '---\nname: [unclosed\n---\n内容',
+    'no-desc/SKILL.md': '---\nname: no-desc-skill\n---\n缺少描述',
+    'bad-name/SKILL.md': '---\nname: 页面生成\ntitle: 命名不合规\ndescription: 调用名称含中文。\n---\n内容',
+    'dup/SKILL.md': markdown('good-skill'),
+    'raw/SKILL.md': new Uint8Array([0xff]),
+  }));
+  assert.deepEqual(mixed.skills.map(skill => skill.name), ['good-skill']);
+  assert.equal(mixed.invalid.length, 5);
+  assert.equal(mixed.invalid.find(item => item.path === 'no-desc/SKILL.md').error, '请填写何时使用');
+  const named = mixed.invalid.find(item => item.path === 'bad-name/SKILL.md');
+  assert.equal(named.error, '调用名称仅支持英文、数字、空格和连字符，例如 Answer Format');
+  assert.equal(named.extracted.name, '页面生成');
+  assert.equal(named.extracted.title, '命名不合规');
+  const dup = mixed.invalid.find(item => item.path === 'dup/SKILL.md');
+  assert.match(dup.error, /与 good\/SKILL\.md 重复/);
+  assert.equal(dup.extracted.name, 'good-skill');
+  assert.match(mixed.invalid.find(item => item.path === 'raw/SKILL.md').error, /UTF-8/);
+  const dir = temp();
+  try {
+    const store = createSkillsStore(dir);
+    const preview = store.stageImport('alice', mixed, 'mixed.zip');
+    assert.equal(preview.skills.length, 1);
+    assert.equal(preview.invalid.length, 5);
+    const [installed] = store.installImport('alice', preview.id);
+    assert.equal(installed.name, 'good-skill');
+    assert.deepEqual(store.list('alice').skills.map(skill => skill.name), ['good-skill']);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('uppercase and spaced invocation names normalize to the kebab-case the kernel requires', async () => {
+  const parsed = await parse(archive({
+    'ppt/SKILL.md': '---\nname: PPT-Page\ntitle: PPT 生成\ndescription: 生成 PPT 时使用。\n---\n内容',
+  }));
+  assert.deepEqual(parsed.skills.map(skill => skill.name), ['ppt-page']);
+  assert.equal(parsed.invalid.length, 0);
+  const dir = temp();
+  try {
+    const store = createSkillsStore(dir);
+    const saved = store.save('alice', { title: '规范回答', name: 'Answer Format', description: '需要规范回答时使用。', content: '步骤', enabled: true });
+    assert.equal(saved.name, 'answer-format');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('installed packages expose working script paths; edits, account isolation, conflicts and deletion preserve resources', async () => {
@@ -139,6 +185,12 @@ test('ZIP import HTTP preview, install, files and downloads authorize the valida
     assert.equal(response.status, 201);
     const { preview } = await response.json();
     assert.equal(preview.fileCount, 4);
+    const mixedResponse = await call('alice', '/imports?name=mixed.zip', 'POST', archive({ 'ok/SKILL.md': markdown('http-ok'), 'broken/SKILL.md': '---\nname: [bad\n---\nx' }), true);
+    assert.equal(mixedResponse.status, 201);
+    const mixedPreview = (await mixedResponse.json()).preview;
+    assert.equal(mixedPreview.skills.length, 1);
+    assert.equal(mixedPreview.invalid.length, 1);
+    assert.equal(mixedPreview.invalid[0].path, 'broken/SKILL.md');
     assert.equal((await call('bob', '/imports/' + preview.id, 'POST', {})).status, 404);
     assert.equal((await call('bob', '/imports/' + preview.id, 'DELETE')).status, 404);
     const installed = await call('alice', '/imports/' + preview.id, 'POST', {});

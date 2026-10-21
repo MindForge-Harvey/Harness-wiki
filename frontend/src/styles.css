@@ -1812,6 +1812,54 @@ body.chat-view {
   background: rgba(13, 103, 237, 0.07);
 }
 
+/* 会话列表里仍在后台执行的会话：转圈让用户一眼看出哪些还在回复。 */
+.chat-history-spin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(13, 103, 237, 0.18);
+  border-top-color: var(--accent, #0d67ed);
+  animation: chat-history-spin 0.8s linear infinite;
+}
+
+@keyframes chat-history-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 打开一个由服务端继续执行的会话时，明确告知内容会在完成后自动刷新。 */
+.chat-background-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px auto;
+  max-width: 760px;
+  border: 1px solid rgba(13, 103, 237, 0.14);
+  border-radius: 14px;
+  background: rgba(13, 103, 237, 0.04);
+  padding: 10px 14px;
+  color: var(--accent-deep, #0b56c4);
+}
+
+.chat-background-note .chat-history-spin {
+  margin-top: 2px;
+}
+
+.chat-background-note span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.chat-background-note strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.chat-background-note small {
+  color: var(--text-muted, #5b6b84);
+  font-size: 11.5px;
+}
+
 .chat-history-copy {
   display: grid;
   min-width: 0;
@@ -6624,6 +6672,208 @@ div.chat-tool-head {
   word-break: break-all;
 }
 
+/* ---- 执行过程 ---- */
+.chat-process {
+  border: 1px solid rgba(13, 103, 237, 0.14);
+  border-radius: 14px;
+  background: rgba(13, 103, 237, 0.03);
+  margin: 2px 0 10px;
+  overflow: hidden;
+}
+.chat-process-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chat-process-head:hover {
+  background: rgba(13, 103, 237, 0.05);
+}
+.chat-process.is-open .chat-process-head {
+  border-bottom: 1px solid rgba(13, 103, 237, 0.1);
+}
+.chat-process-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: #2ea05a;
+}
+.chat-process.is-running .chat-process-state {
+  color: var(--accent, #0d67ed);
+}
+.chat-process-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft, #45597a);
+}
+.chat-process-duration {
+  flex: none;
+  font-size: 11.5px;
+  color: rgba(7, 28, 56, 0.42);
+}
+.chat-process-head > svg {
+  flex: none;
+  margin-left: auto;
+  color: rgba(7, 28, 56, 0.4);
+  transition: transform 0.2s ease;
+}
+.chat-process-head > svg.is-down {
+  transform: rotate(180deg);
+}
+.chat-process-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* 只在运行中限高并跟随最新一步；结束后展开可看完整内容。 */
+.chat-process.is-running .chat-process-list {
+  max-height: 320px;
+  overflow: auto;
+}
+.chat-process-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+.chat-process-step-head:not(:disabled) {
+  cursor: pointer;
+}
+.chat-process-step-head:not(:disabled):hover {
+  background: rgba(13, 103, 237, 0.05);
+}
+.chat-process-step-head strong {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft, #45597a);
+  white-space: nowrap;
+}
+.chat-process-brief {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--text-muted, #5b6b84);
+}
+.chat-process-step-head > svg {
+  flex: none;
+  margin-left: auto;
+  color: rgba(7, 28, 56, 0.35);
+  transition: transform 0.2s ease;
+}
+.chat-process-step-head > svg.is-down {
+  transform: rotate(180deg);
+}
+.chat-process-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 50%;
+  color: #2ea05a;
+}
+.chat-process-step.is-error .chat-process-dot {
+  color: #d23c3c;
+}
+.chat-process-step.is-warning .chat-process-dot,
+.chat-process-step.is-pending .chat-process-dot {
+  color: #b37e2c;
+}
+.chat-process-step.is-running .chat-process-dot,
+.chat-process.is-running .chat-tool-spin {
+  background: rgba(13, 103, 237, 0.1);
+  color: var(--accent, #0d67ed);
+}
+.chat-process-step.is-running .chat-process-dot i,
+.chat-process.is-running .chat-tool-spin i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent, #0d67ed);
+  animation: chat-tool-dot 1s infinite ease-in-out;
+}
+.chat-process-step.is-running .chat-process-dot i:nth-child(2),
+.chat-process.is-running .chat-tool-spin i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.chat-process-step.is-running .chat-process-dot i:nth-child(3),
+.chat-process.is-running .chat-tool-spin i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.chat-process-step.is-running .chat-process-dot i + i,
+.chat-process.is-running .chat-tool-spin i + i {
+  margin-left: 2px;
+}
+.chat-process-detail {
+  margin: 2px 0 6px 24px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(11, 31, 58, 0.04);
+}
+.chat-process-detail p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: rgba(7, 28, 56, 0.72);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-process-refs {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chat-process-refs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(13, 103, 237, 0.06);
+  font-size: 11.5px;
+  color: rgba(7, 28, 56, 0.62);
+}
+.chat-process-refs li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- 审批卡 ---- */
 .chat-approval-card {
   border: 1px solid rgba(13, 103, 237, 0.3);
@@ -7018,4 +7268,344 @@ div.chat-tool-head {
 @keyframes chat-timeline-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #0d67ed) 35%, transparent); }
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent, #0d67ed) 0%, transparent); }
+}
+
+/* ============================== 生成的文档面板 ============================== */
+
+.chat-documents-shortcut {
+  position: relative;
+}
+
+.chat-documents-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent, #0d67ed);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.documents-empty {
+  margin: 26px 10px;
+  color: #7894b1;
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+/* ============================== 文档在线预览 ============================== */
+
+.doc-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 4vh 4vw;
+  background: rgba(9, 24, 46, 0.44);
+  backdrop-filter: blur(3px);
+  animation: doc-preview-in 0.18s ease;
+}
+
+@keyframes doc-preview-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.doc-preview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(920px, 100%);
+  height: 100%;
+  border: 1px solid rgba(25, 78, 140, 0.16);
+  border-radius: 14px;
+  background: #fdfefe;
+  box-shadow: 0 24px 64px rgba(9, 30, 66, 0.28);
+  overflow: hidden;
+}
+
+.doc-preview-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(25, 78, 140, 0.12);
+  background: linear-gradient(180deg, #f4f9ff, #eef5fd);
+}
+
+.doc-preview-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #eaf3fd;
+  color: #2b7fce;
+  flex-shrink: 0;
+}
+
+.doc-preview-title {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.doc-preview-title strong {
+  overflow: hidden;
+  color: #14375c;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-preview-title small {
+  overflow: hidden;
+  color: #7894b1;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-preview-action {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #35618f;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.doc-preview-action:hover {
+  background: #e2effc;
+  color: var(--accent, #0d67ed);
+}
+
+.doc-preview-body {
+  overflow: auto;
+  padding: 18px 22px 26px;
+}
+
+.doc-preview-note {
+  margin: 48px 16px;
+  color: #7894b1;
+  font-size: 13.5px;
+  line-height: 1.9;
+  text-align: center;
+}
+
+.doc-preview-note.is-error {
+  color: #ad6d79;
+}
+
+.doc-preview-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.doc-preview-text {
+  margin: 0;
+  color: #25425f;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.doc-preview-md > :first-child { margin-top: 0; }
+.doc-preview-md > :last-child { margin-bottom: 0; }
+
+.doc-preview-docx {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #25425f;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.doc-preview-docx h1 { font-size: 21px; margin: 18px 0 10px; color: #14375c; }
+.doc-preview-docx h2 { font-size: 17px; margin: 16px 0 8px; color: #14375c; }
+.doc-preview-docx h3 { font-size: 15px; margin: 14px 0 6px; color: #14375c; }
+.doc-preview-docx table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+.doc-preview-docx th,
+.doc-preview-docx td { border: 1px solid rgba(25, 78, 140, 0.24); padding: 6px 10px; font-size: 13px; text-align: left; }
+.doc-preview-docx th { background: #eef5fd; }
+.doc-preview-docx img { max-width: 100%; }
+
+.doc-preview-sheet-note {
+  margin: 0 0 10px;
+  color: #7894b1;
+  font-size: 12.5px;
+}
+
+.doc-preview-sheet table { border-collapse: collapse; width: 100%; }
+.doc-preview-sheet th,
+.doc-preview-sheet td { border: 1px solid rgba(25, 78, 140, 0.2); padding: 5px 10px; font-size: 12.5px; color: #25425f; text-align: left; white-space: nowrap; }
+.doc-preview-sheet th { background: #eef5fd; font-weight: 600; }
+
+/* ============================== 文档停靠分栏 ============================== */
+/* 三列布局与窄屏回退在 chat-workspace.css，它晚于本文件加载。 */
+
+.chat-doc-pane {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  border-left: 1px solid rgba(25, 78, 140, 0.11);
+  background: linear-gradient(180deg, #f6faff 0%, #eef5fc 100%);
+  overflow: hidden;
+}
+
+.doc-pane-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid rgba(25, 78, 140, 0.1);
+  background: rgba(252, 254, 255, 0.85);
+}
+
+.doc-pane-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #eaf3fd;
+  color: #2b7fce;
+  flex-shrink: 0;
+}
+
+.doc-pane-icon.is-doc,
+.doc-pane-icon.is-docx { background: #e9f1fd; color: #2f6fd0; }
+.doc-pane-icon.is-xls,
+.doc-pane-icon.is-xlsx,
+.doc-pane-icon.is-csv { background: #e9f6ee; color: #2f8a52; }
+.doc-pane-icon.is-ppt,
+.doc-pane-icon.is-pptx { background: #fdeee6; color: #c4653a; }
+.doc-pane-icon.is-pdf { background: #fdeaea; color: #c14a4a; }
+.doc-pane-icon.is-md { background: #eef1f7; color: #4a6285; }
+
+.doc-pane-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #14375c;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.doc-pane-action {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #35618f;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.doc-pane-action:hover {
+  background: #e2effc;
+  color: var(--accent, #0d67ed);
+}
+
+.doc-pane-tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(25, 78, 140, 0.08);
+  background: rgba(248, 251, 254, 0.9);
+  scrollbar-width: thin;
+}
+
+.doc-pane-tabs button {
+  max-width: 180px;
+  overflow: hidden;
+  border: 1px solid rgba(25, 78, 140, 0.14);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #42688e;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.doc-pane-tabs button:hover {
+  border-color: rgba(13, 103, 237, 0.42);
+  color: var(--accent, #0d67ed);
+}
+
+.doc-pane-tabs button.is-active {
+  border-color: rgba(13, 103, 237, 0.55);
+  background: #e8f2fd;
+  color: var(--accent-deep, #0a4fb3);
+  font-weight: 600;
+}
+
+.doc-pane-body {
+  overflow: auto;
+  padding: 18px 18px 26px;
+}
+
+/* 文档纸张化：白纸卡片、居中排版，接近 Word 阅读视图 */
+.doc-pane-paper {
+  width: 100%;
+  max-width: 720px;
+  min-height: 100%;
+  margin: 0 auto;
+  border: 1px solid rgba(25, 78, 140, 0.1);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 34px 38px 44px;
+  box-shadow: 0 10px 30px rgba(23, 62, 110, 0.08);
+}
+
+.doc-pane-paper .doc-preview-note {
+  margin: 48px 8px;
+}
+
+/* HTML 演示文稿自带页面边距，纸张容器让出空间让 iframe 撑满分栏高度。 */
+.doc-pane-paper:has(.doc-preview-frame) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.doc-pane-paper .doc-preview-frame {
+  display: block;
+  height: calc(100dvh - 170px);
+  min-height: 480px;
+  border-radius: 10px;
+  background: #ffffff;
 }

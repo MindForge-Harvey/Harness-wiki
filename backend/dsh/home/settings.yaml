@@ -4,8 +4,8 @@ ui-theme:
   preference: light
 agent-default-model:
   provider: qwen-token-plan
-  model: glm-5.2
-  reasoningEffort: max
+  model: qwen3.8-flash
+  reasoningEffort: off
 pet:
   visible: true
   size: 160
@@ -22,6 +22,9 @@ llm-pi-ai:
       qwen-token-plan:
         {
           baseURL: https://dashscope.aliyuncs.com/compatible-mode/v1,
+          # DashScope 实测配方：思考经 enable_thinking 开关控制，不走 reasoning_effort
+          reasoning: 'off',
+          compat: { supportsDeveloperRole: false, supportsReasoningEffort: false, thinkingFormat: 'qwen' },
           models:
             [
               {
@@ -99,7 +102,8 @@ llm-pi-ai:
                   id: qwen3.8-flash,
                   name: Qwen3.8 Flash,
                   contextWindow: 1000000,
-                  maxTokens: 131072
+                  maxTokens: 131072,
+                  reasoningEfforts: { off: null, high: 'high' }
                 },
               {
                   id: qwen3.8-max,
