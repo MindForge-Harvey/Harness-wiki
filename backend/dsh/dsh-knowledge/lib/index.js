@@ -1046,9 +1046,67 @@ export function apply(ctx) {
     ctx.effect(() => tools.register(def))
   }
 
+  /**
+   * 把 /query/data 的实体/关系整理为紧凑 JSON，以 HTML 注释形式注入 render 文本。
+   * 模型忽略注释内容（不污染回答），前后端可从 tool-result 文本中正则提取，
+   * 供图谱可视化使用。字段对齐 kb_graph_search 返回格式：
+   *   entities: [{ id, type, description }]     id = entity_name
+   *   relations: [{ source, target, description, weight }]
+   * /query/data 的实体是 top_k 截断的子集、关系是全量，两者交集很小；
+   * 只按实体集合过滤会让边几乎全部丢失，图上只剩散点。因此按关系度数
+   * 补齐端点节点、优先保留连接密集的子图，并丢弃没有任何关系的孤立节点。
+   */
+  function buildGraphContext(entities, relationships) {
+    const MAX_ENTS = 45
+    const MAX_RELS = 45
+    // 检索命中的实体：带类型与描述，是图谱的信息主体
+    const matched = new Map()
+    for (const e of Array.isArray(entities) ? entities : []) {
+      if (!e || typeof e !== 'object' || !e.entity_name || matched.has(e.entity_name)) continue
+      matched.set(e.entity_name, {
+        id: e.entity_name,
+        type: e.entity_type || '',
+        description: String(e.description || '').slice(0, 100),
+      })
+    }
+    if (!matched.size) return ''
+    const rels = (Array.isArray(relationships) ? relationships : [])
+      .filter((r) => r && typeof r === 'object' && r.src_id && r.tgt_id)
+      .map((r) => ({
+        source: String(r.src_id),
+        target: String(r.tgt_id),
+        description: String(r.description || '').slice(0, 60),
+        weight: typeof r.weight === 'number' ? r.weight : 0,
+      }))
+    // 关系度数：决定节点取舍，度数高说明在本次检索里连接密集
+    const degree = new Map()
+    for (const r of rels) {
+      degree.set(r.source, (degree.get(r.source) || 0) + 1)
+      degree.set(r.target, (degree.get(r.target) || 0) + 1)
+    }
+    let entList = [...new Set([...matched.keys(), ...degree.keys()])]
+      .sort((a, b) => (degree.get(b) || 0) - (degree.get(a) || 0)
+        || (matched.has(a) ? 0 : 1) - (matched.has(b) ? 0 : 1))
+      .slice(0, MAX_ENTS)
+      .map((name) => matched.get(name) || { id: name, type: '', description: '' })
+    const entSet = new Set(entList.map((e) => e.id))
+    const relList = rels.filter((r) => entSet.has(r.source) && entSet.has(r.target)).slice(0, MAX_RELS)
+    if (relList.length) {
+      // 丢弃孤立节点：用户要看的是实体之间的关联，散点会让图显得残缺
+      const linked = new Set()
+      for (const r of relList) { linked.add(r.source); linked.add(r.target) }
+      const kept = entList.filter((e) => linked.has(e.id))
+      if (kept.length) entList = kept
+    }
+    if (!entList.length) return ''
+    // 紧凑 JSON：去掉空格，减少 render 文本体积
+    const json = JSON.stringify({ entities: entList, relations: relList })
+    return '<!--GRAPH_CONTEXT:' + json + '-->'
+  }
+
   registerTool({
     name: 'lightrag_query_data',
-    description: '检索知识库的原始证据（不生成答案）：返回与 query 相关的原文 chunks、实体、关系和引用文件。回答知识库相关问题时优先调用本工具，基于返回的原文证据自行组织答案：1) 答案只依据命中的 chunks 与实体/关系描述，不要凭自身知识补充制度内容；2) 答案末尾注明引用的来源文件；3) 证据不足或无命中时如实说明知识库中暂无对应资料；4) 片段中可能包含原文档图片，格式为 ![图片说明](http://…/kb/image?…)：当图片与回答内容直接相关时（如流程图、架构图、示意图），把该图片的 Markdown 语法原样复制到回答中的合适位置（通常放在相关段落之后单独一行），不要修改 URL，也不要凭空编造图片；5) 需要换个表述补查证据或诊断检索问题时也可调用。',
+    description: '检索知识库的原始证据（不生成答案）：返回与 query 相关的原文 chunks、实体、关系和引用文件。回答知识库相关问题时优先调用本工具，基于返回的原文证据自行组织答案：1) 答案只依据命中的 chunks 与实体/关系描述，不要凭自身知识补充制度内容；2) 每句依据检索证据的结论后用 [[文件名]] 标注来源角标，文件名必须原样取自 chunks 的方括号前缀或「引用」列表（例如 [[员工休假管理办法.docx]]），不要自行编号，也不要另写「来源」列表，前端会自动汇总角标与源文件；3) 证据不足或无命中时如实说明知识库中暂无对应资料；4) 片段中可能包含原文档图片，格式为 ![图片说明](http://…/kb/image?…)：当图片与回答内容直接相关时（如流程图、架构图、示意图），把该图片的 Markdown 语法原样复制到回答中的合适位置（通常放在相关段落之后单独一行），不要修改 URL，也不要凭空编造图片；5) 需要换个表述补查证据或诊断检索问题时也可调用。',
     parameters: {
       type: 'object',
       properties: {
@@ -1095,9 +1153,16 @@ export function apply(ctx) {
         if (rels.length) lines.push('关系：' + rels.join('；'))
         if (chunks.length) lines.push('chunks：\n- ' + chunks.join('\n- '))
         if (!lines.length) lines.push('（无命中：实体、关系、chunks 均为空）')
+        if (lines.length && (chunks.length || (Array.isArray(value.references) && value.references.length))) {
+          lines.push('引用标注：依据本结果作答时，在相关句子末尾用 [[文件名]] 标注来源（文件名取自 chunks 前缀或下方「引用」列表），不要自行编号。')
+        }
         if (value.truncated) lines.push('（结果已按快照限额裁剪）')
         if (Array.isArray(value.references) && value.references.length) lines.push('引用：' + value.references.join('、'))
         if (value.query_id) lines.push('查询 id：' + value.query_id)
+        // 图谱结构化数据：以 HTML 注释注入模型可见面末尾，模型会忽略注释内容，
+        // 但前后端可从 tool-result 文本中解析提取，实现图谱可视化（render 拍平会丢两端映射）。
+        const graphLines = buildGraphContext(value.entities, value.relationships)
+        if (graphLines) lines.push(graphLines)
         return [{ type: 'text', text: lines.join('\n') }]
       },
     },

@@ -42,3 +42,24 @@ backend/dsh/home/.anonymous-user-id
 
 # 本地知识库评测与诊断报告不入库
 backend/dsh/dsh-knowledge/reports/
+
+# Docker 镜像导出（太大且二进制）
+deploy/*.tar.gz
+deploy/*.tar.xz
+*.tar.gz
+*.tar.xz
+
+# 环境变量备份
+.env.bak-*
+*.bak-*
+
+# 临时生成的文档与脚本（.docx/.html/.pptx 等临时产物）
+*.docx
+*.html
+*.pptx
+_gen_*.py
+gen_*.py
+backend.zip
+
+# 临时目录
+ppt/

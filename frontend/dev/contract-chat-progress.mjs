@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupTaskMessages, taskProgress } from '../src/lib/task-progress.mjs';
+import { groupTaskMessages, taskProgress, citationSources, citationPlan, linkCitations, stripOwnSourceLine } from '../src/lib/task-progress.mjs';
 
 const tool = (name, extra = {}) => ({ role: 'tool', name, status: 'done', args: {}, ...extra });
 
@@ -68,6 +68,39 @@ test('every tool call stays visible while reasoning is not exposed', () => {
   assert.equal(taskProgress(grouped[1]).status, 'error');
   assert.equal(taskProgress(grouped[2]).status, 'error');
   assert.ok(!JSON.stringify(grouped).includes('internal reasoning'));
+});
+
+test('citations number each turn once and reset on the next user message', () => {
+  const messages = [
+    { role: 'user', id: 'u1', content: '查制度' },
+    tool('lightrag_query_data', { id: 't1', resultText: '引用：/kb/报销制度.pdf、差旅管理办法.docx' }),
+    tool('lightrag_query_data', { id: 't2', resultJson: { references: ['差旅管理办法.docx', '发票说明.pdf'] } }),
+    tool('kb_status', { id: 't3' }),
+    { role: 'assistant', id: 'a1', content: '说明' },
+    { role: 'user', id: 'u2', content: '再查一次' },
+    { role: 'assistant', id: 'a2', content: '无检索' },
+  ];
+  const sources = citationSources(messages);
+  // 同一轮内跨多次检索去重编号；与检索无关的工具不产生来源，没有检索的轮次不渲染来源区。
+  assert.deepEqual(sources.get('a1'), [
+    { index: 1, file: '/kb/报销制度.pdf', name: '报销制度.pdf' },
+    { index: 2, file: '差旅管理办法.docx', name: '差旅管理办法.docx' },
+    { index: 3, file: '发票说明.pdf', name: '发票说明.pdf' },
+  ]);
+  assert.equal(sources.has('a2'), false);
+
+  const answer = '依据 [[报销制度.pdf]] 与 [[差旅管理办法.docx]] 办理，再次提到 [[报销制度.pdf]]；'
+    + '[[不存在的文件.docx]] 保留原文\n\n来源文件：报销制度.pdf';
+  // 只列回答真正引用的文件，按首次出现编号；重复引用同一文件不新增编号。
+  const plan = citationPlan(answer, sources.get('a1'));
+  assert.deepEqual(plan.map(source => [source.index, source.name]),
+    [[1, '报销制度.pdf'], [2, '差旅管理办法.docx']]);
+  assert.equal(linkCitations(answer, plan, 'a1'),
+    '依据 [1](#cite-a1-1) 与 [2](#cite-a1-2) 办理，再次提到 [1](#cite-a1-1)；[[不存在的文件.docx]] 保留原文\n\n来源文件：报销制度.pdf');
+  assert.equal(stripOwnSourceLine(answer), '依据 [[报销制度.pdf]] 与 [[差旅管理办法.docx]] 办理，再次提到 [[报销制度.pdf]]；[[不存在的文件.docx]] 保留原文');
+  // 回答里没有角标时退回列出本轮全部来源，避免丢失检索依据。
+  assert.deepEqual(citationPlan('无角标回答', sources.get('a1')).map(source => source.index), [1, 2, 3]);
+  assert.equal(linkCitations('无来源正文 [[报销制度.pdf]]', [], 'a2'), '无来源正文 [[报销制度.pdf]]');
 });
 
 test('unhealthy services and rejected writes are distinguished from success', () => {

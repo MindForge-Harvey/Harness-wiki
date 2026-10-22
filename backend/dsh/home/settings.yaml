@@ -113,5 +113,25 @@ llm-pi-ai:
                 }
             ],
           apiKeyEnv: QWEN_TOKEN_PLAN_API_KEY
+        },
+      intranet-deepseek:
+        {
+          api: openai-completions,
+          baseURL: http://10.142.175.2:32028/v1,
+          apiKeyEnv: INTRANET_LLM_API_KEY,
+          # 内网网关保守配方：不发 reasoning_effort 与 developer role；
+          # 思考方言按 deepseek 声明，off 档不下发任何思考字段（LLM_REASONING_EFFORT=off）
+          compat: { supportsDeveloperRole: false, supportsReasoningEffort: false, thinkingFormat: 'deepseek' },
+          models:
+            [
+              {
+                  # id 必须与网关注册名逐字符一致（含大小写）
+                  id: Deepseek-V4-Flash,
+                  name: DeepSeek V4 Flash（内网）,
+                  contextWindow: 131072,
+                  maxTokens: 32768,
+                  reasoningEfforts: { off: null, high: 'high' }
+                }
+            ]
         }
     }

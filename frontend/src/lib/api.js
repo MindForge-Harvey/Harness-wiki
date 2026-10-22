@@ -187,6 +187,10 @@ export const documentUrl = (sessionId, path) =>
 export const documentViewUrl = (sessionId, path) =>
   appUrl(`api/chat/doc-view/${encodeURIComponent(sessionId)}/${path.split("/").map(encodeURIComponent).join("/")}`);
 
+/** 知识库引用文件地址（按引用名在原料区定位，带会话归属校验）；download 为 true 时走附件下载。 */
+export const sourceFileUrl = (sessionId, file, download = false) =>
+  appUrl(`api/chat/source/file?sessionId=${encodeURIComponent(sessionId)}&file=${encodeURIComponent(file)}${download ? "&download=1" : ""}`);
+
 export async function fetchPendingApprovals() {
   const r = await personalFetch(appUrl("api/approvals/pending"));
   if (!r.ok) return [];

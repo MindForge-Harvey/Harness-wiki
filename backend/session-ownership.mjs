@@ -27,7 +27,8 @@ export async function createSessionStore({ databaseUrl = process.env.HARNESS_DAT
     query = async (sql, args = []) => (await pool.query(sql, args)).rows;
     close = () => pool.end();
   } else {
-    if (production) throw new Error('HARNESS_DATABASE_URL must be configured in production');
+    // 单机部署（DISABLE_PORTAL_AUTH=1）允许 production 用 SQLite，无需强制 PostgreSQL
+    if (production && process.env.DISABLE_PORTAL_AUTH !== '1') throw new Error('HARNESS_DATABASE_URL must be configured in production');
     const { DatabaseSync } = await import('node:sqlite');
     fs.mkdirSync(path.dirname(sqlitePath), { recursive: true });
     const db = new DatabaseSync(sqlitePath);

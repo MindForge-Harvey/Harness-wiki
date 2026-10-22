@@ -8,8 +8,12 @@
       content="汇聚企业智能体产品与能力的沉浸式产品门户"
     />
     <meta name="theme-color" content="#f4f8ff" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- 子路径前缀部署时，Vite 构建会把 %BASE_URL% 替换为 /rag-harness/；本地开发默认为 / -->
+    <base href="%BASE_URL%" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <title>智能体中枢 | 产品中心</title>
+    <!-- vis-network：知识图谱可视化（本地静态资源，内网部署不依赖公网 CDN） -->
+    <script src="./vendor/vis-network.min.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

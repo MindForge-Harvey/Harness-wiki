@@ -163,7 +163,7 @@ function outcome(card) {
   }
 }
 
-function knowledgeReferences(card) {
+export function knowledgeReferences(card) {
   const files = [];
   for (const call of card.calls || [card]) {
     if (call.name !== 'lightrag_query_data' || call.status !== 'done' || outcome(call).status !== 'done') continue;
@@ -179,6 +179,80 @@ function knowledgeReferences(card) {
     }
   }
   return [...new Set(files)];
+}
+
+/** 来源文件只用文件名展示与匹配，避免把宿主绝对路径暴露给用户。 */
+export function sourceName(file) {
+  return String(file || '').split(/[\\/]/).filter(Boolean).pop() || '';
+}
+
+/**
+ * 按轮次汇总检索来源：每条用户消息之后所有 lightrag_query_data 结果的引用文件，
+ * 按首次出现顺序去重并编号；该轮每个最终回答都映射到同一份编号来源列表。
+ * @param {Array} messages 会话消息（含 role/name/references/resultText）
+ * @returns {Map<string, Array<{ index: number, file: string, name: string }>>} 回答 id → 来源列表
+ */
+export function citationSources(messages) {
+  const byAnswer = new Map();
+  let files = [];
+  for (const message of messages) {
+    if (message.role === 'user') {
+      files = [];
+      continue;
+    }
+    if (message.role === 'tool') {
+      if (message.name !== 'lightrag_query_data' || message.status !== 'done') continue;
+      for (const file of knowledgeReferences(message)) {
+        if (!files.some(existing => existing === file)) files.push(file);
+      }
+      continue;
+    }
+    if (message.role === 'assistant' && files.length) {
+      byAnswer.set(message.id, files.map((file, index) => ({ index: index + 1, file, name: sourceName(file) })));
+    }
+  }
+  return byAnswer;
+}
+
+/** 在来源列表里找标记对应的文件：支持完整路径、文件名与路径后缀三种写法。 */
+function sourceOf(key, sources) {
+  const normalized = String(key || '').trim().replaceAll('\\', '/');
+  if (!normalized) return null;
+  return sources.find((source) => {
+    const file = String(source.file || '').replaceAll('\\', '/');
+    return file === normalized || source.name === normalized || file.endsWith('/' + normalized);
+  }) || null;
+}
+
+/**
+ * 把本轮检索来源与回答里的 [[文件名]] 标记对应起来。
+ * 只列回答真正引用的文件，按首次出现顺序编号，角标与来源清单一一对应；
+ * 回答里没有标记时退回列出本轮全部检索来源（此时只有清单、没有角标）。
+ * @param {string} text 回答正文
+ * @param {Array<{ index: number, file: string, name: string }>} sources 本轮检索来源
+ * @returns {Array<{ index: number, file: string, name: string }>} 编号后的来源清单
+ */
+export function citationPlan(text, sources) {
+  const picked = [];
+  for (const match of String(text || '').matchAll(/\[\[([^\]\n]{1,200})\]\]/g)) {
+    const hit = sourceOf(match[1], sources);
+    if (hit && !picked.includes(hit)) picked.push(hit);
+  }
+  return (picked.length ? picked : sources).map((source, index) => ({ ...source, index: index + 1 }));
+}
+
+/** 模型偶尔会在结尾自写「来源文件：…」：有自动来源清单时去掉这行，避免与角标清单重复。 */
+export function stripOwnSourceLine(text) {
+  return String(text || '').replace(/\n\s*(?:来源(?:文件)?|出处|参考资料)[：:][^\n]*\s*$/, '');
+}
+
+/** 把模型写的 [[文件名]] 换成可点击角标；匹配不到来源文件时原样保留，避免误删正文。 */
+export function linkCitations(text, sources, messageId) {
+  if (!sources?.length) return text;
+  return String(text || '').replace(/\[\[([^\]\n]{1,200})\]\]/g, (match, raw) => {
+    const hit = sourceOf(raw, sources);
+    return hit ? `[${hit.index}](#cite-${messageId}-${hit.index})` : match;
+  });
 }
 
 /** 单次调用的展开明细：命令类先给出实际执行的命令，其余给出结果原文。 */

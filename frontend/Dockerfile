@@ -1,14 +1,19 @@
 # 构建 Vite 前端
 FROM node:20-alpine AS build
 
+# 构建时可通过 --build-arg VITE_BASE=/rag-harness/ 指定子路径前缀；
+# 默认 / 兼容端口隔离方案（外层 nginx 直接转发到 8080）。
+ARG VITE_BASE=/
+ENV VITE_BASE=${VITE_BASE}
+
 # 设置工作目录
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 使用锁文件安装完整构建依赖
-RUN npm ci
+# 使用锁文件安装完整构建依赖（registry 用国内镜像，避免构建容器无法直连官方源）
+RUN npm ci --registry=https://registry.npmmirror.com
 
 # 复制应用代码
 COPY . .

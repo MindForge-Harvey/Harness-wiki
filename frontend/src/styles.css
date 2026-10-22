@@ -2301,6 +2301,94 @@ body.chat-view {
   box-shadow: 0 0 0 3px rgba(13, 103, 237, 0.08);
 }
 
+/* 引用角标与来源清单：角标编号与底部列表一一对应，点击跳到对应来源。 */
+.md-cite {
+  margin-left: 1px;
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+.md-cite a {
+  color: var(--accent-deep);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.md-cite a:hover {
+  text-decoration: underline;
+}
+
+.chat-sources {
+  margin-top: 14px;
+  border-top: 1px dashed rgba(14, 58, 105, 0.14);
+  padding-top: 10px;
+}
+
+.chat-sources h4 {
+  margin: 0 0 6px;
+  color: #6b7f94;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.chat-sources ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-sources li {
+  padding: 0;
+  border-radius: 7px;
+  color: #41556c;
+  font-size: 12px;
+  scroll-margin-top: 80px;
+}
+
+.chat-sources li:target {
+  background: rgba(13, 103, 237, 0.08);
+}
+
+/* 来源文件可点击：在右侧面板打开原始文档。 */
+.chat-source-link {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-source-link:hover {
+  background: rgba(13, 103, 237, 0.07);
+  color: var(--accent-deep);
+}
+
+.chat-source-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chat-source-index {
+  color: var(--accent-deep);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-source-name {
+  overflow-wrap: anywhere;
+}
+
 .chat-message-actions {
   display: flex;
   gap: 2px;

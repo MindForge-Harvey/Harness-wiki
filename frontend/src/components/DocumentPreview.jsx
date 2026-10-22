@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowClockwise, DownloadSimple, FileDoc, FileHtml, FilePdf, FilePpt, FileText, FileXls, X } from "@phosphor-icons/react";
-import { documentUrl, documentViewUrl } from "../lib/api";
+import { documentUrl, documentViewUrl, sourceFileUrl } from "../lib/api";
 import { Markdown } from "../lib/markdown";
 
 /** 预览大小上限：超过则只提供下载，避免前端解析卡死页面。 */
@@ -10,6 +10,13 @@ export const previewIcon = kind => (kind === "Word" ? FileDoc : kind === "Excel"
 
 function prettyJson(text) {
   try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+}
+
+/** 预览与下载地址：引用文件走知识库原料区接口，生成文档走会话文档接口。 */
+export function documentFileUrl(sessionId, doc, download = false) {
+  return doc.source
+    ? sourceFileUrl(sessionId, doc.file, download)
+    : documentUrl(sessionId, doc.path);
 }
 
 /** 拉取并解析文档：md/txt 直接读文本，docx/xlsx 前端转 HTML，pdf/html 用 iframe 打开。 */
@@ -33,7 +40,7 @@ export function useDocumentContent(sessionId, doc, enabled = true) {
     }
     (async () => {
       try {
-        const res = await fetch(documentUrl(sessionId, doc.path));
+        const res = await fetch(documentFileUrl(sessionId, doc));
         if (!res.ok) throw new Error(`读取文档失败（HTTP ${res.status}）`);
         const blob = await res.blob();
         if (blob.size > PREVIEW_LIMIT) throw Object.assign(new Error("文件过大，请下载后查看"), { previewable: false });
@@ -137,9 +144,9 @@ export function DocumentPreview({ sessionId, doc, onClose }) {
           <span className="doc-preview-icon" aria-hidden="true"><Icon size={20} /></span>
           <div className="doc-preview-title">
             <strong title={doc.name}>{doc.name}</strong>
-            <small>{doc.kind} · {doc.path}</small>
+            <small>{doc.kind} · {doc.source ? "知识库引用文件" : doc.path}</small>
           </div>
-          <a className="doc-preview-action" href={documentUrl(sessionId, doc.path)} download={doc.name} title={`下载 ${doc.name}`} aria-label={`下载 ${doc.name}`}>
+          <a className="doc-preview-action" href={documentFileUrl(sessionId, doc, true)} download={doc.name} title={`下载 ${doc.name}`} aria-label={`下载 ${doc.name}`}>
             <DownloadSimple size={18} />
           </a>
           <button className="doc-preview-action" type="button" title="重新加载" aria-label="重新加载预览" onClick={reload}>

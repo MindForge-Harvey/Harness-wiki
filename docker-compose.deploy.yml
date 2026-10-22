@@ -1,0 +1,70 @@
+# 内网免认证部署栈：仅前端 + 后端（不含 LightRAG 引擎与门户认证服务）。
+#
+# 部署标记说明：
+#   🔴 必须确认   —— 涉及服务器本机路径/端口，需确认是否合理
+#   🟢 保持默认   —— 不用动
+#
+# 启动：docker compose -f docker-compose.deploy.yml --env-file backend/.env up -d
+# 停止：docker compose -f docker-compose.deploy.yml --env-file backend/.env down
+name: rag-kb-deploy
+
+services:
+  backend:
+    image: rag-kb-backend:latest                       # 🟢 已构建
+    build:
+      context: .
+      dockerfile: backend/Dockerfile                    # 🟢
+    container_name: rag-kb-backend                      # 🟢
+    restart: unless-stopped                             # 🟢
+    env_file:
+      - backend/.env                                    # 🔴 服务器上必须先改好这个文件！
+    environment:
+      DISABLE_PORTAL_AUTH: "1"                          # 🟢 免认证开关，别动
+      NODE_ENV: production                              # 🟢
+      HOST: "0.0.0.0"                                   # 🟢 容器内绑定所有网卡，别动
+      # 容器内路径（固定值，别动）——后端代码里读这些路径作为挂载目标
+      # 宿主机实际路径由下方 volumes 的 ${...} 插值决定
+      KB_RAG_STORAGE: /data/rag_storage                 # 🟢 容器内路径，别动
+      KB_LIGHTRAG_INPUTS_DIR: /data/inputs              # 🟢 容器内路径，别动
+    ports:
+      - "3088:3088"                                     # 🟢 后端适配层端口，别动
+    volumes:
+      # 🟢 后端代码挂载：改宿主机 backend/ 下的代码/配置后 docker restart 即生效
+      - ./backend:/app/backend
+      # 🟢 node_modules 用镜像内的版本（屏蔽宿主机 node_modules）
+      - rag-kb-backend-node-modules:/app/backend/node_modules
+      # 🟢 会话历史 + 审批附件持久化（named volume，自动创建）
+      - rag-kb-sessions:/app/backend/dsh/home/sessions
+      - rag-kb-spool:/app/backend/.spool
+
+      # ═══════════════════════════════════════════════════════════
+      # 🔴 🔴 🔴 以下两行的宿主机源路径由 .env 里的变量决定！
+      #     docker compose 启动时会读 backend/.env 的值：
+      #       KB_RAG_STORAGE=...        → 挂载到容器 /data/rag_storage
+      #       KB_LIGHTRAG_INPUTS_DIR=... → 挂载到容器 /data/inputs
+      #     默认值是 /data/rag_storage 和 /data/inputs
+      #     如果 .env 里没设 KB_RAG_STORAGE，就用默认值（容器内路径不变，但宿主机 /data/rag_storage 必须存在！）
+      # ═══════════════════════════════════════════════════════════
+      - ${KB_RAG_STORAGE:-/data/rag_storage}:/data/rag_storage
+      - ${KB_LIGHTRAG_INPUTS_DIR:-/data/inputs}:/data/inputs
+
+    # 🟢 bubblewrap 沙箱需要，别动
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
+
+  frontend:
+    image: rag-kb-frontend:latest                       # 🟢 已构建（带 /rag-harness/ 前缀）
+    build: ./frontend                                   # 🟢
+    container_name: rag-kb-frontend                     # 🟢
+    restart: unless-stopped                             # 🟢
+    ports:
+      - "8080:80"                                       # 🟢 前端 nginx 端口，服务器统一 nginx 反代到这里
+    depends_on:
+      - backend                                         # 🟢
+
+volumes:
+  rag-kb-backend-node-modules:                          # 🟢
+  rag-kb-sessions:                                      # 🟢
+  rag-kb-spool:                                         # 🟢

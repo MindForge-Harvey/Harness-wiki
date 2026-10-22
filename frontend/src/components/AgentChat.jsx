@@ -35,8 +35,8 @@ import {
   UserCircle,
   X,
 } from "@phosphor-icons/react";
-import { DocumentPreview, DocumentBody, previewIcon, useDocumentContent } from "./DocumentPreview";
-import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation } from "../lib/task-progress.mjs";
+import { DocumentPreview, DocumentBody, documentFileUrl, previewIcon, useDocumentContent } from "./DocumentPreview";
+import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation, citationSources, citationPlan, linkCitations, stripOwnSourceLine } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
 import { appUrl } from "../lib/app-url";
 import { copyText } from "../lib/copy-text.mjs";
@@ -64,11 +64,13 @@ import {
   deleteFeedbackRecord,
   fetchSharedAnswer,
   fetchDocuments,
-  documentUrl,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
 
 const kbAgent = agents[0];
+
+/** 知识库引用文件类型：与右侧预览面板支持的类型一致。 */
+const SOURCE_KINDS = { docx: "Word", xlsx: "Excel", xls: "Excel", pdf: "PDF", pptx: "PPT", ppt: "PPT", md: "Markdown", txt: "文本" };
 
 /* ---------------------------------------------------------------- 工具链路辅助 */
 
@@ -101,130 +103,274 @@ function resultJsonOf(text) {
   }
 }
 
-/* ---------------------------------------------------------------- 图谱布局（移植自 dsh-knowledge client） */
-
-function layoutGraph(entities, relations, width, height) {
-  const ids = entities.map((n) => n.id);
-  const idx = {};
-  ids.forEach((id, i) => { idx[id] = i });
-  const pos = {};
-  ids.forEach((id) => {
-    pos[id] = { x: width / 2 + (Math.random() - 0.5) * 240, y: height / 2 + (Math.random() - 0.5) * 240 };
-  });
-  const edges = (relations || []).filter(
-    (r) => idx[r.source] !== undefined && idx[r.target] !== undefined && r.source !== r.target,
-  );
-  const K = 140;
-  for (let iter = 0; iter < 150; iter++) {
-    const fx = new Array(ids.length).fill(0);
-    const fy = new Array(ids.length).fill(0);
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        let dx = pos[ids[i]].x - pos[ids[j]].x;
-        let dy = pos[ids[i]].y - pos[ids[j]].y;
-        let d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        if (d > 800) d = 800;
-        const f = (K * K) / d;
-        const ux = dx / d;
-        const uy = dy / d;
-        fx[i] += ux * f; fy[i] += uy * f;
-        fx[j] -= ux * f; fy[j] -= uy * f;
-      }
-    }
-    for (const e of edges) {
-      const a = idx[e.source];
-      const b = idx[e.target];
-      const dx = pos[e.source].x - pos[e.target].x;
-      const dy = pos[e.source].y - pos[e.target].y;
-      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-      const f = (d * d) / K;
-      const ux = dx / d;
-      const uy = dy / d;
-      fx[a] -= ux * f; fy[a] -= uy * f;
-      fx[b] += ux * f; fy[b] += uy * f;
-    }
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      fx[i] += (width / 2 - pos[id].x) * 0.008;
-      fy[i] += (height / 2 - pos[id].y) * 0.008;
-      pos[id].x += fx[i] * 0.05;
-      pos[id].y += fy[i] * 0.05;
-      pos[id].x = Math.max(30, Math.min(width - 30, pos[id].x));
-      pos[id].y = Math.max(24, Math.min(height - 24, pos[id].y));
-    }
+/**
+ * 从 tool-result 文本里提取 <!--GRAPH_CONTEXT:{json}--> 并解析。
+ * 后端 render 以 HTML 注释形式注入图谱结构化数据，模型忽略注释但前端可提取。
+ * @returns {{entities:[{id,type,description}], relations:[{source,target,description,weight}]} | null}
+ */
+function extractGraphContext(text) {
+  if (!text) return null;
+  const m = text.match(/<!--GRAPH_CONTEXT:(.+?)-->/);
+  if (!m) return null;
+  try {
+    const data = JSON.parse(m[1]);
+    if (Array.isArray(data?.entities) && data.entities.length) return data;
+    return null;
+  } catch {
+    return null;
   }
-  return { pos, edges };
 }
 
-/** 工具结果里的图谱卡：kb_graph_search 的 entities/relations 渲染为 SVG 关联网络。 */
-function GraphCard({ entities, relations, truncated }) {
-  const [selected, setSelected] = useState(null);
-  const layout = useMemo(() => {
-    if (!entities?.length) return null;
-    return layoutGraph(entities, relations || [], 760, 320);
-  }, [entities, relations]);
+/* ---------------------------------------------------------------- 实体类型 → 配色（vis-network 用） */
 
-  if (!layout) return null;
-  const sel = entities.find((n) => n.id === selected);
+/** 常见实体类型 → 配色；未知类型自动分配到剩余调色板。 */
+const ENTITY_TYPE_PALETTE = {
+  concept:    { bg: "#E0F2FE",   border: "#0284C7", label: "#0C4A6E" },   // 天空蓝
+  event:      { bg: "#FEF3C7",   border: "#D97706", label: "#78350F" },   // 琥珀黄
+  person:     { bg: "#FCE7F3",   border: "#DB2777", label: "#831843" },   // 粉红
+  org:        { bg: "#DCFCE7",   border: "#16A34A", label: "#14532D" },   // 翠绿
+  company:    { bg: "#DCFCE7",   border: "#16A34A", label: "#14532D" },
+  department: { bg: "#DCFCE7",   border: "#16A34A", label: "#14532D" },
+  doc:        { bg: "#F3E8FF",   border: "#9333EA", label: "#581C87" },   // 紫罗兰
+  document:   { bg: "#F3E8FF",   border: "#9333EA", label: "#581C87" },
+  table:      { bg: "#FEF9C3",   border: "#CA8A04", label: "#713F12" },   // 亮黄（表格/技术块）
+  personnel:  { bg: "#FCE7F3",   border: "#DB2777", label: "#831843" },
+};
+const FALLBACK_PALETTE = [
+  { bg: "#F1F5F9", border: "#64748B", label: "#1E293B" }, // 灰蓝（通用）
+  { bg: "#FFE4E6", border: "#E11D48", label: "#881337" },
+  { bg: "#E0E7FF", border: "#4F46E5", label: "#312E81" },
+  { bg: "#CCFBF1", border: "#0D9488", label: "#134E4A" },
+  { bg: "#FFF7ED", border: "#EA580C", label: "#7C2D12" },
+];
+function paletteForType(type) {
+  const t = String(type || "").toLowerCase();
+  return ENTITY_TYPE_PALETTE[t] || FALLBACK_PALETTE[(hashStr(t) % FALLBACK_PALETTE.length)];
+}
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+/**
+ * 图谱卡：用 vis-network 渲染交互式知识关联图。
+ * 支持：节点拖拽/缩放/hover 高亮关联边、点击查看实体详情、实体类型自动配色、
+ * 关系带方向箭头、度数驱动的节点大小、标签智能截断。
+ */
+function GraphCard({ entities, relations, truncated }) {
+  const containerRef = useRef(null);
+  const networkRef = useRef(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [ready, setReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState(null); // { nodeId, x, y }
+
+  // vis-network 异步加载（CDN defer），轮询直到 window.vis 可用；10 秒超时后标记失败
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+    let ticks = 0;
+    const MAX_TICKS = 125; // 125 * 80ms = 10 秒
+    const tryLoad = () => {
+      if (cancelled) return;
+      if (window.vis?.Network && window.vis?.DataSet) {
+        setReady(true);
+        return;
+      }
+      ticks++;
+      if (ticks >= MAX_TICKS) {
+        setReady(false);
+        setLoadFailed(true);
+        return;
+      }
+      timer = setTimeout(tryLoad, 80);
+    };
+    tryLoad();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, []);
+
+  // vis-network 实例的生命周期：ready 后且 entities 有值时创建
+  useEffect(() => {
+    if (!ready || !entities?.length || !containerRef.current) return;
+    const vis = window.vis;
+
+    // ---- 节点度数（决定节点大小）----
+    const degree = new Map();
+    for (const e of relations || []) {
+      degree.set(e.source, (degree.get(e.source) || 0) + 1);
+      degree.set(e.target, (degree.get(e.target) || 0) + 1);
+    }
+
+    const nodes = new vis.DataSet(entities.map((n) => {
+      const d = degree.get(n.id) || 0;
+      const scale = Math.min(20, 10 + d * 1.5); // 10~20
+      const p = paletteForType(n.type);
+      const label = n.id.length > 8 ? `${n.id.slice(0, 8)}…` : n.id;
+      return {
+        id: n.id,
+        label,
+        title: `${n.id}${n.type ? `（${n.type}）` : ""}${n.description ? `\n${n.description}` : ""}`,
+        size: scale,
+        font: { size: 11, color: p.label, face: "system-ui" },
+        color: { background: p.bg, border: p.border, highlight: { background: p.border, border: p.border } },
+        borderWidth: 1.5,
+        borderWidthSelected: 3,
+        shape: "dot",
+        shadow: { enabled: false, color: "rgba(15,23,42,0.15)", size: 4, x: 0, y: 2 },
+      };
+    }));
+
+    const edges = new vis.DataSet((relations || []).map((e, i) => ({
+      id: `e${i}`,
+      from: e.source,
+      to: e.target,
+      title: `${e.source} → ${e.target}${e.description ? `\n${e.description}` : ""}`,
+      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+      color: { color: "#94A3B8", highlight: "#315efb" },
+      width: 1.2,
+      smooth: { enabled: true, type: "curvedCW", roundness: 0.15 },
+      font: { size: 9, align: "middle", color: "#64748B" },
+    })));
+
+    const options = {
+      nodes: { chosen: true },
+      edges: { chosen: true },
+      physics: {
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: {
+          gravitationalConstant: -200,
+          centralGravity: 0.005,
+          springLength: 120,
+          springConstant: 0.06,
+          damping: 0.4,
+        },
+        stabilization: { iterations: 100 },
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 80,
+        hideEdgesOnDrag: false,
+        zoomView: true,
+        dragView: true,
+        multiselect: false,
+      },
+    };
+
+    const network = new vis.Network(containerRef.current, { nodes, edges }, options);
+    networkRef.current = network;
+
+    network.on("click", (params) => {
+      if (params.nodes.length) {
+        setSelectedId(params.nodes[0]);
+        network.focus(params.nodes[0], { animation: true, scale: 1.1 });
+      } else {
+        setSelectedId(null);
+      }
+    });
+    network.on("hoverNode", (params) => {
+      setHoverInfo({ nodeId: params.node, x: params.pointer.DOM.x, y: params.pointer.DOM.y });
+    });
+    network.on("blurNode", () => setHoverInfo(null));
+
+    // 首次渲染后 fit 一次，让全部节点都在视野内
+    setTimeout(() => network.fit({ animation: { duration: 300 } }), 120);
+
+    return () => {
+      try { network.destroy(); } catch {}
+      networkRef.current = null;
+    };
+  }, [ready, entities, relations]);
+
+  const sel = selectedId ? entities.find((n) => n.id === selectedId) : null;
+
+  if (!entities?.length) return null;
 
   return (
-    <div className="kb-graph-wrap is-compact">
-      <svg className="kb-graph-svg" viewBox="0 0 760 320" preserveAspectRatio="xMidYMid meet" aria-label="知识关联图">
-        {layout.edges.map((e, i) => {
-          const a = layout.pos[e.source];
-          const b = layout.pos[e.target];
-          const mx = (a.x + b.x) / 2;
-          const my = (a.y + b.y) / 2;
-          const description = String(e.description || "");
-          const showLabel = (relations || []).length <= 24 && description;
-          const labelText = description.length > 12 ? `${description.slice(0, 12)}…` : description;
-          return (
-            <g key={`e${i}`}>
-              <line className="kb-edge" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-              <title>{`${e.source} → ${e.target}：${e.description || "（无描述）"}`}</title>
-              {showLabel ? (
-                <text className="kb-edge-label" x={mx} y={my - 4} textAnchor="middle">{labelText}</text>
-              ) : null}
-            </g>
-          );
-        })}
-        {entities.map((n) => {
-          const p = layout.pos[n.id];
-          if (!p) return null;
-          const label = n.id.length > 10 ? `${n.id.slice(0, 10)}…` : n.id;
-          return (
-            <g
-              key={n.id}
-              className={`kb-node${selected === n.id ? " sel" : ""}`}
-              role="button"
-              tabIndex={0}
-              aria-label={`查看实体：${n.id}`}
-              aria-pressed={selected === n.id}
-              onClick={() => setSelected(selected === n.id ? null : n.id)}
-              onKeyDown={event => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setSelected(selected === n.id ? null : n.id);
-                }
-              }}
-            >
-              <circle cx={p.x} cy={p.y} r={7} />
-              <text x={p.x} y={p.y + 24} textAnchor="middle">{label}</text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="kb-graph-meta">
-        <span>{entities.length} 实体 · {(relations || []).length} 关系{truncated ? "（已截断）" : ""}</span>
-        {sel ? (
-          <span className="kb-graph-detail">
-            <strong>{sel.id}</strong>
-            {sel.type ? <em>{sel.type}</em> : null}
-            <p>{sel.description ? sel.description.slice(0, 240) : "（此实体暂无描述）"}</p>
-          </span>
-        ) : (
-          <span className="kb-graph-detail is-hint">点击节点查看实体描述</span>
+    <div className="graph-card">
+      <div className="graph-card-header">
+        <span className="graph-card-title">知识关联图谱</span>
+        <span className="graph-card-stats">
+          {entities.length} 个实体 · {(relations || []).length} 条关系
+          {truncated ? "（已截断）" : ""}
+        </span>
+      </div>
+      <div className="graph-card-body">
+        <div className="graph-canvas-wrap" ref={containerRef} aria-label="知识关联图" />
+        {loadFailed && (
+          <div className="graph-loading graph-failed">
+            图谱组件加载失败，请检查网络后刷新页面重试
+          </div>
         )}
+        {!ready && !loadFailed && (
+          <div className="graph-loading">图谱组件加载中…</div>
+        )}
+        {sel && (
+          <div className="graph-detail-panel">
+            <button className="graph-detail-close" type="button" onClick={() => setSelectedId(null)} aria-label="关闭">×</button>
+            <h4>{sel.id}</h4>
+            {sel.type ? (
+              <span className="graph-detail-type" style={{
+                background: paletteForType(sel.type).bg,
+                color: paletteForType(sel.type).label,
+                borderColor: paletteForType(sel.type).border,
+              }}>{sel.type}</span>
+            ) : null}
+            <p>{sel.description ? sel.description : "（此实体暂无描述）"}</p>
+            <div className="graph-detail-links">
+              {(() => {
+                const outgoing = (relations || []).filter((r) => r.source === sel.id);
+                const incoming = (relations || []).filter((r) => r.target === sel.id);
+                return (
+                  <>
+                    {outgoing.length > 0 && (
+                      <div className="graph-detail-group">
+                        <strong>出发（{outgoing.length}）</strong>
+                        {outgoing.map((r, i) => (
+                          <div key={i} className="graph-detail-link" onClick={() => setSelectedId(r.target)}>
+                            → {r.target}
+                            {r.description ? <em>{r.description}</em> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {incoming.length > 0 && (
+                      <div className="graph-detail-group">
+                        <strong>指向（{incoming.length}）</strong>
+                        {incoming.map((r, i) => (
+                          <div key={i} className="graph-detail-link" onClick={() => setSelectedId(r.source)}>
+                            ← {r.source}
+                            {r.description ? <em>{r.description}</em> : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="graph-card-footer">
+        <span>点击节点查看详情 · 拖拽移动 · 滚轮缩放</span>
+        {(() => {
+          const typeLabels = [...new Set(entities.map((e) => e.type).filter(Boolean))];
+          if (!typeLabels.length) return null;
+          return (
+            <span className="graph-legend">
+              {typeLabels.map((t) => {
+                const p = paletteForType(t);
+                return (
+                  <span key={t} className="graph-legend-item">
+                    <span className="graph-legend-dot" style={{ background: p.bg, borderColor: p.border }} />
+                    {t}
+                  </span>
+                );
+              })}
+            </span>
+          );
+        })()}
       </div>
     </div>
   );
@@ -267,9 +413,7 @@ function ProcessStep({ step }) {
         : step.role === "compaction" ? (step.message || "")
           : tool ? tool.detail : "";
   const references = tool?.references || [];
-  const graphJson = step.role === "tool" && step.name === "kb_graph_search" && step.status === "done"
-    ? (step.calls.find(call => call.resultJson?.entities?.length)?.resultJson || step.resultJson) : null;
-  const expandable = Boolean(detail) || references.length > 0 || Boolean(graphJson?.entities?.length);
+  const expandable = Boolean(detail) || references.length > 0;
 
   return (
     <li className={`chat-process-step is-${status}`}>
@@ -285,9 +429,6 @@ function ProcessStep({ step }) {
       {expandable && open ? (
         <div className="chat-process-detail">
           {detail ? <p>{detail}</p> : null}
-          {graphJson?.entities?.length ? (
-            <GraphCard entities={graphJson.entities} relations={graphJson.relations} truncated={graphJson.is_truncated} />
-          ) : null}
           {references.length ? (
             <ul className="chat-process-refs">
               {references.map(file => <li key={file}><FileText size={13} aria-hidden="true" /><span>{file}</span></li>)}
@@ -330,6 +471,34 @@ function ProcessBlock({ block, live, activityText }) {
       ) : null}
     </section>
   );
+}
+
+/**
+ * 取本轮最终回答要展示的图谱：回答前面最近的执行过程块里，
+ * 关系最完整的那次检索结果（lightrag_query_data 的 graphContext，
+ * 或模型显式调用 kb_graph_search 返回的 resultJson）。
+ * 一轮可能检索多次，取关系最多的一张，避免选到只有孤立点的结果。
+ * @param {Array<object>} conversation groupConversation 产出的渲染项
+ * @param {number} answerIndex 最终回答在渲染项中的下标
+ * @returns {{entities: Array<object>, relations: Array<object>, is_truncated?: boolean} | null}
+ */
+function graphOfTurn(conversation, answerIndex) {
+  for (let i = answerIndex - 1; i >= 0; i -= 1) {
+    const item = conversation[i];
+    if (item.role === "user") break;
+    if (item.role !== "process") continue;
+    let best = null;
+    for (const step of item.steps || []) {
+      if (step.role !== "tool" || step.status !== "done") continue;
+      const ctx = step.name === "kb_graph_search"
+        ? (step.calls?.find(call => call.resultJson?.entities?.length)?.resultJson || step.resultJson)
+        : (step.calls?.findLast?.(call => call.graphContext?.entities?.length)?.graphContext || step.graphContext);
+      if (!ctx?.entities?.length) continue;
+      if (!best || (ctx.relations?.length || 0) > (best.relations?.length || 0)) best = ctx;
+    }
+    return best;
+  }
+  return null;
 }
 
 /* ---------------------------------------------------------------- 审批卡 */
@@ -389,7 +558,7 @@ function RobotAvatar({ activity = "waiting", compact = false, hero = false }) {
   );
 }
 
-function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pending = false, activityText = "", instant = message.instant }) {
+function AssistantMessage({ message, sources = [], graph = null, onFeedback, onOpenSource, onGrow, readOnly = false, pending = false, activityText = "", instant = message.instant }) {
   const [copied, setCopied] = useState(false);
   const feedback = message.feedback || null;
   const [actionBusy, setActionBusy] = useState(null);
@@ -401,6 +570,9 @@ function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pendi
   const canAct = Number.isSafeInteger(message.seq);
 
   const fullText = message.content || "";
+  // 模型自写的结尾来源行由自动清单取代；角标编号只覆盖回答真正引用的文件，保证与底部清单一一对应。
+  const displayText = useMemo(() => (sources.length ? stripOwnSourceLine(fullText) : fullText), [fullText, sources]);
+  const plan = useMemo(() => citationPlan(displayText, sources), [displayText, sources]);
 
   /** 打字机渐显：仅本轮执行中的新回答逐字展开；历史、错误与切回会话直出。 */
   const [shown, setShown] = useState(() => (instant ? fullText.length : 0));
@@ -436,7 +608,7 @@ function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pendi
     const timeout = window.setTimeout(() => setActionStatus(null), 2000);
     return () => window.clearTimeout(timeout);
   }, [actionStatus]);
-  const growing = shown < fullText.length;
+  const growing = shown < displayText.length;
   useEffect(() => {
     if (growing) onGrow?.();
   }, [shown, growing, onGrow]);
@@ -444,7 +616,11 @@ function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pendi
   const copyAnswer = async () => {
     setActionStatus(null);
     try {
-      await copyText(fullText);
+      // 复制时带上来源清单，粘到外部文档后角标与来源仍然对得上。
+      const body = plan.length
+        ? `${displayText}\n\n来源：\n${plan.map(source => `[${source.index}] ${source.name}`).join("\n")}`
+        : displayText;
+      await copyText(body);
       setCopied(true);
       setActionStatus({ text: "回答已复制" });
       window.clearTimeout(statusTimerRef.current);
@@ -494,9 +670,42 @@ function AssistantMessage({ message, onFeedback, onGrow, readOnly = false, pendi
               </div>
             </div>
           ) : (
-            <Markdown className={growing ? "is-growing" : ""}>{fullText.slice(0, shown)}</Markdown>
+            <Markdown className={growing ? "is-growing" : ""}>
+              {/* 打字机截断可能落在 [[文件名]] 中间，先隐藏未闭合标记避免正文出现半截方括号。 */}
+              {linkCitations(growing ? displayText.slice(0, shown).replace(/\[\[[^\]\n]*$/, "") : displayText, plan, message.id)}
+            </Markdown>
           )}
         </div>
+        {!pending && !growing && graph?.entities?.length ? (
+          <GraphCard entities={graph.entities} relations={graph.relations} truncated={graph.is_truncated} />
+        ) : null}
+        {!pending && plan.length && !growing ? (
+          <section className="chat-sources" aria-label="回答来源">
+            <h4>来源</h4>
+            <ol>
+              {plan.map(source => (
+                <li key={source.index} id={`cite-${message.id}-${source.index}`}>
+                  {onOpenSource ? (
+                    <button
+                      type="button"
+                      className="chat-source-link"
+                      title={`在右侧打开 ${source.name}`}
+                      onClick={() => onOpenSource(source.file)}
+                    >
+                      <span className="chat-source-index">[{source.index}]</span>
+                      <span className="chat-source-name">{source.name}</span>
+                    </button>
+                  ) : (
+                    <>
+                      <span className="chat-source-index">[{source.index}]</span>
+                      <span className="chat-source-name" title={source.file}>{source.name}</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
         {!pending && fullText && !growing ? (
           <div className="chat-message-actions" aria-label="消息操作">
             <button
@@ -602,10 +811,10 @@ function DocumentPane({ onClose, sessionId, documents, error, activePath, onSele
         <span className={`doc-pane-icon${doc ? ` is-${doc.ext}` : ""}`} aria-hidden="true">
           <Icon size={20} />
         </span>
-        <strong className="doc-pane-title" title={doc ? doc.path : "生成的文档"}>{doc ? doc.name : "生成的文档"}</strong>
+        <strong className="doc-pane-title" title={doc ? (doc.source ? doc.name : doc.path) : "生成的文档"}>{doc ? doc.name : "生成的文档"}</strong>
         <div className="doc-pane-actions">
           {doc && (
-            <a className="doc-pane-action" href={documentUrl(sessionId, doc.path)} download={doc.name} title={`下载 ${doc.name}`} aria-label={`下载 ${doc.name}`}>
+            <a className="doc-pane-action" href={documentFileUrl(sessionId, doc, true)} download={doc.name} title={`下载 ${doc.name}`} aria-label={`下载 ${doc.name}`}>
               <DownloadSimple size={17} />
             </a>
           )}
@@ -716,6 +925,8 @@ export default function AgentChat() {
   const [documents, setDocuments] = useState([]);
   const [documentsError, setDocumentsError] = useState("");
   const [activeDocPath, setActiveDocPath] = useState(null);
+  // 点击回答角标来源时打开的知识库原始文件：与生成文档共用右侧面板，作为额外标签。
+  const [sourceDoc, setSourceDoc] = useState(null);
   const [docFullscreen, setDocFullscreen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
@@ -734,6 +945,8 @@ export default function AgentChat() {
   const hasMessages = messages.length > 0;
   // 一轮里的推理、工具与旁白收进执行过程，正文只留最终回答。
   const conversation = useMemo(() => groupConversation(messages), [messages]);
+  // 每条回答对应的检索来源：与本轮 [[文件名]] 角标一一对应。
+  const citationMap = useMemo(() => citationSources(messages), [messages]);
 
   const quickPrompts = [
     { title: "检索知识", icon: MagnifyingGlass, prompt: "知识库里有哪些关于报销的制度？" },
@@ -853,6 +1066,38 @@ export default function AgentChat() {
       .catch((error) => { if (alive && error.name !== "AbortError") setDocumentsError(error.message); });
     return () => { alive = false; controller.abort(); };
   }, [sessionId, isThinking]);
+
+  // 引用文件只属于当前会话：切换会话时收起旧来源，避免把上一个会话的知识库文件留在面板里。
+  useEffect(() => {
+    setSourceDoc(null);
+    setDocFullscreen(false);
+  }, [sessionId]);
+
+  /** 点击回答来源：把知识库原始文件作为右侧面板的标签打开，与生成文档共用预览能力。 */
+  const openSource = useCallback((file) => {
+    if (!sessionId) return;
+    const name = String(file || "").split(/[\\/]/).pop();
+    if (!name) return;
+    const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+    const doc = {
+      source: true,
+      file: name,
+      path: `source:${name}`,
+      name,
+      ext,
+      kind: SOURCE_KINDS[ext] || "文件",
+    };
+    setSourceDoc(doc);
+    setActiveDocPath(doc.path);
+    setDocumentsOpen(true);
+    setPlannerOpen(false);
+  }, [sessionId]);
+
+  // 面板文档 = 当前打开的引用文件 + 本会话生成的文档，标签栏可直接来回切换。
+  const paneDocuments = useMemo(
+    () => (sourceDoc ? [sourceDoc, ...documents.filter(doc => doc.path !== sourceDoc.path)] : documents),
+    [sourceDoc, documents],
+  );
 
   const timelineIdRef = useRef(0);
   const timelineCallRef = useRef(new Map());
@@ -1120,12 +1365,13 @@ export default function AgentChat() {
       const block = data.message?.content?.find?.((b) => b?.type === "tool-result");
       const callId = block?.toolCallId;
       const json = resultJsonOf(text);
+      const graphCtx = extractGraphContext(text);
       if (callId && json?.query_id) state.queryId = json.query_id;
       const isError = Boolean(data.error || block?.isError);
       patch((items) =>
         items.map((m) =>
           m.role === "tool" && (!callId || m.callId === callId) && m.status === "running"
-            ? { ...m, status: isError ? "error" : "done", resultText: text, resultJson: json }
+            ? { ...m, status: isError ? "error" : "done", resultText: text, resultJson: json, graphContext: graphCtx }
             : m,
         ),
       );
@@ -1133,7 +1379,7 @@ export default function AgentChat() {
       if (tlId) {
         patchTimeline((items) =>
           items.map((it) =>
-            it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json, resultText: text } : it,
+            it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json, resultText: text, graphContext: graphCtx } : it,
           ),
         );
       }
@@ -1463,6 +1709,9 @@ export default function AgentChat() {
             } catch {
               /* 历史 arguments 解析失败按空对象展示 */
             }
+            // graphContext：后端 projectHistory 已从完整 text 中提取；
+            // 再从截断后的 resultText 里兜底提一次（极端情况后端没传到）。
+            const graphCtx = e.graphContext || extractGraphContext(e.resultText);
             return {
               id: `h-tool-${e.seq}`,
               role: "tool",
@@ -1473,6 +1722,7 @@ export default function AgentChat() {
               status: e.status === "running" ? "interrupted" : e.status || "done",
               resultText: e.resultText || "",
               resultJson: e.resultJson || resultJsonOf(e.resultText),
+              graphContext: graphCtx,
               references: e.references || [],
               ts: e.time,
               time,
@@ -1744,7 +1994,7 @@ export default function AgentChat() {
 
         <aside className={`chat-history${historyOpen ? " is-open" : ""}`} aria-label="历史对话">
           <div className="chat-sidebar-top">
-            <a className="chat-sidebar-back" href="/?agent=knowledge-harness" aria-label="返回智能体首页">
+            <a className="chat-sidebar-back" href={`${import.meta.env.BASE_URL}?agent=knowledge-harness`} aria-label="返回智能体首页">
               <ArrowLeft size={16} aria-hidden="true" />
               <span>返回首页</span>
             </a>
@@ -1943,9 +2193,12 @@ export default function AgentChat() {
                     <AssistantMessage
                       key={message.id}
                       message={message}
+                      sources={citationMap.get(message.id) || []}
+                      graph={graphOfTurn(conversation, index)}
                       // 仅当前执行中的最后一条回答逐字展开；历史、旧回合与切回会话直接显示全文。
                       instant={message.instant || !isThinking || index !== conversation.length - 1}
                       onFeedback={handleFeedback}
+                      onOpenSource={sharedId ? undefined : openSource}
                       readOnly={!!sharedId}
                       onGrow={scrollDuringTyping}
                     />
@@ -1981,20 +2234,20 @@ export default function AgentChat() {
         {documentsOpen && (
           <DocumentPane
             sessionId={sessionId}
-            documents={documents}
+            documents={paneDocuments}
             error={documentsError}
             activePath={activeDocPath}
             onSelect={setActiveDocPath}
-            onClose={() => setDocumentsOpen(false)}
+            onClose={() => { setDocumentsOpen(false); setSourceDoc(null); setActiveDocPath(null); }}
             onFullscreen={() => setDocFullscreen(true)}
           />
         )}
       </div>
 
-      {docFullscreen && documents.length ? (
+      {docFullscreen && paneDocuments.length ? (
         <DocumentPreview
           sessionId={sessionId}
-          doc={documents.find(item => item.path === activeDocPath) || documents[0]}
+          doc={paneDocuments.find(item => item.path === activeDocPath) || paneDocuments[0]}
           onClose={() => setDocFullscreen(false)}
         />
       ) : null}

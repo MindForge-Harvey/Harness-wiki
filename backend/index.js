@@ -30,6 +30,7 @@ import { loadStarterSkills, STARTER_SKILLS_BUNDLE } from './starter-skills.mjs'
 import { parseSkillArchive, SKILL_ARCHIVE_LIMITS } from './skill-archive.mjs'
 import { createVoiceProxy } from './voice-proxy.mjs'
 import { createDocumentStore } from './documents.mjs'
+import { createKbSourceStore } from './kb-sources.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -41,7 +42,7 @@ try { process.loadEnvFile(path.join(here, '.env')) } catch { /* 缺 backend/.env
 
 const PORT = Number(process.env.PORT) || 3088
 const voiceProxy = createVoiceProxy({ identify: portalIdentity })
-const HOST = '127.0.0.1'
+const HOST = process.env.HOST || '127.0.0.1'
 const CHILD_HTTP = `http://127.0.0.1:${process.env.DSH_CHILD_HTTP_PORT || 3090}`
 const PROFILE = process.env.DSH_PROFILE || 'rag-kb'
 const WORKSPACE_CWD = path.resolve(here, '..') // 工作区根：kb_ingest file_path 边界与 {{cwd}}
@@ -53,6 +54,8 @@ const SKILLS_DIR = path.join(DSH_HOME, 'storages', 'personal-skills')
 const skillsStore = createSkillsStore(SKILLS_DIR)
 const starterSkills = loadStarterSkills()
 const documents = createDocumentStore(WORKSPACE_CWD)
+// 引用文件来自 LightRAG 原料区，按引用名定位原始文档，供右侧面板直接预览。
+const kbSources = createKbSourceStore(process.env.KB_LIGHTRAG_INPUTS_DIR)
 
 /** 内联预览按扩展名返回内容类型，HTML 演示文稿才能正常渲染并加载其图片。 */
 const PREVIEW_MIME = {
@@ -361,6 +364,12 @@ function projectHistory(events, sessionId) {
         out[idx].status = block?.isError ? 'error' : 'done'
         const resultText = textOf(block?.content)
         out[idx].resultText = resultText.slice(0, 4000)
+        // 图谱结构化数据：GRAPH_CONTEXT HTML 注释注入在 render 文本末尾，
+        // 需要从完整 resultText（截断前）提取，避免 4000 字符截断丢数据。
+        const gcMatch = resultText.match(/<!--GRAPH_CONTEXT:(.+?)-->/)
+        if (gcMatch) {
+          try { out[idx].graphContext = JSON.parse(gcMatch[1]) } catch { /* 解析失败静默跳过 */ }
+        }
         if (out[idx].name === 'lightrag_query_data' && !block?.isError) {
           try { out[idx].queryId = JSON.parse(resultText).query_id || null } catch {
             out[idx].queryId = resultText.match(/查询\s*id[：:]\s*([\w-]+)/i)?.[1] || null
@@ -512,6 +521,25 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'content-type': PREVIEW_MIME[path.extname(file.name).slice(1).toLowerCase()] || 'application/octet-stream',
         'content-length': file.size,
+        'x-content-type-options': 'nosniff',
+        'cache-control': 'no-store',
+      })
+      const stream = fs.createReadStream(file.path)
+      stream.on('error', () => res.destroy())
+      return stream.pipe(res)
+    }
+
+    if (p === '/api/chat/source/file' && req.method === 'GET') {
+      await sessionStore.require(req.identity.uid, url.searchParams.get('sessionId') || '')
+      const file = kbSources.resolve(url.searchParams.get('file') || '')
+      if (!file) return json(res, 404, { ok: false, error: '知识库中没有找到该引用文件' })
+      const download = url.searchParams.get('download') === '1'
+      res.writeHead(200, {
+        'content-type': kbSources.mime(file.ext),
+        'content-length': file.size,
+        ...(download
+          ? { 'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}` }
+          : {}),
         'x-content-type-options': 'nosniff',
         'cache-control': 'no-store',
       })

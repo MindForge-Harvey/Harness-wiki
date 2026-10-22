@@ -483,6 +483,186 @@ body.chat-view {
 .chat-page .chat-tool-card.is-pending,
 .chat-page .chat-tool-card.is-warning { border-color: #d6e3f4; }
 .chat-tool-graph-text { white-space: pre-wrap; }
+
+/* ---------------------------------------------------------------- 知识图谱卡（vis-network） */
+
+.graph-card {
+  position: relative;
+  margin: 16px 0;
+  border: 1px solid #E4EDF8;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #FCFEFF 0%, #F6FAFF 100%);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(27, 39, 66, 0.04);
+}
+.graph-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #EFF4FF 0%, transparent 100%);
+  border-bottom: 1px solid #E4EDF8;
+}
+.graph-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1F4878;
+  letter-spacing: 0.02em;
+}
+.graph-card-stats {
+  font-size: 11.5px;
+  color: #758CA6;
+}
+.graph-card-body {
+  position: relative;
+  display: flex;
+  min-height: 340px;
+  max-height: 560px;
+}
+.graph-canvas-wrap {
+  flex: 1;
+  min-height: 340px;
+  background: #FCFEFF;
+}
+.graph-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #758CA6;
+  background: rgba(252, 254, 255, 0.85);
+}
+.graph-loading.graph-failed {
+  color: #E11D48;
+  background: rgba(255, 244, 246, 0.9);
+}
+.graph-detail-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.97);
+  border-left: 1px solid #E4EDF8;
+  backdrop-filter: blur(6px);
+  overflow-y: auto;
+  z-index: 10;
+  animation: graph-detail-in 0.18s ease-out both;
+}
+@keyframes graph-detail-in {
+  from { transform: translateX(12px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.graph-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #758CA6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.graph-detail-close:hover { background: #EFF4FF; color: #1F4878; }
+.graph-detail-panel h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2B3D;
+  word-break: break-all;
+  padding-right: 24px;
+}
+.graph-detail-type {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.graph-detail-panel > p {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #F6FAFF;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #3D5470;
+  border: 1px solid #E4EDF8;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.graph-detail-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.graph-detail-group strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #758CA6;
+  letter-spacing: 0.04em;
+}
+.graph-detail-link {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #1F4878;
+  background: #EFF4FF;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.graph-detail-link:hover { background: #E0EBFF; transform: translateX(2px); }
+.graph-detail-link em {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-style: normal;
+  color: #758CA6;
+  font-family: inherit;
+}
+.graph-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 11.5px;
+  color: #94A3B8;
+  background: #F8FBFF;
+  border-top: 1px solid #E4EDF8;
+}
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.graph-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid;
+}
 .chat-page .chat-approval-card { max-width: none; border-radius: 10px; border-color: #d6e3f4; background: #fafdff; box-shadow: none; margin: 12px 0 20px; }
 .chat-page .chat-approval-actions .is-allow { background: #0d67ed; color: #ffffff; }
 .chat-page .chat-approval-actions .is-deny { background: #edf4fc; color: #567695; }

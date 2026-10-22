@@ -22,6 +22,12 @@ export function Markdown({ children, className = "" }) {
               <table {...props} />
             </div>
           ),
+          // 引用角标：回答里的 [[文件名]] 已转成 #cite- 链接，渲染为上标并跳到对应来源项。
+          a: ({ node, href, children, ...props }) => (
+            href && href.startsWith("#cite-")
+              ? <sup className="md-cite"><a href={href} {...props}>[{children}]</a></sup>
+              : <a href={href} {...props}>{children}</a>
+          ),
         }}
       >
         {children || ""}
