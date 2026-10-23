@@ -23,11 +23,29 @@ export function Markdown({ children, className = "" }) {
             </div>
           ),
           // 引用角标：回答里的 [[文件名]] 已转成 #cite- 链接，渲染为上标并跳到对应来源项。
-          a: ({ node, href, children, ...props }) => (
-            href && href.startsWith("#cite-")
-              ? <sup className="md-cite"><a href={href} {...props}>[{children}]</a></sup>
-              : <a href={href} {...props}>{children}</a>
-          ),
+          // 页面有 <base href>，纯锚点会被解析成根路径触发整页跳转，因此拦截点击手动滚动。
+          a: ({ node, href, children, ...props }) => {
+            if (href && href.startsWith("#cite-")) {
+              return (
+                <sup className="md-cite">
+                  <a
+                    href={href}
+                    {...props}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      const target = document.getElementById(href.slice(1));
+                      if (!target) return;
+                      target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      target.classList.remove("cite-flash");
+                      void target.offsetWidth; // 重置动画：连续点击同一角标也能重新高亮
+                      target.classList.add("cite-flash");
+                    }}
+                  >[{children}]</a>
+                </sup>
+              );
+            }
+            return <a href={href} {...props}>{children}</a>;
+          },
         }}
       >
         {children || ""}

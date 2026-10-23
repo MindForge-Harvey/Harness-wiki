@@ -78,6 +78,9 @@ export function argBrief(card) {
       return Array.isArray(args.queries) ? args.queries.slice(0, 2).join('、') : String(args.query || '');
     case 'web_fetch':
       return String(args.url || '');
+    case 'lightrag_query_data':
+      // 检索词是用户最关心的过程信息，直接展示模型的查询意图。
+      return firstLine(args.query);
     default:
       return '';
   }
@@ -85,9 +88,10 @@ export function argBrief(card) {
 
 function stageKey(card) {
   const args = card.args || {};
-  // Repeated searches form a stage; writes to different documents stay separate.
+  // 知识检索是产品核心卖点：每次检索独立成步，逐条展示检索词与命中来源，不合并；
+  // 其余工具连续调用仍按参数合并成阶段，避免一次任务里堆出十几行文件读取。
   return card.name === 'lightrag_query_data'
-    ? `${card.name}:${args.kb || 'company'}`
+    ? `${card.name}:${card.id || card.seq || JSON.stringify(args)}`
     : `${card.name}:${JSON.stringify(args)}`;
 }
 

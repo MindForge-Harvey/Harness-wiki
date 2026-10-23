@@ -2479,6 +2479,16 @@ body.chat-view {
   font-size: 10px;
 }
 
+/* 点击引用角标滚动到来源项后的短暂高亮，帮助用户定位是哪个文件。 */
+.chat-sources li.cite-flash {
+  animation: cite-flash 1.8s ease-out 1;
+}
+
+@keyframes cite-flash {
+  0%, 35% { background: rgba(13, 103, 237, 0.16); }
+  100% { background: transparent; }
+}
+
 /* 真流式：回答定稿前的 token 级思考摘要卡（正文增量到达后隐藏）。 */
 .chat-stream-reasoning {
   display: grid;

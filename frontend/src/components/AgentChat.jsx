@@ -36,7 +36,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { DocumentPreview, DocumentBody, documentFileUrl, previewIcon, useDocumentContent } from "./DocumentPreview";
-import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation, citationSources, citationPlan, linkCitations, stripOwnSourceLine } from "../lib/task-progress.mjs";
+import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation, citationSources, citationPlan, linkCitations, stripOwnSourceLine, sourceName } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
 import { appUrl } from "../lib/app-url";
 import { copyText } from "../lib/copy-text.mjs";
@@ -431,7 +431,7 @@ function ProcessStep({ step }) {
           {detail ? <p>{detail}</p> : null}
           {references.length ? (
             <ul className="chat-process-refs">
-              {references.map(file => <li key={file}><FileText size={13} aria-hidden="true" /><span>{file}</span></li>)}
+              {references.map(file => <li key={file}><FileText size={13} aria-hidden="true" /><span>{sourceName(file)}</span></li>)}
             </ul>
           ) : null}
         </div>
