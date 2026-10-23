@@ -1109,7 +1109,7 @@ export function apply(ctx) {
 
   registerTool({
     name: 'lightrag_query_data',
-    description: '检索知识库的原始证据（不生成答案）：返回与 query 相关的原文 chunks、实体、关系和引用文件。回答知识库相关问题时优先调用本工具，基于返回的原文证据自行组织答案：1) 答案只依据命中的 chunks 与实体/关系描述，不要凭自身知识补充制度内容；2) 每句依据检索证据的结论后用 [[文件名]] 标注来源角标，文件名必须原样取自 chunks 的方括号前缀或「引用」列表（例如 [[员工休假管理办法.docx]]），不要自行编号，也不要另写「来源」列表，前端会自动汇总角标与源文件；3) 证据不足或无命中时如实说明知识库中暂无对应资料；4) 片段中可能包含原文档图片，格式为 ![图片说明](http://…/kb/image?…)：当图片与回答内容直接相关时（如流程图、架构图、示意图），把该图片的 Markdown 语法原样复制到回答中的合适位置（通常放在相关段落之后单独一行），不要修改 URL，也不要凭空编造图片；5) 需要换个表述补查证据或诊断检索问题时也可调用。',
+    description: '检索知识库的原始证据（不生成答案）：返回与 query 相关的原文 chunks、实体、关系和引用文件。回答知识库相关问题时优先调用本工具，基于返回的原文证据自行组织答案：1) 答案只依据命中的 chunks 与实体/关系描述，不要凭自身知识补充制度内容；2) 【强制】每个依据检索证据的结论句末尾都必须用 [[文件名]] 标注来源角标，一句一标、漏标即不合格；输出前自查，凡转述了检索证据的句子都应带角标。文件名必须原样取自 chunks 的方括号前缀或「引用」列表（例如 [[员工休假管理办法.docx]]），不要自行编号，也不要另写「来源」列表，前端会自动给角标编号并与底部源文件清单一一对应；3) 证据不足或无命中时如实说明知识库中暂无对应资料；4) 片段中可能包含原文档图片，格式为 ![图片说明](http://…/kb/image?…)：当图片与回答内容直接相关时（如流程图、架构图、示意图），把该图片的 Markdown 语法原样复制到回答中的合适位置（通常放在相关段落之后单独一行），不要修改 URL，也不要凭空编造图片；5) 需要换个表述补查证据或诊断检索问题时也可调用。',
     parameters: {
       type: 'object',
       properties: {
@@ -1157,7 +1157,7 @@ export function apply(ctx) {
         if (chunks.length) lines.push('chunks：\n- ' + chunks.join('\n- '))
         if (!lines.length) lines.push('（无命中：实体、关系、chunks 均为空）')
         if (lines.length && (chunks.length || (Array.isArray(value.references) && value.references.length))) {
-          lines.push('引用标注：依据本结果作答时，在相关句子末尾用 [[文件名]] 标注来源（文件名取自 chunks 前缀或下方「引用」列表），不要自行编号。')
+          lines.push('引用标注（强制要求）：依据本结果作答时，每个结论句末尾都必须带 [[文件名]] 角标标注来源（文件名原样取自 chunks 前缀或下方「引用」列表），漏标视为不合格；不要自行编号，前端会自动把角标编号并与底部来源清单一一对应。')
         }
         if (value.truncated) lines.push('（结果已按快照限额裁剪）')
         if (Array.isArray(value.references) && value.references.length) lines.push('引用：' + value.references.join('、'))
