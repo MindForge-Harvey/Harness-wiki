@@ -540,7 +540,10 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/chat/source/file' && req.method === 'GET') {
       await sessionStore.require(req.identity.uid, url.searchParams.get('sessionId') || '')
-      const file = kbSources.resolve(url.searchParams.get('file') || '')
+      const requested = url.searchParams.get('file') || ''
+      const file = kbSources.resolve(requested)
+      // 生产排查「个别引用文件打不开」的关键证据：记下定位失败时的原始引用名。
+      if (!file) log(`引用文件定位失败：${JSON.stringify(requested)}`)
       if (!file) return json(res, 404, { ok: false, error: '知识库中没有找到该引用文件' })
       const download = url.searchParams.get('download') === '1'
       res.writeHead(200, {

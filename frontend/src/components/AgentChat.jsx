@@ -918,6 +918,8 @@ export default function AgentChat() {
   const controllersRef = useRef(new Map());
   // 主动停止的会话：abort 会触发 onError，这里避免再叠加一条「执行遇到问题：已停止接收」。
   const stoppedRef = useRef(new Set());
+  // 用户已主动停止、但服务端仍在自然收尾的会话：侧栏不再显示转圈，避免「已停止还在转」。
+  const zombieRef = useRef(new Set());
   const [backgroundRun, setBackgroundRun] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
@@ -1117,6 +1119,7 @@ export default function AgentChat() {
       watchTimersRef.current.clear();
       sessionStates.current.clear();
       stoppedRef.current.clear();
+      zombieRef.current.clear();
       activeSessionRef.current = null;
       setBackgroundRun(false);
       voice.cancel();
@@ -1190,7 +1193,14 @@ export default function AgentChat() {
     const epoch = accountEpoch.current;
     try {
       const list = await loadSessions();
-      if (epoch === accountEpoch.current) setSessions(list);
+      if (epoch === accountEpoch.current) {
+        setSessions(list);
+        // 已停止会话的后台收尾结束后，撤销侧栏转圈的抑制，回到真实运行状态。
+        for (const sid of zombieRef.current) {
+          const entry = list.find(item => item.sessionId === sid);
+          if (entry && !entry.running) zombieRef.current.delete(sid);
+        }
+      }
     } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
   }, []);
 
@@ -1207,7 +1217,7 @@ export default function AgentChat() {
   const sessionState = useCallback((sid) => {
     let state = sessionStates.current.get(sid);
     if (!state) {
-      state = { messages: [], timeline: [], isThinking: false, activityText: '', queryId: null, userText: '', streamDraft: null };
+      state = { messages: [], timeline: [], isThinking: false, activityText: '', queryId: null, userText: '', streamDraft: null, stopped: false };
       sessionStates.current.set(sid, state);
     }
     return state;
@@ -1550,6 +1560,8 @@ export default function AgentChat() {
     const state = sessionState(runSid);
     state.userText = content;
     state.queryId = null;
+    state.stopped = false;
+    zombieRef.current.delete(runSid);
     state.messages = [...state.messages, { id: `user-${timestamp}`, role: "user", time: clockTime(), content, attachments }];
     state.timeline = [];
     state.isThinking = true;
@@ -1577,7 +1589,12 @@ export default function AgentChat() {
         target.queryId = from.queryId;
         target.userText = from.userText;
         target.streamDraft = from.streamDraft;
+        target.stopped = from.stopped;
         sessionStates.current.delete(runSid);
+      }
+      if (zombieRef.current.has(runSid)) {
+        zombieRef.current.delete(runSid);
+        zombieRef.current.add(id);
       }
       const control = controllersRef.current.get(runSid);
       if (control) {
@@ -1676,6 +1693,10 @@ export default function AgentChat() {
     const state = sessionState(sid);
     dropStreamDelta(sid);
     state.streamDraft = null;
+    // 标记本页已主动停止：重开会话时不再显示「正在后台回复」，侧栏也不再转圈；
+    // 服务端收尾完成后由后台轮询静默拉取完整历史。
+    state.stopped = true;
+    zombieRef.current.add(sid);
     state.messages = [
       ...state.messages,
       {
@@ -1741,6 +1762,7 @@ export default function AgentChat() {
       state.timeline = [];
       state.isThinking = false;
       state.activityText = "";
+      state.stopped = false;
       commitSession(item.sessionId);
       return;
     }
@@ -1816,6 +1838,7 @@ export default function AgentChat() {
     state.timeline = restoredTimeline;
     state.isThinking = false;
     state.activityText = "";
+    state.stopped = false;
     commitSession(item.sessionId);
   }, [sessionState, commitSession]);
 
@@ -1838,6 +1861,16 @@ export default function AgentChat() {
     }, 3000);
     watchTimersRef.current.set(item.sessionId, timer);
   }, [loadHistoryInto]);
+
+  // 兜底：「正在后台回复」提示只跟随当前会话的真实运行状态收敛，
+  // 即使后台轮询定时器意外失效，列表刷新后也能自动收尾并拉取完整历史。
+  useEffect(() => {
+    if (!backgroundRun || !sessionId) return;
+    const current = sessions.find(entry => entry.sessionId === sessionId);
+    if (!current || current.running) return;
+    setBackgroundRun(false);
+    if (!sessionStates.current.get(sessionId)?.isThinking) void loadHistoryInto(current);
+  }, [backgroundRun, sessions, sessionId, loadHistoryInto]);
 
   const resumeSession = async (item) => {
     historyRequestRef.current += 1;
@@ -1865,6 +1898,17 @@ export default function AgentChat() {
       setIsThinking(local.isThinking);
       setActivityText(local.activityText);
       setBackgroundRun(false);
+      return;
+    }
+    // 本页已主动停止过：本地视图就是收尾状态（含「已停止」说明），
+    // 不再显示「正在后台回复」；服务端仍在收尾时静默轮询，结束后拉取完整历史。
+    if (local?.messages.length && local.stopped) {
+      setMessages(local.messages);
+      setTimeline(local.timeline);
+      setIsThinking(false);
+      setActivityText("");
+      setBackgroundRun(false);
+      if (item.running) watchBackgroundSession(item);
       return;
     }
     // 已完成且本地有回答：直接复用本地结果（含停止、报错等未落盘的说明）。
@@ -2121,7 +2165,7 @@ export default function AgentChat() {
                   <strong>{item.title}</strong>
                   <small>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(item.time)}</small>
                 </span>
-                {item.running ? (
+                {item.running && !zombieRef.current.has(item.sessionId) ? (
                   <span className="chat-history-spin" role="status" aria-label="正在回复" title="正在回复" />
                 ) : null}
                 <Trash
