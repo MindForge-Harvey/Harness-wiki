@@ -56,7 +56,11 @@ services:
 
   frontend:
     image: rag-kb-frontend:latest                       # 🟢 已构建（带 /rag-harness/ 前缀）
-    build: ./frontend                                   # 🟢
+    build:
+      context: ./frontend
+      # 子路径部署：不传 VITE_BASE 会构建出 base=/ 的镜像，页面资源全部 404
+      args:
+        VITE_BASE: /rag-harness/                                   # 🟢
     container_name: rag-kb-frontend                     # 🟢
     restart: unless-stopped                             # 🟢
     ports:
