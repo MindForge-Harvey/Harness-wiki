@@ -119,15 +119,18 @@ export function apply(ctx) {
    * 图文关联器：render 注入与 /kb/image 服务共用同一解析口径。
    * urlBase 惰性求值——渲染期 webServer 已监听，端口稳定；启动早期
    * （尚未监听）返回 null 时注入直通，不影响检索行为。
+   *
+   * 关键：默认返回相对路径 '/api'，让浏览器走前端 nginx 代理 → 后端 → 子进程。
+   * 如果用绝对路径 http://127.0.0.1:3090/kb/image?... 浏览器访问不到
+   * （3090 是容器内部端口，不是浏览器可达地址）。
+   * KB_PUBLIC_BASE_URL 环境变量可覆盖（例如内网部署时设为 '/api' 或完整公网地址）。
    */
   const images = createImageLinker({
     urlBase: () => {
       if (process.env.KB_PUBLIC_BASE_URL) return process.env.KB_PUBLIC_BASE_URL.replace(/\/+$/, '')
-      const port = webServer && webServer.port
-      if (!port) return null
-      // 0.0.0.0 是监听地址不是浏览器可访问地址，统一回环
-      const host = webServer.host === '0.0.0.0' ? '127.0.0.1' : webServer.host
-      return 'http://' + host + ':' + port
+      // 相对路径 /api：让浏览器走前端 nginx 的 /api/ → backend:3088 → proxy → 子进程 3090
+      // 不用绝对地址 http://127.0.0.1:3090：浏览器访问不到容器内部端口
+      return '/api'
     },
     log: logger,
   })

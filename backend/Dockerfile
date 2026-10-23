@@ -20,8 +20,10 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev --no-fund --no-audit --registry=https://registry.npmmirror.com
 
 # 沙箱与文档处理系统依赖（--no-install-recommends 控制体积；中文字体必须保留）
+# zstd：适配层回放历史会话时解压 .zstd 会话日志（index.js readSessionEvents），缺失会导致
+#       打开旧会话 502；本机开发有 zstd 掩盖了该问题，容器内必须显式安装
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl procps zip unzip \
+      ca-certificates curl procps zip unzip zstd \
       bubblewrap \
       python3 python3-pip \
       pandoc \

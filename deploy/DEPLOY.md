@@ -381,6 +381,7 @@ docker compose -f docker-compose.app.yml --env-file backend/.env up -d --build
 
 | 现象 | 排查 |
 | --- | --- |
+| 打开历史会话报 502（响应体为 JSON） | 旧版镜像缺 `zstd`：适配层回放 `.zstd` 压缩会话日志时解压失败。确认镜像 ≥ 2026-10-23 版（`docker exec rag-kb-backend zstd --version`）；旧镜像临时止血可从新镜像拷贝二进制：`docker cp <新镜像容器>:/usr/bin/zstd rag-kb-backend:/usr/bin/` 后 `docker restart rag-kb-backend` |
 | 页面打开报「登录服务暂不可用」 | `curl http://127.0.0.1:3088/api/auth/me`；若 503 检查 compose 是否注入 `DISABLE_PORTAL_AUTH: "1"` |
 | 回答报模型错误 / 无响应 | `docker logs rag-kb-backend --tail 50`；确认服务器能通 `http://10.142.175.2:32028/v1`（`curl` 测试）；模型名大小写须为 `Deepseek-V4-Flash` |
 | 知识库问答报连接失败 | `LIGHTRAG_BASE_URL` 是否正确；`curl $LIGHTRAG_BASE_URL/health` |
