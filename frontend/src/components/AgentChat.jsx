@@ -933,6 +933,8 @@ export default function AgentChat() {
   const [feedbackVersion, setFeedbackVersion] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [activityText, setActivityText] = useState("");
+  // 真流式：当前查看会话的 token 级增量草稿（{ text, reasoning }），由后端 delta 事件驱动。
+  const [streamDraft, setStreamDraft] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const composerInputRef = useRef(null);
@@ -1205,7 +1207,7 @@ export default function AgentChat() {
   const sessionState = useCallback((sid) => {
     let state = sessionStates.current.get(sid);
     if (!state) {
-      state = { messages: [], timeline: [], isThinking: false, activityText: '', queryId: null, userText: '' };
+      state = { messages: [], timeline: [], isThinking: false, activityText: '', queryId: null, userText: '', streamDraft: null };
       sessionStates.current.set(sid, state);
     }
     return state;
@@ -1220,6 +1222,45 @@ export default function AgentChat() {
     setTimeline(state.timeline);
     setIsThinking(state.isThinking);
     setActivityText(state.activityText);
+    setStreamDraft(state.streamDraft);
+  }, []);
+
+  // token 级增量缓冲：delta 高频到达，先入缓冲再定时批量落库，避免逐 token 触发整列表重渲染。
+  const deltaBufRef = useRef(new Map());
+  const deltaTimerRef = useRef(null);
+
+  /** 把缓冲中的增量合并进各会话状态并同步视图；文本本身渐进到达，渲染无需打字机。 */
+  const flushStreamDelta = useCallback(() => {
+    deltaTimerRef.current = null;
+    for (const [sid, buf] of deltaBufRef.current) {
+      deltaBufRef.current.delete(sid);
+      const state = sessionState(sid);
+      state.streamDraft = {
+        text: (state.streamDraft?.text || "") + buf.text,
+        reasoning: (state.streamDraft?.reasoning || "") + buf.reasoning,
+      };
+      commitSession(sid);
+    }
+    if (activeSessionRef.current) scrollDuringTyping();
+  }, [sessionState, commitSession, scrollDuringTyping]);
+
+  /** 接收一条 delta（{ kind: 'text'|'reasoning', text }），入缓冲并调度批量刷新。 */
+  const handleDelta = useCallback((sid, data) => {
+    if (!sid || typeof data?.text !== "string" || !data.text) return;
+    const buf = deltaBufRef.current.get(sid) || { text: "", reasoning: "" };
+    if (data.kind === "reasoning") buf.reasoning += data.text;
+    else buf.text += data.text;
+    deltaBufRef.current.set(sid, buf);
+    if (!deltaTimerRef.current) deltaTimerRef.current = window.setTimeout(flushStreamDelta, 80);
+  }, [flushStreamDelta]);
+
+  /** 丢弃某会话尚未落库的增量缓冲；持久 assistant/message 到达时草稿即被定稿取代。 */
+  const dropStreamDelta = useCallback((sid) => {
+    deltaBufRef.current.delete(sid);
+  }, []);
+
+  useEffect(() => () => {
+    if (deltaTimerRef.current) window.clearTimeout(deltaTimerRef.current);
   }, []);
 
   /** 追加一条过程项（tool/approval/error），返回条目 id 供后续更新状态。 */
@@ -1294,6 +1335,11 @@ export default function AgentChat() {
     }
 
     if (event.type === "assistant/message") {
+      // 持久事件定稿：清掉流式草稿。正文本轮已 delta 流式展示过则直出，
+      // delta 未到达（补丁失效/旧内核）时保持 undefined 走打字机兜底。
+      const streamed = Boolean(state.streamDraft?.text);
+      dropStreamDelta(sid);
+      state.streamDraft = null;
       const blocks = data.message?.content || [];
       const reasoning = blocks
         .filter((b) => b && b.type === "reasoning")
@@ -1322,6 +1368,7 @@ export default function AgentChat() {
           content: text,
           queryId: state.queryId,
           question: state.userText || "",
+          ...(streamed ? { instant: true } : {}),
         },
       ]);
       return;
@@ -1471,7 +1518,7 @@ export default function AgentChat() {
         pushTimelineItem(sid, { kind: "error", title: "本轮异常结束", detail: message });
       }
     }
-  }, [pushTimelineItem, sessionState, commitSession]);
+  }, [pushTimelineItem, sessionState, commitSession, dropStreamDelta]);
 
   /** 结束某个会话的流式状态：未完成的工具标为中断，状态落回该会话的本地记录。 */
   const resetTurnState = useCallback((sid) => {
@@ -1479,10 +1526,12 @@ export default function AgentChat() {
     const state = sessionState(sid);
     state.isThinking = false;
     state.activityText = '';
+    dropStreamDelta(sid);
+    state.streamDraft = null;
     state.messages = state.messages.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
     state.timeline = state.timeline.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
     commitSession(sid);
-  }, [sessionState, commitSession]);
+  }, [sessionState, commitSession, dropStreamDelta]);
 
   const sendMessage = (preset) => {
     const typedContent = (typeof preset === "string" ? preset : draft).trim();
@@ -1527,6 +1576,7 @@ export default function AgentChat() {
         target.activityText = from.activityText;
         target.queryId = from.queryId;
         target.userText = from.userText;
+        target.streamDraft = from.streamDraft;
         sessionStates.current.delete(runSid);
       }
       const control = controllersRef.current.get(runSid);
@@ -1577,6 +1627,7 @@ export default function AgentChat() {
           commitSession(to);
         },
         onNotification: (notification) => handleNotification(runSid, notification),
+        onDelta: (delta) => handleDelta(runSid, delta),
         onDone: () => {
           controllersRef.current.delete(runSid);
           resetTurnState(runSid);
@@ -1623,6 +1674,8 @@ export default function AgentChat() {
     controllersRef.current.delete(sid);
     resetTurnState(sid);
     const state = sessionState(sid);
+    dropStreamDelta(sid);
+    state.streamDraft = null;
     state.messages = [
       ...state.messages,
       {
@@ -2204,8 +2257,32 @@ export default function AgentChat() {
                     />
                   );
                 })}
-                {isThinking && !conversation.at(-1)?.role?.startsWith("process") ? (
+                {isThinking && !streamDraft?.text && !conversation.at(-1)?.role?.startsWith("process") ? (
                   <AssistantMessage pending activityText={activityText} message={{ id: "pending", time: clockTime() }} />
+                ) : null}
+                {isThinking && streamDraft?.reasoning ? (
+                  <div className="chat-message-row is-assistant">
+                    <div className="chat-message-stack">
+                      <div className="chat-stream-reasoning" role="status" aria-live="polite">
+                        <strong>思考中</strong>
+                        <p>{streamDraft.reasoning}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                {isThinking && streamDraft?.text ? (
+                  <div className="chat-message-row is-assistant">
+                    <div className="chat-message-stack">
+                      <div className="chat-message-meta">
+                        <strong>知识库助手</strong>
+                        <time>{clockTime()}</time>
+                      </div>
+                      <div className="chat-assistant-content">
+                        {/* 增量文本本身渐进到达，直接整段渲染；定稿由持久 assistant/message 校正 */}
+                        <Markdown>{streamDraft.text}</Markdown>
+                      </div>
+                    </div>
+                  </div>
                 ) : null}
                 {backgroundRun ? (
                   <div className="chat-background-note" role="status">

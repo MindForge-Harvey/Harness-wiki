@@ -81,7 +81,7 @@ export async function clearSessions() {
 /**
  * 发送一条消息并消费 SSE 流。
  * @param {object} opts - { sessionId?, message, attachments? }
- * @param {object} handlers - { onStart, onNotification, onRenamed, onDone, onError }
+ * @param {object} handlers - { onStart, onNotification, onDelta, onRenamed, onDone, onError }
  * @returns {() => void} abort 函数（断开流；服务端回合继续但本端停止接收）。
  */
 export function streamChat({ sessionId, message, attachments }, handlers) {
@@ -132,6 +132,7 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
       }
       if (event === "start") handlers.onStart?.(data.sessionId, data.attachments);
       else if (event === "notification") handlers.onNotification?.(data);
+      else if (event === "delta") handlers.onDelta?.(data);
       else if (event === "renamed") handlers.onRenamed?.(data);
       else if (event === "done") handlers.onDone?.(data);
       else if (event === "error") handlers.onError?.(data.message || "未知错误");

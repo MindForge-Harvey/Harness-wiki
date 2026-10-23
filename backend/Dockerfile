@@ -16,7 +16,9 @@ WORKDIR /app/backend
 
 # 先装依赖（锁文件含 overrides：@deepseek-ai/dsh 家族钉回 0.1.6-alpha.1，避免 alpha.2 漂移；
 # registry 用国内镜像，避免构建容器无法直连官方源）
+# patches/ 必须先于 npm ci 就位：postinstall 脚本对 node_modules 应用 assistant-delta 补丁
 COPY backend/package.json backend/package-lock.json ./
+COPY backend/patches ./patches
 RUN npm ci --omit=dev --no-fund --no-audit --registry=https://registry.npmmirror.com
 
 # 沙箱与文档处理系统依赖（--no-install-recommends 控制体积；中文字体必须保留）
@@ -52,4 +54,6 @@ EXPOSE 3088
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
   CMD curl -fsS --noproxy '*' http://127.0.0.1:3088/api/health || exit 1
 
-CMD ["node", "index.js"]
+# 启动前重放 node_modules 补丁：部署栈用 named volume 屏蔽 node_modules，旧 volume
+# 可能早于镜像存在（不含补丁），幂等脚本保证任何 volume 状态下 assistant-delta 都在位
+CMD ["sh", "-c", "node patches/apply-patches.mjs && exec node index.js"]

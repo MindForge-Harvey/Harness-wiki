@@ -2479,6 +2479,33 @@ body.chat-view {
   font-size: 10px;
 }
 
+/* 真流式：回答定稿前的 token 级思考摘要卡（正文增量到达后隐藏）。 */
+.chat-stream-reasoning {
+  display: grid;
+  max-width: min(640px, 100%);
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(13, 103, 237, 0.05);
+}
+
+.chat-stream-reasoning strong {
+  color: #234f7b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chat-stream-reasoning p {
+  margin: 0;
+  max-height: 180px;
+  overflow: hidden;
+  color: #7c91a7;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .chat-welcome {
   display: flex;
   width: min(760px, calc(100% - 40px));

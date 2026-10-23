@@ -241,6 +241,15 @@ async function handleChatStream(req, res) {
       onNotification: (n) => {
         const event = n.params?.event
         if (event?.type === 'tool/call' && event.data?.callId) approvalCalls.set(event.data.callId, { uid, sessionId: id })
+        // token 级增量（SDK 补丁转发的 agent/assistant-delta）：走专用 SSE 事件，
+        // 并按 sessionId 精确匹配本轮，排除子代理与后台会话的流
+        if (n.method === 'agent/assistant-delta') {
+          const text = n.params?.text
+          if (!closed && n.params?.sessionId === id && typeof text === 'string' && text) {
+            send('delta', { sessionId: id, kind: n.params.kind === 'reasoning' ? 'reasoning' : 'text', text })
+          }
+          return
+        }
         if (!closed) send('notification', n)
       },
     })
