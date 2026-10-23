@@ -339,6 +339,14 @@ docker compose -f docker-compose.deploy.yml up -d
 
 改前端代码则需重新构建前端镜像（在部署机构建后重新分发，或在有 npm 源的服务器上构建）。
 
+> ⚠️ **node_modules 补丁（真流式，2026-10-23 起）**：后端镜像的 node_modules 内含
+> `assistant-delta` 补丁（dsh-sdk-jsonrpc-server 转发 token 级增量）。部署栈用
+> named volume 屏蔽 node_modules，旧 volume 不会自动获得新镜像里的补丁——容器
+> 启动命令已内置幂等重放（`node patches/apply-patches.mjs && node index.js`），
+> 正常 `docker load` + `docker compose up -d` 即可，无需删除任何 volume。
+> 若 `docker logs rag-kb-backend` 出现 `[patches] 锚点不存在`，说明 SDK 版本漂移，
+> 停止发布并回滚镜像（此时回答退化为整段到达，不影响可用性）。
+
 ### 8.3 开启思考输出
 
 编辑 `backend/.env` → `LLM_REASONING_EFFORT=high` → **必须用 compose 重启**：
