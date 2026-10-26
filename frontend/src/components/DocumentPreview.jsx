@@ -6,6 +6,21 @@ import { Markdown } from "../lib/markdown";
 /** 预览大小上限：超过则只提供下载，避免前端解析卡死页面。 */
 const PREVIEW_LIMIT = 20 * 1024 * 1024;
 
+/**
+ * 懒加载分片（mammoth/xlsx）偶发一次性拉取失败（SSE 与轮询并发挤占连接时的网络抖动），
+ * 浏览器不会自动重试动态 import，这里补一次重试再放弃，瞬时抖动即可自愈。
+ */
+const importChunk = async (loader, attempts = 2) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await loader();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+  }
+};
+
 export const previewIcon = kind => (kind === "Word" ? FileDoc : kind === "Excel" ? FileXls : kind === "PPT" ? FilePpt : kind === "PDF" ? FilePdf : kind === "HTML" ? FileHtml : FileText);
 
 function prettyJson(text) {
@@ -53,11 +68,11 @@ export function useDocumentContent(sessionId, doc, enabled = true) {
         const buffer = await blob.arrayBuffer();
         let view;
         if (doc.ext === "docx") {
-          const mammoth = (await import("mammoth")).default;
+          const mammoth = (await importChunk(() => import("mammoth"))).default;
           const { value } = await mammoth.convertToHtml({ arrayBuffer: buffer });
           view = { kind: "html", html: value };
         } else if (doc.ext === "xlsx" || doc.ext === "xls" || doc.ext === "csv") {
-          const XLSX = await import("xlsx");
+          const XLSX = await importChunk(() => import("xlsx"));
           const book = XLSX.read(buffer, { type: "array" });
           const sheet = book.Sheets[book.SheetNames[0]];
           if (!sheet) throw new Error("表格为空");
