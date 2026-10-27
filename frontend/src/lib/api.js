@@ -59,17 +59,19 @@ export const discardSkillArchive = (id, signal) => skillsRequest('/imports/' + i
 export const fetchSkillFiles = (id, signal) => skillsRequest('/' + id + '/files', { signal }).then(data => data.files);
 export const skillFileUrl = (id, path) => appUrl('api/chat/skills/' + id + '/file?path=' + encodeURIComponent(path));
 
-export async function loadSessions() {
-  const response = await personalFetch(appUrl('api/chat/sessions'));
+/** 历史对话分页加载：page 从 1 起；无参数时 pageSize=200 保持旧行为（兼容旧调用方）。 */
+export async function loadSessions(page = 1, pageSize = 200) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  const response = await personalFetch(appUrl('api/chat/sessions?' + params.toString()));
   if (!response.ok) throw new Error('历史对话加载失败');
-  return (await response.json()).sessions;
+  const data = await response.json();
+  return { sessions: data.sessions || [], hasMore: Boolean(data.hasMore), page: data.page || page };
 }
 export const upsertSession = () => loadSessions();
 export const renameSession = () => loadSessions();
 export async function removeSession(id) {
   const response = await personalFetch(appUrl('api/chat/sessions/' + encodeURIComponent(id)), { method: 'DELETE' });
   if (!response.ok) throw new Error('删除对话失败');
-  return loadSessions();
 }
 export async function clearSessions() {
   const response = await personalFetch(appUrl('api/chat/sessions'), { method: 'DELETE' });

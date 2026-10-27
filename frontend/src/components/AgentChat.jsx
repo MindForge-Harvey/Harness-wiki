@@ -889,8 +889,18 @@ function hasAnswerAfterLastUser(messages) {
 
 /* ---------------------------------------------------------------- 主组件 */
 
+/** 历史对话侧栏每页条数：与服务端分页参数一致，点「下一页」才取下一页。 */
+const SESSION_PAGE_SIZE = 20;
+
 export default function AgentChat() {
   const [sessions, setSessions] = useState([]);
+  // 历史对话分页：侧栏每次只拉一页，点「下一页」再取下一页。
+  const [sessionPage, setSessionPage] = useState(1);
+  const [sessionHasMore, setSessionHasMore] = useState(false);
+  const sessionPageRef = useRef(1);
+  // 正在加载历史的事件记录：被点击的会话显示转圈，聊天区显示等待提示；支持并发加载多个。
+  const [historyLoading, setHistoryLoading] = useState(() => new Set());
+  const historyLoadingRef = useRef(new Set());
   const [user, setUser] = useState(null);
   const accountRef = useRef(null);
   const accountEpoch = useRef(0);
@@ -1159,7 +1169,7 @@ export default function AgentChat() {
           setPageError('');
           const epoch = accountEpoch.current;
           try {
-            const list = await loadSessions();
+            const { sessions: list } = await loadSessions(1, SESSION_PAGE_SIZE);
             if (!disposed && epoch === accountEpoch.current) setSessions(list);
           } catch (error) { if (!disposed && epoch === accountEpoch.current) setPageError(error.message); }
         }
@@ -1189,20 +1199,42 @@ export default function AgentChat() {
     };
   }, []);
 
-  const refreshSessions = useCallback(async () => {
+  /** 拉取指定页的历史对话并应用；轮询与分页共用，页码记录在 ref 里避免闭包过期。 */
+  const fetchSessionsPage = useCallback(async (page) => {
     const epoch = accountEpoch.current;
     try {
-      const list = await loadSessions();
-      if (epoch === accountEpoch.current) {
-        setSessions(list);
-        // 已停止会话的后台收尾结束后，撤销侧栏转圈的抑制，回到真实运行状态。
-        for (const sid of zombieRef.current) {
-          const entry = list.find(item => item.sessionId === sid);
-          if (entry && !entry.running) zombieRef.current.delete(sid);
-        }
+      const { sessions: list, hasMore } = await loadSessions(page, SESSION_PAGE_SIZE);
+      if (epoch !== accountEpoch.current) return;
+      sessionPageRef.current = page;
+      setSessionPage(page);
+      setSessions(list);
+      setSessionHasMore(hasMore);
+      // 已停止会话的后台收尾结束后，撤销侧栏转圈的抑制，回到真实运行状态。
+      for (const sid of zombieRef.current) {
+        const entry = list.find(item => item.sessionId === sid);
+        if (entry && !entry.running) zombieRef.current.delete(sid);
       }
     } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
   }, []);
+
+  const refreshSessions = useCallback(async () => {
+    const epoch = accountEpoch.current;
+    try {
+      const { sessions: list, hasMore } = await loadSessions(sessionPageRef.current, SESSION_PAGE_SIZE);
+      if (epoch !== accountEpoch.current) return;
+      // 当前打开的会话不在本页（新会话置顶、被删除等），自动跳回第一页自愈。
+      const active = activeSessionRef.current;
+      if (active && sessionPageRef.current > 1 && !list.some(item => item.sessionId === active)) {
+        return fetchSessionsPage(1);
+      }
+      setSessions(list);
+      setSessionHasMore(hasMore);
+      for (const sid of zombieRef.current) {
+        const entry = list.find(item => item.sessionId === sid);
+        if (entry && !entry.running) zombieRef.current.delete(sid);
+      }
+    } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
+  }, [fetchSessionsPage]);
 
   // 有会话在后台执行时轮询列表，让转圈标识和完成状态自动更新。
   const hasRunningSessions = sessions.some(item => item.running);
@@ -1848,7 +1880,7 @@ export default function AgentChat() {
     if (watchTimersRef.current.has(item.sessionId)) return;
     const timer = setInterval(async () => {
       try {
-        const list = await loadSessions();
+        const { sessions: list } = await loadSessions(sessionPageRef.current, SESSION_PAGE_SIZE);
         setSessions(list);
         const current = list.find(entry => entry.sessionId === item.sessionId);
         if (current?.running) return;
@@ -1927,10 +1959,16 @@ export default function AgentChat() {
     setIsThinking(false);
     setActivityText("");
     setBackgroundRun(Boolean(item.running));
+    // 从服务端拉历史：标记加载中（列表转圈 + 聊天区提示），并发点击各自标记、各自清除。
+    historyLoadingRef.current.add(item.sessionId);
+    setHistoryLoading(new Set(historyLoadingRef.current));
     try {
       await loadHistoryInto(item);
     } catch (error) {
       if (activeSessionRef.current === item.sessionId) setPageError("历史加载失败：" + error.message);
+    } finally {
+      historyLoadingRef.current.delete(item.sessionId);
+      setHistoryLoading(new Set(historyLoadingRef.current));
     }
     if (item.running) watchBackgroundSession(item);
   };
@@ -1938,9 +1976,16 @@ export default function AgentChat() {
   const deleteSession = async (item) => {
     const epoch = accountEpoch.current;
     try {
-      const list = await removeSession(item.sessionId);
+      await removeSession(item.sessionId);
       if (epoch !== accountEpoch.current) return;
-      setSessions(list);
+      // 当前页少了一条；若当前页被删空且还有更早页，回退一页避免空白页。
+      const list = await loadSessions(sessionPageRef.current, SESSION_PAGE_SIZE);
+      if (epoch !== accountEpoch.current) return;
+      if (!list.sessions.length && sessionPageRef.current > 1) {
+        return fetchSessionsPage(sessionPageRef.current - 1);
+      }
+      setSessions(list.sessions);
+      setSessionHasMore(list.hasMore);
       if (item.sessionId === sessionId) startNewChat();
     } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
   };
@@ -2165,7 +2210,9 @@ export default function AgentChat() {
                   <strong>{item.title}</strong>
                   <small>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(item.time)}</small>
                 </span>
-                {item.running && !zombieRef.current.has(item.sessionId) ? (
+                {historyLoading.has(item.sessionId) ? (
+                  <span className="chat-history-spin" role="status" aria-label="正在加载" title="正在加载" />
+                ) : item.running && !zombieRef.current.has(item.sessionId) ? (
                   <span className="chat-history-spin" role="status" aria-label="正在回复" title="正在回复" />
                 ) : null}
                 <Trash
@@ -2180,6 +2227,13 @@ export default function AgentChat() {
             ))}
             {!visibleHistory.length ? <p className="chat-history-empty">还没有历史对话。</p> : null}
           </nav>
+          {sessionPage > 1 || sessionHasMore ? (
+            <div className="chat-history-pager">
+              <button type="button" disabled={sessionPage <= 1} onClick={() => void fetchSessionsPage(sessionPage - 1)}>上一页</button>
+              <span>第 {sessionPage} 页</span>
+              <button type="button" disabled={!sessionHasMore} onClick={() => void fetchSessionsPage(sessionPage + 1)}>下一页</button>
+            </div>
+          ) : null}
           <div className="chat-history-footer">
             <span>
               <FileText size={16} weight="duotone" aria-hidden="true" />
@@ -2195,6 +2249,9 @@ export default function AgentChat() {
                   await clearSessions();
                   if (epoch !== accountEpoch.current) return;
                   setSessions([]);
+                  sessionPageRef.current = 1;
+                  setSessionPage(1);
+                  setSessionHasMore(false);
                   startNewChat();
                 } catch (error) { if (epoch === accountEpoch.current) setPageError(error.message); }
               }}
@@ -2247,6 +2304,12 @@ export default function AgentChat() {
           </header>
 
           <div className={`chat-messages${messages.length ? " has-messages" : ""}`}>
+            {historyLoading.has(sessionId) ? (
+              <div className="chat-history-loading" role="status">
+                <span className="chat-history-spin" aria-hidden="true" />
+                正在加载历史对话，请稍等…
+              </div>
+            ) : null}
             {pageError && (messages.length || sharedId) ? <p className="chat-page-error" role="alert">{pageError}</p> : null}
             {sharedId ? <div className="chat-shared-notice"><span>{sharedLoading ? "正在加载分享的回答…" : "这是一条分享的问答"}</span><button type="button" onClick={startNewChat}>开始新对话</button></div> : null}
             {!messages.length && !sharedId ? (

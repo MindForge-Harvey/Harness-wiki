@@ -1827,6 +1827,52 @@ body.chat-view {
   to { transform: rotate(360deg); }
 }
 
+/* 历史对话分页：上一页/下一页与页码，贴在列表下方。 */
+.chat-history-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0 4px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.chat-history-pager span {
+  font-size: 12px;
+  color: #64748b;
+  min-width: 48px;
+  text-align: center;
+}
+
+.chat-history-pager button {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.chat-history-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 聊天区顶部的历史加载提示：与后台运行提示条同风格。 */
+.chat-history-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(13, 103, 237, 0.25);
+  border-radius: 12px;
+  background: rgba(13, 103, 237, 0.06);
+  color: #1e3a8a;
+  font-size: 13px;
+}
+
 /* 打开一个由服务端继续执行的会话时，明确告知内容会在完成后自动刷新。 */
 .chat-background-note {
   display: flex;

@@ -504,9 +504,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true })
     }
     if (p === '/api/chat/sessions' && req.method === 'GET') {
+      // 分页：新前端显式传 page/pageSize；不带参数时保持旧行为（最多 200 条），兼容旧前端。
+      const pageSize = Math.min(Math.max(Math.trunc(Number(url.searchParams.get('pageSize'))) || 200, 1), 200)
+      const page = Math.max(Math.trunc(Number(url.searchParams.get('page'))) || 1, 1)
+      const rows = await sessionStore.list(req.identity.uid, { limit: pageSize + 1, offset: (page - 1) * pageSize })
       // running 让会话列表能标出后台仍在执行的会话，切走再切回也看得见。
-      const sessions = (await sessionStore.list(req.identity.uid)).map((item) => ({ ...item, running: activeRuns.has(item.sessionId) }))
-      return json(res, 200, { ok: true, sessions })
+      const sessions = rows.slice(0, pageSize).map((item) => ({ ...item, running: activeRuns.has(item.sessionId) }))
+      return json(res, 200, { ok: true, sessions, page, hasMore: rows.length > pageSize })
     }
     if (p === '/api/chat/sessions' && req.method === 'DELETE') {
       await sessionStore.clear(req.identity.uid)
@@ -612,7 +616,7 @@ const server = http.createServer(async (req, res) => {
       const qs = new URLSearchParams({ actor: req.identity.username })
       const [r, owned] = await Promise.all([
         proxy('/kb/feedback/answers?' + qs, req, null),
-        sessionStore.list(req.identity.uid, { all: true }),
+        sessionStore.list(req.identity.uid, { limit: 500 }),
       ])
       const data = JSON.parse(r.body.toString('utf8'))
       if (r.status !== 200 || data.ok !== true) return json(res, r.status, data)

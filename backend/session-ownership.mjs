@@ -59,8 +59,11 @@ export async function createSessionStore({ databaseUrl = process.env.HARNESS_DAT
         [id, uid, String(title || '新对话').slice(0, 100), time]);
       return id;
     },
-    async list(uid, { all = false } = {}) {
-      return (await query('SELECT session_id,title,updated_at FROM harness_sessions WHERE owner_uid=$1 AND deleted=0 ORDER BY updated_at DESC' + (all ? '' : ' LIMIT 200'), [uid]))
+    async list(uid, { limit = 200, offset = 0 } = {}) {
+      // limit/offset 由路由层钳制后传入，拼进 SQL 是安全的。
+      const cap = Math.min(Math.max(Math.trunc(Number(limit)) || 200, 1), 500);
+      const off = Math.max(Math.trunc(Number(offset)) || 0, 0);
+      return (await query(`SELECT session_id,title,updated_at FROM harness_sessions WHERE owner_uid=$1 AND deleted=0 ORDER BY updated_at DESC LIMIT ${cap} OFFSET ${off}`, [uid]))
         .map(row => ({ sessionId: row.session_id, title: row.title, time: Number(row.updated_at) }));
     },
     async touch(uid, id) {
