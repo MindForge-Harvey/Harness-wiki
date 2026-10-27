@@ -17,6 +17,7 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import zlib from 'node:zlib'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
@@ -297,20 +298,35 @@ async function handleChatStream(req, res) {
 
 // ---------------------------------------------------------------- 路由
 
-/** 在 backend/dsh/home/sessions 的工作区目录下定位会话日志（工作区哈希目录名不猜测，全量扫描）。 */
-function findSessionFile(sessionId) {
+/** 会话日志解析缓存：按文件 mtime/size 失效。重度会话日志可达数十 MB，重复打开历史必须复用解析结果。 */
+const sessionEventsCache = new Map()
+const SESSION_CACHE_LIMIT = 8
+const workspaceDirsCache = { at: 0, names: [] }
+
+function forgetSessionEvents(sessionId) {
+  for (const file of sessionEventsCache.keys()) {
+    if (path.basename(path.dirname(file)) === sessionId) sessionEventsCache.delete(file)
+  }
+}
+
+/** 在 backend/dsh/home/sessions 的工作区目录下定位会话日志；工作区列表缓存 60 秒，避免每次打开历史都全量扫描。 */
+async function findSessionFile(sessionId) {
   validSessionId(sessionId)
   const root = path.join(DSH_HOME, 'sessions')
-  let workspaces
-  try {
-    workspaces = fs.readdirSync(root)
-  } catch {
-    return null
+  if (Date.now() - workspaceDirsCache.at > 60_000) {
+    let names = []
+    try {
+      names = await fs.promises.readdir(root)
+    } catch {
+      names = []
+    }
+    workspaceDirsCache.at = Date.now()
+    workspaceDirsCache.names = names
   }
-  for (const ws of workspaces) {
+  for (const ws of workspaceDirsCache.names) {
     const dir = path.join(root, ws, sessionId)
     try {
-      if (!fs.statSync(dir).isDirectory()) continue
+      if (!(await fs.promises.stat(dir)).isDirectory()) continue
     } catch {
       continue
     }
@@ -322,20 +338,32 @@ function findSessionFile(sessionId) {
   return null
 }
 
-/** 读取并解析会话日志（zstd 多帧由系统 zstd CLI 解压）。 */
+/** 读取并解析会话日志（zstd 多帧由系统 zstd CLI 解压）。全部走异步 IO，解析结果按文件指纹缓存。 */
 async function readSessionEvents(sessionId) {
-  const file = findSessionFile(sessionId)
+  const file = await findSessionFile(sessionId)
   if (!file) return null
+  let stat
+  try {
+    stat = await fs.promises.stat(file)
+  } catch {
+    return null
+  }
+  const hit = sessionEventsCache.get(file)
+  if (hit && hit.mtimeMs === stat.mtimeMs && hit.size === stat.size) return hit.events
   let text
   if (file.endsWith('.zstd')) {
     text = (await execFileAsync('zstd', ['-dc', file], { maxBuffer: 128 * 1024 * 1024 })).stdout.toString('utf8')
   } else {
-    text = fs.readFileSync(file, 'utf8')
+    text = await fs.promises.readFile(file, 'utf8')
   }
-  return text
+  const events = text
     .split('\n')
     .filter(Boolean)
     .map((line) => JSON.parse(line))
+  // 缓存只留最近使用的若干会话，控制内存占用；淘汰最旧的一笔。
+  if (sessionEventsCache.size >= SESSION_CACHE_LIMIT) sessionEventsCache.delete(sessionEventsCache.keys().next().value)
+  sessionEventsCache.set(file, { mtimeMs: stat.mtimeMs, size: stat.size, events })
+  return events
 }
 
 /** 把会话日志投影为前端可渲染的展示事件（user/assistant/thinking/tool/approval/error）。 */
@@ -482,10 +510,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/chat/sessions' && req.method === 'DELETE') {
       await sessionStore.clear(req.identity.uid)
+      sessionEventsCache.clear()
       return json(res, 200, { ok: true })
     }
     if (p.startsWith('/api/chat/sessions/') && req.method === 'DELETE') {
-      await sessionStore.remove(req.identity.uid, decodeURIComponent(p.slice('/api/chat/sessions/'.length)))
+      const removed = decodeURIComponent(p.slice('/api/chat/sessions/'.length))
+      await sessionStore.remove(req.identity.uid, removed)
+      forgetSessionEvents(removed)
       return json(res, 200, { ok: true })
     }
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
@@ -654,7 +685,19 @@ const server = http.createServer(async (req, res) => {
       if (!sessionId) return json(res, 400, { ok: false, error: 'sessionId 必填' })
       await sessionStore.require(req.identity.uid, sessionId)
       const events = await readSessionEvents(sessionId)
-      return json(res, 200, { sessionId, events: events ? projectHistory(events, sessionId) : [] })
+      // 历史投影可能达到数 MB：支持 gzip 时压缩传输，浏览器与两层 nginx 都能显著减少耗时。
+      const body = JSON.stringify({ sessionId, events: events ? projectHistory(events, sessionId) : [] })
+      if (String(req.headers['accept-encoding'] || '').includes('gzip')) {
+        const packed = await promisify(zlib.gzip)(body)
+        res.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'content-encoding': 'gzip',
+          'cache-control': 'no-store',
+        })
+        return res.end(packed)
+      }
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      return res.end(body)
     }
 
     if (p === '/api/approvals/pending' && req.method === 'GET') {
