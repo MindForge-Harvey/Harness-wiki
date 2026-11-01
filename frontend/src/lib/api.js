@@ -7,6 +7,20 @@ import { appUrl } from "./app-url";
 
 let activeAccount = null;
 export const setActiveAccount = uid => { activeAccount = uid; };
+
+async function dispatchRequest(endpoint, { method = 'GET', body, signal } = {}) {
+  const response = await personalFetch(appUrl('api/dispatch/' + endpoint), { method, signal,
+    ...(body ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
+  });
+  const value = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(value.error || `调度请求失败（${response.status}）`), { status: response.status });
+  return value;
+}
+export const fetchDispatchCatalog = options => dispatchRequest('catalog', options);
+export const fetchDispatchRuns = options => dispatchRequest('runs', options).then(value => value.runs);
+export const fetchDispatchRun = (id, options) => dispatchRequest('runs/' + encodeURIComponent(id), options);
+export const createDispatchRun = (message, previousRunId) => dispatchRequest('runs', { method: 'POST', body: { message, previousRunId } });
+export const cancelDispatchRun = id => dispatchRequest('runs/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
 export async function fetchIdentity() {
   const unavailable = import.meta.env.DEV
     ? '本地后端未就绪，请运行 ./start.sh 后重试'

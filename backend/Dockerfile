@@ -45,6 +45,9 @@ COPY backend/index.js ./
 COPY backend/portal-session.mjs ./
 COPY backend/voice-proxy.mjs ./
 COPY backend/answer-actions.mjs ./
+COPY backend/dispatch ./dispatch
+COPY backend/session-ownership.mjs backend/chat-attachments.mjs backend/skills-store.mjs backend/skill-archive.mjs backend/starter-skills.mjs backend/documents.mjs backend/kb-sources.mjs ./
+COPY backend/starter-skills ./starter-skills
 COPY backend/dsh /app/backend/dsh
 
 ENV NODE_ENV=production

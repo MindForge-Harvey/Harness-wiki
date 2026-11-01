@@ -19,6 +19,8 @@ COPY backend/voice-proxy.mjs ./
 COPY backend/skill-archive.mjs ./
 COPY backend/starter-skills.mjs ./
 COPY backend/starter-skills ./starter-skills
+COPY backend/documents.mjs backend/kb-sources.mjs ./
+COPY backend/dispatch ./dispatch
 COPY backend/dsh ./dsh
 RUN mkdir -p dsh/home/profiles/rag-kb/node_modules && \
     ln -s /app/backend/dsh/dsh-knowledge dsh/home/profiles/rag-kb/node_modules/dsh-knowledge && \

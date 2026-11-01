@@ -32,6 +32,7 @@ import { parseSkillArchive, SKILL_ARCHIVE_LIMITS } from './skill-archive.mjs'
 import { createVoiceProxy } from './voice-proxy.mjs'
 import { createDocumentStore } from './documents.mjs'
 import { createKbSourceStore } from './kb-sources.mjs'
+import { createDispatchService } from './dispatch/service.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -69,6 +70,32 @@ const PREVIEW_MIME = {
 
 const sessionStore = await createSessionStore({ sqlitePath: path.join(DSH_HOME, 'storages', 'chat-sessions.sqlite') })
 const approvalCalls = new Map()
+let dispatchHarnessPromise = null
+const dispatch = createDispatchService({
+  async interpret(run) {
+    const harness = await getDispatchHarness()
+    await harness.run(run.message, { sessionId: run.harnessSession })
+  },
+})
+
+function getDispatchHarness() {
+  dispatchHarnessPromise ??= (async () => {
+    const pluginDirectory = path.join(DSH_HOME, 'profiles/wireless-dispatch/node_modules')
+    fs.mkdirSync(pluginDirectory, { recursive: true })
+    const link = path.join(pluginDirectory, 'dsh-wireless-dispatch')
+    if (!fs.existsSync(link)) fs.symlinkSync(path.join(here, 'dsh/dsh-dispatch'), link, 'dir')
+    const harness = new DeepSeekHarness({
+      profile: 'wireless-dispatch', cwd: WORKSPACE_CWD, processCwd: WORKSPACE_CWD, dshHome: DSH_HOME,
+      provider: process.env.LLM_PROVIDER || 'qwen-token-plan', model: process.env.LLM_MODEL || 'qwen3.8-flash',
+      reasoningEffort: process.env.LLM_REASONING_EFFORT || 'off', maxTokens: 5000,
+      env: { ...process.env, DISPATCH_INTERNAL_URL: `http://127.0.0.1:${PORT}`, DISPATCH_INTERNAL_TOKEN: dispatch.token },
+    })
+    await harness.start()
+    log('无线调度 Harness 就绪')
+    return harness
+  })().catch(error => { dispatchHarnessPromise = null; throw error })
+  return dispatchHarnessPromise
+}
 
 /**
  * 历史文档归属回填：只为尚未登记的文档按生成时间找会话，已有归属保持不变。
@@ -456,6 +483,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x')
   const p = url.pathname
   try {
+    if (await dispatch.handleInternal(req, res, url)) return
     if (req.method === 'GET' && p === '/api/auth/check') return await checkPortalSession(req, res)
     if (p.startsWith('/api/') && p !== '/api/health') {
       req.identity = await portalIdentity(req)
@@ -463,6 +491,7 @@ const server = http.createServer(async (req, res) => {
       if (!['GET', 'HEAD'].includes(req.method) && process.env.NODE_ENV === 'production' && req.headers['x-harness-request'] !== '1') return json(res, 403, { ok: false, error: '请求来源无效' })
     }
     if (p === '/api/auth/me' && req.method === 'GET') return json(res, 200, { authenticated: true, user: req.identity })
+    if (await dispatch.handlePublic(req, res, url)) return
     if (await voiceProxy.handle(req, res, p)) return
     if (p === '/api/chat/skills' && req.method === 'GET') return json(res, 200, { ok: true, ...skillsStore.seed(req.identity.uid, starterSkills, STARTER_SKILLS_BUNDLE) })
     if (p === '/api/chat/skills/imports' && req.method === 'POST') {
@@ -748,15 +777,18 @@ const server = http.createServer(async (req, res) => {
 server.on('upgrade', (req, socket, head) => { void voiceProxy.upgrade(req, socket, head) })
 
 server.listen(PORT, HOST, () => {
+  dispatch.bind(`http://127.0.0.1:${PORT}`)
   log('适配层就绪 http://' + HOST + ':' + PORT + '（子进程 HTTP ' + CHILD_HTTP + '，工作区 ' + WORKSPACE_CWD + '）')
   // 预热子进程：3090 通道（/kb/* 与 /approvals/*）常在，聊天首条消息不再等 spawn
-  getHarness().catch((e) => log('子进程预热失败（聊天时重试）: ' + (e && e.message ? e.message : e)))
+  getDispatchHarness().catch((e) => log('调度 Harness 预热失败（提交时重试）: ' + (e && e.message ? e.message : e)))
 })
 
 async function shutdown() {
   log('关闭中…')
   voiceProxy.close()
+  dispatch.close()
   server.close()
+  try { if (dispatchHarnessPromise) await (await dispatchHarnessPromise).close() } catch (e) { log('调度进程关闭异常: ' + e.message) }
   try { if (harnessPromise) await (await harnessPromise).close() } catch (e) { log('子进程关闭异常: ' + (e && e.message)) }
   await sessionStore.close()
   process.exit(0)

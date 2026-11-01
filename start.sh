@@ -35,6 +35,11 @@ fi
 export PATH="$(dirname "$NODE_BIN"):$PATH"
 echo "▶️  使用 Node.js $("$NODE_BIN" --version)"
 
+# 本地调度 Demo 不依赖外部门户；生产进程和显式门户联调沿用原认证。
+if [ "${NODE_ENV:-development}" != "production" ] && [ "${DISPATCH_USE_PORTAL_AUTH:-0}" != "1" ]; then
+  export PORTAL_AUTH_URL=""
+fi
+
 # 首次运行准备：适配层依赖 + profile 插件链接（幂等）
 if [ ! -d "$HERE/backend/node_modules/@deepseek-ai/dsh-sdk-client" ] || [ ! -d "$HERE/backend/node_modules/pg" ] || [ ! -d "$HERE/backend/node_modules/yaml" ] || [ ! -d "$HERE/backend/node_modules/yauzl" ]; then
   echo "▶️  安装适配层依赖 (npm ci) ..."

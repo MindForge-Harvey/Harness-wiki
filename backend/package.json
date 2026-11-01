@@ -8,6 +8,7 @@
     "node": ">=22.19"
   },
   "scripts": {
+    "test:dispatch": "node --test dev/contract-dispatch.mjs",
     "postinstall": "node patches/apply-patches.mjs"
   },
   "dependencies": {

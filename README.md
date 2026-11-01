@@ -1,4 +1,36 @@
-# 知识库智能体（rag-kb）与产品门户
+# 无线网络调度智能体 Demo
+
+当前分支在原 Harness 前后端上增加无线网络调度工作台，默认入口为 `/chat`。自然语言目标由真实 Harness 模型识别，模型从 19 项能力中选择并提交任务依赖计划，后端通过 HTTP 向基础、投诉、网优、区域和网格专业服务派发任务。接收方返回独立任务编号，实际查询数据、运行规则和回传结果，页面据真实回执展示进度。
+
+```bash
+./start.sh
+# http://localhost:5173/chat
+```
+
+需要 Node.js 22.19 以上版本及原有 `backend/.env` 模型配置。启动脚本在本地默认使用开发身份，不依赖外部门户；如需门户联调，使用 `DISPATCH_USE_PORTAL_AUTH=1 ./start.sh`。生产进程仍沿用原门户认证。原知识库工作台保留在 `/chat?workspace=knowledge`。
+
+可直接点击示例，也可以输入：
+
+- `查一下新街口商圈昨天的PRB利用率和下行用户速率。`
+- `PRB利用率高和下载慢有什么关系？应该如何排查？`
+- `分析河西商务区近7天的网络质量，只分析不要下发。`
+- `排查新街口商圈近7天投诉集中的原因，结合网络指标制定优化方案，安排处理并跟踪效果。`
+
+每次服务启动自动创建 SQLite 内存数据库，载入 3 个网格、12 个小区、88 张投诉和 24,192 条小时级指标观测，以及告警、知识和案例。任务、专业接单与事件记录也在内存中，**重启服务后重置**。数据和参数均为演示内容；专业服务是在本程序内独立接单的本地适配器，尚未连接生产投诉、网优、区域、网格系统。参数执行在隔离模拟器中产生实际执行回执及前后快照，不能表述为现网下发或生产成效。
+
+任务详情可查看 `HTTP POST /api/dispatch/providers/{provider}/tasks` 的接单编号、接单时间、耗时、输入与结果。专业接单接口只接受调度器的进程级令牌，浏览器通过经过原有身份校验的 `/api/dispatch/runs` 提交目标。未知对象先澄清，依赖失败时后续步骤受阻，停止调度后不继续派发。评估未达演示判据时自动追加一次告警复查和根因复核。后续效果追问复用已有执行回执，不重复执行。
+
+实现位置：
+
+- `backend/dispatch/`：内存数据、能力目录、专业处理器、HTTP 调度与任务账本。
+- `backend/dsh/dsh-dispatch/`、`backend/dsh/home/profiles/wireless-dispatch/`：Harness 意图理解及受限调度工具。
+- `frontend/src/components/DispatchWorkspace.jsx`：意图展示、任务派发、回执详情、效果反馈和能力目录。
+
+验证：`npm --prefix backend run test:dispatch`、`npm --prefix frontend run test:chat`、`npm --prefix frontend run build`。接口测试会实际启动临时 HTTP 服务，覆盖单能力派发、闭环与反馈复查、失败传播、输入边界、账号隔离、取消和执行回执复用。
+
+---
+
+## 原知识库智能体（rag-kb）与产品门户
 
 基于 DeepSeek Harness SDK（npm 包 `@deepseek-ai/dsh-sdk-client`）的知识库智能体适配层，外加蓝白视觉的产品门户（Vite + React 前端、轻量门户认证适配和 Nginx 静态服务）。自包含仓库：不依赖 DeepSeek Harness 源码仓。
 
