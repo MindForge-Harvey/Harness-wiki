@@ -34,6 +34,10 @@ else
 fi
 export PATH="$(dirname "$NODE_BIN"):$PATH"
 echo "▶️  使用 Node.js $("$NODE_BIN" --version)"
+if ! "${DISPATCH_PYTHON:-python3}" -c 'import sys; assert sys.version_info >= (3, 10)' >/dev/null 2>&1; then
+  echo "❌ 发布包规则能力需要 Python 3.10 以上版本，可用 DISPATCH_PYTHON 指定解释器。"
+  exit 1
+fi
 
 # 本地调度 Demo 不依赖外部门户；生产进程和显式门户联调沿用原认证。
 if [ "${NODE_ENV:-development}" != "production" ] && [ "${DISPATCH_USE_PORTAL_AUTH:-0}" != "1" ]; then

@@ -1,13 +1,17 @@
 # 无线网络调度智能体 Demo
 
-当前分支在原 Harness 前后端上增加无线网络调度工作台，默认入口为 `/chat`。自然语言目标由真实 Harness 模型识别，模型从 19 项能力中选择并提交任务依赖计划，后端通过 HTTP 向基础、投诉、网优、区域和网格专业服务派发任务。接收方返回独立任务编号，实际查询数据、运行规则和回传结果，页面据真实回执展示进度。
+当前分支在原 Harness 前后端上增加无线网络调度工作台，默认入口为 `/chat`。自然语言目标由真实 Harness 模型识别，模型从 36 个可调用工具中选择并提交任务依赖计划，后端通过 HTTP 向基础、投诉、网优、区域和网格专业服务派发任务。接收方返回独立任务编号，实际查询数据、运行规则和回传结果，页面据真实回执展示进度。
 
 ```bash
 ./start.sh
 # http://localhost:5173/chat
 ```
 
-需要 Node.js 22.19 以上版本及原有 `backend/.env` 模型配置。启动脚本在本地默认使用开发身份，不依赖外部门户；如需门户联调，使用 `DISPATCH_USE_PORTAL_AUTH=1 ./start.sh`。生产进程仍沿用原门户认证。原知识库工作台保留在 `/chat?workspace=knowledge`。
+需要 Node.js 22.19 以上版本、Python 3.10 以上版本及原有 `backend/.env` 模型配置。Python 只运行标准库纯函数，无需安装额外包。启动脚本在本地默认使用开发身份，不依赖外部门户；如需门户联调，使用 `DISPATCH_USE_PORTAL_AUTH=1 ./start.sh`。生产进程仍沿用原门户认证。原知识库工作台保留在 `/chat?workspace=knowledge`。
+
+左侧「能力中心」按 **14 个业务场景 → 16 项专业能力 → 36 个原子工具** 管理，分为数据自服务、网络诊断、方案决策和运维闭环。可搜索、查看依赖与输入输出、追溯实现来源和当前账号的实际调用次数，也可编辑场景目标后直接交给 Harness 执行。场景是可裁剪的任务模板，不强制每次遍历全部工具。
+
+新增场景包括质差 TOP N、忙时趋势、多网格对比、MR 覆盖、上行干扰、邻区切换、六维诊断、规则与风险依据审核、短评估复核、模拟回退和闭环运营。来源为用户提供的 `wireless-network-optimizaton-agent-release-v1.3.2.zip`：原样保留的 `rule_constraint.py`、`prior_round.py` 经独立 Python 子进程实际执行，源文件与 ZIP 哈希记录在 `backend/dispatch/vendor/release-v1.3.2/manifest.json`。其余场景依据发布包职责与契约做本地数据适配，不宣称运行了发布包的完整生产服务。源代码的风险等级未供数，前台保持「未分级」。
 
 可直接点击示例，也可以输入：
 
@@ -16,7 +20,7 @@
 - `分析河西商务区近7天的网络质量，只分析不要下发。`
 - `排查新街口商圈近7天投诉集中的原因，结合网络指标制定优化方案，安排处理并跟踪效果。`
 
-每次服务启动自动创建 SQLite 内存数据库，载入 3 个网格、12 个小区、88 张投诉和 24,192 条小时级指标观测，以及告警、知识和案例。任务、专业接单与事件记录也在内存中，**重启服务后重置**。数据和参数均为演示内容；专业服务是在本程序内独立接单的本地适配器，尚未连接生产投诉、网优、区域、网格系统。参数执行在隔离模拟器中产生实际执行回执及前后快照，不能表述为现网下发或生产成效。
+每次服务启动自动创建 SQLite 内存数据库，载入 3 个网格、12 个小区、102 张投诉、32,256 条小时级指标观测和 24 张演示优化工单，以及 MR 采样、邻区、告警、知识和案例。MR 覆盖率先汇总采样分子分母，不平均百分比。任务、专业接单与事件记录也在内存中，**重启服务后重置**。数据和参数均为演示内容；专业服务是在本程序内独立接单的本地适配器，尚未连接生产投诉、网优、区域、网格系统。参数执行在隔离模拟器中产生实际执行回执及前后快照，不能表述为现网下发或生产成效。
 
 任务详情可查看 `HTTP POST /api/dispatch/providers/{provider}/tasks` 的接单编号、接单时间、耗时、输入与结果。专业接单接口只接受调度器的进程级令牌，浏览器通过经过原有身份校验的 `/api/dispatch/runs` 提交目标。未知对象先澄清，依赖失败时后续步骤受阻，停止调度后不继续派发。评估未达演示判据时自动追加一次告警复查和根因复核。后续效果追问复用已有执行回执，不重复执行。
 
@@ -25,8 +29,11 @@
 - `backend/dispatch/`：内存数据、能力目录、专业处理器、HTTP 调度与任务账本。
 - `backend/dsh/dsh-dispatch/`、`backend/dsh/home/profiles/wireless-dispatch/`：Harness 意图理解及受限调度工具。
 - `frontend/src/components/DispatchWorkspace.jsx`：意图展示、任务派发、回执详情、效果反馈和能力目录。
+- `frontend/src/components/CapabilityCenter.jsx`：场景、专业能力和原子工具的分层浏览、溯源与场景发起。
 
-验证：`npm --prefix backend run test:dispatch`、`npm --prefix frontend run test:chat`、`npm --prefix frontend run build`。接口测试会实际启动临时 HTTP 服务，覆盖单能力派发、闭环与反馈复查、失败传播、输入边界、账号隔离、取消和执行回执复用。
+验证：`npm --prefix backend run test:dispatch`、`npm --prefix frontend run test:chat`、`npm --prefix frontend run build`。65 项调度测试会实际启动临时 HTTP 服务，逐个执行全部 36 个工具和 14 个业务场景，并覆盖失败传播、输入边界、账号隔离、取消、回执复用、跨网格误复用、源规则边界、MR 加权、参数冲突、幂等重试和重复回退。
+
+服务启动后，可运行 `node backend/dev/smoke-dispatch-live.mjs` 使用当前配置的真实 Harness 模型回归 14 类自然语言请求，结果写入 `.run/expanded-live-evaluation.json`。该脚本会在演示环境创建真实调度任务与接单记录；可以用 `DISPATCH_TEST_URL` 指定另一个演示地址。前台另用 Playwright 验证层级浏览、搜索、工具详情、场景发起、结果表格和回执展示。
 
 ---
 

@@ -3,6 +3,7 @@ import { ArrowUp, ArrowUpRight, ArrowsClockwise, Broadcast, CaretDown, CaretRigh
   Clock, Database, FlowArrow, GridFour, Lightning, MagnifyingGlass, Network, Plus, PuzzlePiece, Radio, Square, Target, WarningCircle, X } from '@phosphor-icons/react';
 import { fetchIdentity, setActiveAccount, fetchDispatchCatalog, fetchDispatchRuns, fetchDispatchRun, createDispatchRun, cancelDispatchRun } from '../lib/api';
 import '../dispatch-workspace.css';
+import CapabilityCenter from './CapabilityCenter';
 
 const active = run => run && ['interpreting', 'dispatching', 'running'].includes(run.status);
 const statusLabels = { interpreting: '理解中', dispatching: '派发中', running: '执行中', completed: '已完成', failed: '需关注', cancelled: '已停止', needs_input: '待补充', queued: '待派发', blocked: '受阻' };
@@ -80,6 +81,14 @@ function EvaluationResult({ data }) {
 function OutputView({ output, compact = false }) {
   if (!output) return null;
   const data = output.data, id = output.capabilityId;
+  if (data.columns && data.rows) return <div className="dispatch-analysis-result">
+    {data.statistics && <div className="dispatch-analysis-statistics">{data.statistics.map(item => <div key={item.label}><strong>{number(item.value)}<small>{item.unit}</small></strong><span>{item.label}</span></div>)}</div>}
+    {data.runtime && <p className="dispatch-runtime-summary">当前账号实际调度：{data.runtime.runs} 个任务，{data.runtime.acceptedJobs} 次专业接单，{data.runtime.completedJobs} 项完成</p>}
+    <div className="dispatch-table-wrap"><table><thead><tr>{data.columns.map(column => <th key={column.key}>{column.label}{column.unit && <small>{column.unit}</small>}</th>)}</tr></thead><tbody>{data.rows.map((row, index) => <tr key={index}>{data.columns.map(column => <td key={column.key}>{Array.isArray(row[column.key]) ? row[column.key].join('、') : typeof row[column.key] === 'boolean' ? row[column.key] ? '是' : '否' : number(row[column.key])}</td>)}</tr>)}{!data.rows.length && <tr><td colSpan={data.columns.length}>本次未发现匹配项</td></tr>}</tbody></table></div>
+    {data.notes?.map((note, index) => <p className="dispatch-result-note" key={index}>{note}</p>)}
+    {data.hourly && <details className="dispatch-json"><summary>查看小时趋势</summary><div className="dispatch-hourly-trend">{data.hourly.map(row => <div key={row.hour}><span>{row.hour} 时</span><strong>{number(row.value)} {data.unit}</strong></div>)}</div></details>}
+    {data.executionId && <p className="dispatch-result-note">执行回执 {data.executionId}</p>}
+  </div>;
   if (id === 'data.metrics') return <MetricResult data={data} />;
   if (id === 'optimization.diagnose') return <DiagnosisResult data={data} />;
   if (id === 'optimization.plan') return <PlanResult data={data} />;
@@ -92,13 +101,17 @@ function OutputView({ output, compact = false }) {
   return <details className="dispatch-json" open={compact}><summary>查看结构化结果</summary><pre>{JSON.stringify(data, null, 2)}</pre></details>;
 }
 
-function RunResults({ run }) {
+function RunResults({ run, catalog }) {
   const outputs = run.result?.outputs || [];
-  const available = [
+  const preferred = [
+    ['optimization.short_review', '短评估复核'], ['optimization.rollback', '回退回执'], ['operations.stats', '闭环运营'], ['data.rank', '指标排名'], ['data.trend', '忙时趋势'], ['data.compare', '网格对比'],
+    ['decision.rule_assess', '取值审核'], ['decision.risk_basis', '风险依据'], ['decision.conflicts', '冲突检查'],
     ['optimization.evaluate', '效果反馈'], ['optimization.plan', '优化方案'], ['optimization.diagnose', '分析结论'],
     ['region.common_cause', '区域问题'], ['grid.portrait', '网格画像'], ['data.metrics', '指标数据'],
     ['complaint.b_domain', '投诉定界'], ['knowledge.search', '专业知识'], ['history.search', '历史案例'],
-  ].filter(([id]) => outputs.some(output => output.capabilityId === id));
+  ];
+  const available = [...preferred, ...outputs.filter(output => !preferred.some(([id]) => id === output.capabilityId)).map(output => [output.capabilityId, catalog.capabilities.find(tool => tool.id === output.capabilityId)?.name || output.capabilityId])]
+    .filter(([id], index, rows) => outputs.some(output => output.capabilityId === id) && rows.findIndex(row => row[0] === id) === index);
   const [tab, setTab] = useState(null);
   const selected = available.some(([id]) => id === tab) ? tab : available[0]?.[0];
   if (!run.result) return null;
@@ -116,7 +129,7 @@ function TaskDetail({ task, run, catalog, onClose }) {
     <dl className="dispatch-detail-spec"><dt>执行范围</dt><dd>{task.scope?.cell_ids?.join('、') || run.intent.scopeLabel}</dd><dt>能力</dt><dd className="mono">{task.capabilityId}</dd></dl>
     {task.receipt && <section className="dispatch-receipt"><h4><CheckCircle size={16} weight="fill" /> 已收到接单回执</h4><dl><dt>任务编号</dt><dd>{task.receipt.providerTaskId}</dd><dt>接单时间</dt><dd>{time(task.receipt.acceptedAt)}</dd><dt>调用方式</dt><dd>HTTP POST · 202 Accepted</dd>{elapsed(task) && <><dt>端到端耗时</dt><dd>{elapsed(task)}</dd></>}</dl><code>{catalog.capabilities.find(row => row.id === task.capabilityId)?.endpoint}</code></section>}
     {task.error && <p className="dispatch-error" role="alert">{task.error}</p>}
-    {task.result && <div className="dispatch-detail-result"><h4>执行结果</h4><p>{task.result.summary}</p><details><summary>输入与返回数据</summary><pre>{JSON.stringify({ input: { scope: task.scope || run.intent.scope, window: run.intent.window, dependencies: task.dependsOn }, result: task.result }, null, 2)}</pre></details></div>}
+    {task.result && <div className="dispatch-detail-result"><h4>执行结果</h4><p>{task.result.summary}</p><details><summary>输入与返回数据</summary><pre>{JSON.stringify({ input: { scope: task.scope || run.intent.scope, window: run.intent.window, parameters: task.input || {}, dependencies: task.dependsOn }, result: task.result }, null, 2)}</pre></details></div>}
     {task.mode === 'simulation' && <p className="dispatch-result-note">隔离模拟执行，未连接现网参数平台</p>}
   </div>;
 }
@@ -133,25 +146,18 @@ function Supervision({ run, catalog }) {
   </>;
 }
 
-function CapabilityDirectory({ catalog }) {
-  const [filter, setFilter] = useState('all'), [query, setQuery] = useState('');
-  const rows = catalog.capabilities.filter(row => (filter === 'all' || row.agentId === filter) && `${row.name} ${row.description} ${row.id}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="dispatch-directory"><div className="dispatch-directory-heading"><div><h1>能力目录</h1><p>{catalog.agents.length} 个能力提供方，{catalog.capabilities.length} 项可调用能力</p></div><label><MagnifyingGlass size={17} /><input aria-label="搜索能力" placeholder="搜索能力" value={query} onChange={event => setQuery(event.target.value)} /></label></div>
-    <div className="dispatch-directory-tabs"><button className={filter === 'all' ? 'selected' : ''} onClick={() => setFilter('all')}>全部能力</button>{catalog.agents.map(agent => <button key={agent.id} className={filter === agent.id ? 'selected' : ''} onClick={() => setFilter(agent.id)}>{agent.name}</button>)}</div>
-    <div className="dispatch-capability-table"><div className="dispatch-capability-head"><span>能力</span><span>提供方</span><span>调用条件</span><span>状态</span></div>{rows.map(row => {
-      const agent = catalog.agents.find(item => item.id === row.agentId), Icon = iconOf[agent.id];
-      return <article key={row.id}><div><strong>{row.name}</strong><small>{row.id}</small><p>{row.description}</p></div><span className="dispatch-capability-provider" style={{ '--agent-color': agent.color }}><Icon size={18} />{agent.name}</span><span className="dispatch-capability-deps">{row.dependencies.length ? row.dependencies.map(id => catalog.capabilities.find(item => item.id === id)?.name).join('、') : '可独立调用'}</span><span className="dispatch-capability-status"><i />{row.mode === 'simulation' ? '模拟执行' : '本地接入'}</span></article>;
-    })}{!rows.length && <p className="dispatch-empty-search">没有匹配的能力</p>}</div>
-  </div>;
-}
-
 export default function DispatchWorkspace() {
   const [user, setUser] = useState(null), [catalog, setCatalog] = useState(null), [runs, setRuns] = useState([]), [run, setRun] = useState(null);
-  const [view, setView] = useState('workspace'), [draft, setDraft] = useState(''), [error, setError] = useState(''), [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState(() => new URLSearchParams(window.location.search).get('view') === 'capabilities' ? 'capabilities' : 'workspace'), [draft, setDraft] = useState(''), [error, setError] = useState(''), [submitting, setSubmitting] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(null), [booting, setBooting] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const selectedId = useRef(null), requestVersion = useRef(0), textarea = useRef(null), bottom = useRef(null);
   const refreshRuns = useCallback(async () => { const items = await fetchDispatchRuns(); setRuns(items); return items; }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (view === 'capabilities') url.searchParams.set('view', 'capabilities'); else url.searchParams.delete('view');
+    window.history.replaceState(null, '', url.pathname + url.search);
+  }, [view]);
   useEffect(() => {
     let disposed = false;
     document.title = '无线网络调度智能体 · Harness';
@@ -216,13 +222,13 @@ export default function DispatchWorkspace() {
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
   }, []);
-  const submit = useCallback(async message => {
+  const submit = useCallback(async (message, scenarioId) => {
     const text = typeof message === 'string' ? message.trim() : draft.trim();
     if (!text || submitting || active(run)) return;
     setSubmitting(true); setError('');
     const version = ++requestVersion.current;
     try {
-      const next = await createDispatchRun(text, run?.id);
+      const next = await createDispatchRun(text, run?.id, scenarioId);
       if (version !== requestVersion.current) { await refreshRuns(); return; }
       selectedId.current = next.id; rememberRun(next.id); setRun(next); setDraft(''); setView('workspace'); setSelectedTaskId(null); setExpanded(false);
       await refreshRuns();
@@ -256,14 +262,14 @@ export default function DispatchWorkspace() {
   return <div className="dispatch-app">
     <aside className="dispatch-sidebar"><button className="dispatch-brand" onClick={newTask}><span><Radio size={25} weight="bold" /></span><div>无线网络<strong>调度智能体</strong></div></button>
       <button className="dispatch-new" onClick={newTask}><Plus size={18} />新任务<span>⌘ K</span></button>
-      <nav aria-label="工作区"><button className={view === 'workspace' ? 'selected' : ''} onClick={() => setView('workspace')}><FlowArrow size={19} />调度工作台</button><button className={view === 'capabilities' ? 'selected' : ''} onClick={() => setView('capabilities')}><PuzzlePiece size={19} />能力目录<span>{catalog?.capabilities.length || '—'}</span></button></nav>
+      <nav aria-label="工作区"><button className={view === 'workspace' ? 'selected' : ''} onClick={() => setView('workspace')}><FlowArrow size={19} />调度工作台</button><button className={view === 'capabilities' ? 'selected' : ''} onClick={() => setView('capabilities')}><PuzzlePiece size={19} />能力中心<span>{catalog?.scenarios.length || '—'}</span></button></nav>
       <div className="dispatch-history-title">任务记录<span>{runs.length}</span></div>
       <div className="dispatch-history">{runs.map(item => <button key={item.id} className={run?.id === item.id && view === 'workspace' ? 'selected' : ''} onClick={() => selectRun(item.id)}><span className={`dispatch-history-status ${item.status}`} /><div><strong>{item.intent?.label || item.message}</strong><small>{item.message}</small></div>{active(item) && <CircleNotch size={13} className="dispatch-spin" />}</button>)}{!runs.length && <p>发起任务后，在这里查看进展</p>}</div>
       <div className="dispatch-sidebar-bottom"><div className="dispatch-user"><span>{(user?.username || 'H').slice(0, 1).toUpperCase()}</span><div>{user?.username === 'local' ? '演示工作区' : user?.username || '连接中'}<small>Harness Workspace</small></div><i /></div></div>
     </aside>
     <main className={`dispatch-main ${run && view === 'workspace' ? 'has-run' : ''}`}>
-      <header className="dispatch-header"><div><span>{view === 'capabilities' ? '能力目录' : '调度工作台'}</span>{run && view === 'workspace' && <><CaretRight size={13} /><span className="dispatch-header-id">{run.id}</span></>}</div><span className="dispatch-environment"><i />演示环境</span></header>
-      {booting ? <div className="dispatch-boot"><CircleNotch size={24} className="dispatch-spin" /><p>正在连接调度工作台</p></div> : !catalog ? <div className="dispatch-boot"><WarningCircle size={30} /><p role="alert">{error}</p><button onClick={() => window.location.reload()}>重新连接</button></div> : view === 'capabilities' ? <CapabilityDirectory catalog={catalog} /> : <>
+      <header className="dispatch-header"><div><span>{view === 'capabilities' ? '能力中心' : '调度工作台'}</span>{run && view === 'workspace' && <><CaretRight size={13} /><span className="dispatch-header-id">{run.id}</span></>}</div><span className="dispatch-environment"><i />演示环境</span></header>
+      {booting ? <div className="dispatch-boot"><CircleNotch size={24} className="dispatch-spin" /><p>正在连接调度工作台</p></div> : !catalog ? <div className="dispatch-boot"><WarningCircle size={30} /><p role="alert">{error}</p><button onClick={() => window.location.reload()}>重新连接</button></div> : view === 'capabilities' ? <CapabilityCenter catalog={catalog} onLaunch={submit} busy={busy} hasExecution={Boolean(run?.tasks.some(task => ['optimization.execute', 'optimization.evaluate', 'optimization.short_review'].includes(task.capabilityId) && task.status === 'completed' && task.result?.data.executionId))} /> : <>
         <div className="dispatch-conversation">
           {!run ? <div className="dispatch-welcome"><div className="dispatch-hero-icon"><Radio size={38} weight="light" /><span /></div><h1>今天，要处理哪个网络问题？</h1>
             {composer}<div className="dispatch-examples">{examples.map(example => <button key={example.title} onClick={() => submit(example.prompt)} disabled={submitting}><example.icon size={21} /><div><strong>{example.title}</strong><span>{example.text}</span></div><ArrowUpRight size={17} /></button>)}</div>
@@ -279,7 +285,7 @@ export default function DispatchWorkspace() {
               <ol>{shownTasks.map(task => { const agent = catalog.agents.find(item => item.id === task.agentId), Icon = iconOf[task.agentId], index = run.tasks.indexOf(task); return <li key={task.id} className={`${task.status} ${selectedTaskId === task.id ? 'selected' : ''}`}><button onClick={() => setSelectedTaskId(task.id)}><span className="dispatch-task-number">{String(index + 1).padStart(2, '0')}</span><span className="dispatch-task-title"><strong>{task.name}{task.feedback && <i>反馈触发</i>}</strong><small>{task.reason}</small></span><span className="dispatch-task-agent" style={{ '--agent-color': agent.color }}><Icon size={15} />{agent.shortName}</span><span className={`dispatch-task-state ${task.status}`}><StatusIcon status={task.status} size={16} /><span>{statusLabels[task.status]}</span></span><CaretRight size={14} /></button>{task.receipt && <div className="dispatch-task-receipt"><span>POST</span><code>{task.receipt.providerTaskId}</code><span>{time(task.receipt.acceptedAt)} 接单</span>{elapsed(task) && <span>{elapsed(task)}</span>}</div>}</li>; })}</ol>
               {run.tasks.length > previewTasks.length && <button className="dispatch-expand-tasks" onClick={() => setExpanded(value => !value)}>{expanded ? '收起任务明细' : `查看全部 ${run.tasks.length} 项任务与回执`}<CaretDown size={12} className={expanded ? 'expanded' : ''} /></button>}
             </section>}
-            <RunResults run={run} />
+            <RunResults run={run} catalog={catalog} />
             {run.status === 'cancelled' && <p className="dispatch-cancelled">本次调度已停止，已产生的任务回执与结果仍可查看。</p>}
             <div ref={bottom} />
           </div>}

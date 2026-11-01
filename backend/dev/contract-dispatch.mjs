@@ -4,6 +4,7 @@ import http from 'node:http';
 import { createDispatchService } from '../dispatch/service.mjs';
 import { createDispatchStore } from '../dispatch/store.mjs';
 import { createProviderHandlers } from '../dispatch/providers.mjs';
+import { metrics } from '../dispatch/catalog.mjs';
 
 const step = (id, capability_id, depends_on = []) => ({ id, capability_id, depends_on, reason: `测试调用 ${capability_id}` });
 const plan = steps => ({ intent: 'metrics_query', understanding: '查询新街口网格指标', scope: { grid_ids: ['GRID-XJK'], cell_ids: [] },
@@ -41,7 +42,7 @@ async function fixture(t, { buildPlan, customInterpret, mutateHandlers } = {}) {
 test('启动装载内存数据；单查询只派发所选能力，并保存 HTTP 接单和实际观测', async t => {
   const f = await fixture(t, { buildPlan: () => ({ ...plan([step('metrics', 'data.metrics')]), metric_ids: ['prb'] }) });
   const catalog = await f.request('catalog');
-  assert.equal(catalog.data.data.cells, 12); assert.equal(catalog.data.data.observations, 24192);
+  assert.equal(catalog.data.data.cells, 12); assert.equal(catalog.data.data.observations, 12 * 14 * 24 * metrics.length);
   const run = await f.create(), result = await f.finished(run.id);
   assert.equal(result.status, 'completed'); assert.equal(result.tasks.length, 1);
   assert.equal(result.tasks[0].receipt.transport, 'HTTP'); assert.match(result.tasks[0].receipt.providerTaskId, /^JOB-/);

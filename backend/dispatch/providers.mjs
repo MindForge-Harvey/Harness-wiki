@@ -1,4 +1,5 @@
 import { metrics } from './catalog.mjs';
+import { createExtendedHandlers } from './extended-providers.mjs';
 
 const round = value => Number(value.toFixed(2));
 const source = '内存演示数据';
@@ -63,6 +64,8 @@ export function createProviderHandlers(store) {
       evidence: [`PRB ${m.prb.value}% > 75%`, `下行速率 ${m.dl_rate.value} Mbps < 20 Mbps`], rule: 'KN-001' });
     if (m.rsrp?.value < -110) findings.push({ type: 'coverage', label: '弱覆盖', evidence: [`RSRP ${m.rsrp.value} dBm < -110 dBm`], rule: 'KN-002' });
     if (m.handover_success?.value < 95) findings.push({ type: 'handover', label: '切换质差', evidence: [`切换成功率 ${m.handover_success.value}% < 95%`], rule: 'KN-003' });
+    if (m.sinr?.value < 7 && m.ul_interference?.value > -100) findings.push({ type: 'interference', label: '上行干扰', evidence: [`SINR ${m.sinr.value} dB < 7 dB`, `上行干扰噪声 ${m.ul_interference.value} dBm > -100 dBm`], rule: 'KN-007' });
+    if (m.rrc_success?.value < 98 && m.rsrp?.value >= -110) findings.push({ type: 'access', label: '接通质差', evidence: [`接通率 ${m.rrc_success.value}% < 98%`, '覆盖信号未触发弱覆盖判据'], rule: 'KN-008' });
     return { cell_id: cell.id, cell_name: cell.name, site_id: cell.site_id, findings };
   });
 
@@ -151,10 +154,10 @@ export function createProviderHandlers(store) {
       const cells = selectedCells(context), actions = [];
       for (const finding of findings) for (const issue of finding.findings) {
         const cell = cells.find(item => item.id === finding.cell_id);
-        const parameter = { capacity: 'load_balance_trigger', coverage: 'electrical_tilt', handover: 'handover_offset' }[issue.type];
+        const parameter = { capacity: 'load_balance_trigger', coverage: 'electrical_tilt', handover: 'handover_offset', interference: 'ul_power_control', access: 'access_preamble' }[issue.type];
         const current = cell.parameters[parameter];
         actions.push({ id: `ACT-${actions.length + 1}`, cell_id: cell.id, cell_name: cell.name, issue: issue.type, issueLabel: issue.label,
-          parameter, label: current.label, before: current.value, target: { capacity: 65, coverage: 6, handover: 2 }[issue.type], unit: current.unit,
+          parameter, label: current.label, before: current.value, target: { capacity: 65, coverage: 6, handover: 2, interference: -1, access: 48 }[issue.type], unit: current.unit,
           constraints: { min: current.min, max: current.max, step: current.step }, reason: issue.evidence.join('；'),
           rollback: current.value, fieldCheck: issue.type === 'coverage', mode: 'simulation' });
       }
@@ -177,7 +180,8 @@ export function createProviderHandlers(store) {
       const plan = find(upstream, 'optimization.plan');
       if (!plan) fail('没有可校验的方案，请先制定方案');
       const cells = selectedCells(context);
-      const checks = plan.actions.map(action => {
+      const actions = find(upstream, 'decision.conflicts')?.actions || find(upstream, 'decision.rule_assess')?.actions || plan.actions;
+      const checks = actions.map(action => {
         const parameter = cells.find(cell => cell.id === action.cell_id)?.parameters[action.parameter];
         const reasons = [];
         if (!parameter) reasons.push('当前参数不存在');
@@ -191,11 +195,12 @@ export function createProviderHandlers(store) {
       });
       const coordinated = find(upstream, 'region.coordinate');
       const passed = checks.every(row => row.passed) && coordinated?.passed !== false;
-      return output(passed ? `${checks.length} 项措施通过演示参数约束校验` : '方案约束校验未通过，禁止模拟执行', { passed, checks, actions: plan.actions, mode: 'simulation' });
+      return output(passed ? `${checks.length} 项措施通过演示参数约束校验` : '方案约束校验未通过，禁止模拟执行', { passed, checks, actions, mode: 'simulation' });
     },
     'optimization.execute': async ({ context, upstream }, progress) => {
       const checked = find(upstream, 'optimization.validate');
       if (!checked?.passed) fail('没有通过校验的方案，未执行任何参数变更');
+      if (!checked.actions.length) fail('没有通过校验的参数措施，未执行模拟调参');
       const before = allMetricData(context).cells, after = structuredClone(before), executedAt = new Date().toISOString();
       const actions = [];
       for (const action of checked.actions) {
@@ -205,6 +210,8 @@ export function createProviderHandlers(store) {
           cell.metrics.prb.value = round(Math.min(70, cell.metrics.prb.value * .74));
           cell.metrics.dl_rate.value = round(Math.max(26, cell.metrics.dl_rate.value * 2.3));
         } else if (action.issue === 'handover') cell.metrics.handover_success.value = 98.7;
+        else if (action.issue === 'interference') { cell.metrics.sinr.value = 12; cell.metrics.ul_interference.value = -108; }
+        else if (action.issue === 'access') cell.metrics.rrc_success.value = 99.2;
         // Coverage retains the observed fault: a remote tilt change cannot remove a feeder fault.
         actions.push({ ...action, state: 'executed', executedAt, actualValue: action.target });
         progress(`${action.cell_id}：${action.label} ${action.before} → ${action.target}${action.unit}`);
@@ -216,23 +223,24 @@ export function createProviderHandlers(store) {
           note: '数值为演示模拟快照，非现网观测或真实观察周期' });
     },
     'optimization.evaluate': async ({ upstream }) => {
-      const execution = find(upstream, 'optimization.execute');
+      const execution = find(upstream, 'optimization.rollback') || find(upstream, 'optimization.execute');
       if (!execution?.executionId) fail('未找到实际的模拟执行回执，不能生成效果结果');
       const comparisons = execution.actions.map(action => {
         const before = execution.before.find(row => row.id === action.cell_id).metrics;
         const after = execution.after.find(row => row.id === action.cell_id).metrics;
-        const metric = { capacity: 'dl_rate', coverage: 'rsrp', handover: 'handover_success' }[action.issue];
+        const metric = { capacity: 'dl_rate', coverage: 'rsrp', handover: 'handover_success', interference: 'sinr', access: 'rrc_success' }[action.issue];
         const descriptor = metrics.find(row => row.id === metric);
         const passed = action.issue === 'capacity' ? after.prb.value <= 75 && after.dl_rate.value >= 20
-          : action.issue === 'coverage' ? after.rsrp.value >= -110 : after.handover_success.value >= 95;
+          : action.issue === 'coverage' ? after.rsrp.value >= -110 : action.issue === 'handover' ? after.handover_success.value >= 95 : action.issue === 'interference' ? after.sinr.value >= 7 && after.ul_interference.value <= -100 : after.rrc_success.value >= 98;
         return { cell_id: action.cell_id, cell_name: action.cell_name, issue: action.issueLabel, metric, metricName: descriptor.name,
           unit: descriptor.unit, before: before[metric].value, after: after[metric].value, delta: round(after[metric].value - before[metric].value), passed,
-          nextAction: passed ? '继续观察保护指标' : '关联天馈告警，转现场排障并持续跟踪' };
+          nextAction: passed ? '继续观察保护指标' : action.issue === 'coverage' ? '关联天馈告警，转现场排障并持续跟踪' : '复核当前证据与方案，继续观察并按需转人工' };
       });
       const passed = comparisons.filter(row => row.passed).length, pending = comparisons.length - passed;
       return output(`${passed} 项达到演示判据${pending ? `，${pending} 项需继续处理` : ''}；现网观察窗未建立`,
         { executionId: execution.executionId, comparisons, passed, pending, mode: 'simulation', businessOutcome: pending ? 'needs_followup' : 'simulation_target_met',
           observationStatus: '演示快照评估，非现网成效', fieldTasks: comparisons.filter(row => !row.passed).map(row => ({ cell_id: row.cell_id, action: row.nextAction, status: '建议现场处理，未派发现网工单' })) }, [source, 'KN-005 · 演示评估规则']);
     },
+    ...createExtendedHandlers(store, { selectedCells, rowsFor, allMetricData, diagnose, find }),
   };
 }

@@ -19,7 +19,7 @@ async function dispatchRequest(endpoint, { method = 'GET', body, signal } = {}) 
 export const fetchDispatchCatalog = options => dispatchRequest('catalog', options);
 export const fetchDispatchRuns = options => dispatchRequest('runs', options).then(value => value.runs);
 export const fetchDispatchRun = (id, options) => dispatchRequest('runs/' + encodeURIComponent(id), options);
-export const createDispatchRun = (message, previousRunId) => dispatchRequest('runs', { method: 'POST', body: { message, previousRunId } });
+export const createDispatchRun = (message, previousRunId, scenarioId) => dispatchRequest('runs', { method: 'POST', body: { message, previousRunId, scenarioId } });
 export const cancelDispatchRun = id => dispatchRequest('runs/' + encodeURIComponent(id) + '/cancel', { method: 'POST' });
 export async function fetchIdentity() {
   const unavailable = import.meta.env.DEV

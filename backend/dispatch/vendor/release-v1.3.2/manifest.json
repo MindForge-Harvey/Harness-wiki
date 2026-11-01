@@ -1,0 +1,48 @@
+{
+  "version": "1.3.2",
+  "archive": "wireless-network-optimizaton-agent-release-v1.3.2.zip",
+  "sha256": "73dc0758f2622a61b3ab759f6d78f0dde88f4c20f6f3a8298b3ca521524365e5",
+  "integration": "纯函数原样复用与本地演示适配，不表示接入发布包的生产数据库或ICOS服务",
+  "files": [
+    {
+      "path": "network-ops-loop-v3/services/compliance/rule_constraint.py",
+      "sha256": "2ec7916c6213b7f2b347a14d53e8596c31d6e43089e02761b8c8949aa4b96512",
+      "integration": "vendored_original"
+    },
+    {
+      "path": "network-ops-loop-v3/services/decision/prior_round.py",
+      "sha256": "0117e90ed6ef22835b129d64290dfbd90635404defc154edfbc352fa98d86607",
+      "integration": "vendored_original"
+    },
+    {
+      "path": "network-ops-loop-v3/services/decision/cause_dimensions.py",
+      "sha256": "1e9bd36a601d71197122ae4b5578b995d3ebaac34703c09907f54b94535a2169",
+      "integration": "reference_adapter"
+    },
+    {
+      "path": "network-ops-loop-v3/services/decision/arbitration.py",
+      "sha256": "56e7d66ad6dae816e3d58353d5700ef116ee5cb9bae770ff47e98c323870affb",
+      "integration": "reference_adapter"
+    },
+    {
+      "path": "network-ops-loop-v3/services/decision/risk.py",
+      "sha256": "98504838f017d4864d10a93f00fbdc4f8cb106a50fc897d12c9056fee069b61c",
+      "integration": "reference_adapter"
+    },
+    {
+      "path": "network-qa-assistant/backend/services/data_self_service/scene_coverage.py",
+      "sha256": "b606808edaa932e7c1a7898c4ecad1edb0e9ef06ccd4124ff58849294ce80ee1",
+      "integration": "reference_adapter"
+    },
+    {
+      "path": "network-qa-assistant/backend/services/data_self_service/per_city_topn.py",
+      "sha256": "3f866e53ad619daea9fb45078c018110e0e2eb59dbeacf0fb25f80fcc4bd20d6",
+      "integration": "reference_adapter"
+    },
+    {
+      "path": "icos-simulator/scenarios/catalog.yml",
+      "sha256": "85fb65960317b34b4bf08295611fe814d642f5aa12802614c14b98fde5819f87",
+      "integration": "reference_adapter"
+    }
+  ]
+}

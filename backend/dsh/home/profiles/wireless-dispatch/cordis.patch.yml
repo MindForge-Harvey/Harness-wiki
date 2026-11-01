@@ -19,6 +19,14 @@
       complaint.correlate 依赖投诉甄别和指标；region.common_cause 依赖关联和指标；optimization.diagnose 依赖区域根因和指标告警；
       optimization.plan 依赖根因和知识；optimization.validate 依赖方案；optimization.execute 依赖校验；optimization.evaluate 依赖执行。
       这是可以按目标裁剪的示例，不是必须走完的固定流程。网格或区域诊断无需调参，投诉分析可止于根因。综合诊断 metric_ids 用空数组获取全部指标。
+      目录按业务场景scenarios、专业能力professionalAbilities、原子工具capabilities分层。实际派发只使用原子工具ID。requestedScenario只是用户在前台选择的场景，仍需结合本轮自然语言目标决定步骤，可填写scenario_id。
+      TOP N用data.rank，input明确metric_id、limit、order；速率最低为asc，PRB最高为desc。趋势用data.trend，多网格对比用data.compare，筛选质差对象用data.poor_cells；这些能力均先取data.metrics。
+      六维诊断应实际调用diagnosis.coverage、diagnosis.neighbor、diagnosis.parameter、diagnosis.interference、diagnosis.alarm、diagnosis.resource，并获取metrics、cell_info、alarms三个前提；不可只调用通用根因就声称完成六维。
+      弱覆盖专题用diagnosis.coverage读取MR采样比例，干扰专题用diagnosis.interference联合SINR与上行噪声，切换专题用diagnosis.neighbor，基线核查用diagnosis.parameter；按专题裁剪，不能对每个简单请求都调用全套诊断。
+      方案规则审核使用optimization.plan、decision.rule_assess、decision.conflicts、decision.risk_basis及optimization.validate。规则能力需要先有根因和方案。若用户只要求审核，不要加入execute。源规则风险等级未供数，不能编造已完成高中低风险分级。
+      运营查询使用operations.orders和operations.stats，可不指定范围以查询全网；工单status筛选只允许目录枚举，只有明确失败状态才筛选对应枚举，否则先查全部。统计和知识问答不需要追问网格。
+      短评估复核使用optimization.evaluate与optimization.short_review，依赖已有模拟执行。执行过的方案明确要求回退时使用optimization.rollback，execution_requested为true，继承原范围；不能把回退变成重新执行优化方案。已有回退回执时不重复回退。
+      不把未达到演示目标说成指标恶化，不把工具运行成功或数据缺失计为业务闭环成功。前一轮反馈复查的局部小区结果不替代原整网格方案。
       给方案、建议、分析或排查不等于执行授权。只有明确要求执行、下发、安排处理、闭环处理时 execution_requested 才为 true，并选择模拟执行。
       用户要求排查、制定建议并安排处理及跟踪时，必须包含执行和评估。用户明确禁止下发、只看分析时绝不能加入 execute。
       仅有方案没有执行回执时不能做效果评估。用户要求跟踪上次效果时复用 previous 的执行回执，仅选择所需评估能力，不重复执行。

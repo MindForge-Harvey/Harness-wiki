@@ -8,7 +8,7 @@
     "node": ">=22.19"
   },
   "scripts": {
-    "test:dispatch": "node --test dev/contract-dispatch.mjs",
+    "test:dispatch": "node --test dev/contract-dispatch.mjs dev/contract-dispatch-scenarios.mjs",
     "postinstall": "node patches/apply-patches.mjs"
   },
   "dependencies": {
