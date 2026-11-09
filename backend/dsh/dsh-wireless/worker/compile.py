@@ -75,9 +75,9 @@ def main():
             continue
         seen[identity] = payload
         dataset = str(trace.get("source", {}).get("dataset", ""))
-        if args.mode == "historical" and (dataset.startswith("minimal_sample") or identity.startswith("t_sample_") or "样例" in str(trace.get("ticket", {}).get("vendor", ""))):
-            raise ValueError("onboarding demo traces cannot enter a historical effect package")
-        times = [iso(value) for value in [trace["ticket"].get("issued_at"), trace["source"].get("ingested_at")]
+        if args.mode == "historical" and (trace.get("source", {}).get("synthetic") is True or dataset.startswith(("minimal_sample", "synthetic", "harness_demo", "demo_")) or identity.startswith("t_sample_") or "样例" in str(trace.get("ticket", {}).get("vendor", ""))):
+            raise ValueError("synthetic/demo traces cannot enter a historical effect package")
+        times = [iso(value) for value in [trace["ticket"].get("issued_at"), trace["source"].get("ingested_at"), trace["source"].get("evaluation_visible_at")]
                  if value]
         successful = []
         for action in trace.get("actions", []):

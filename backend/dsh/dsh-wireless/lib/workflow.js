@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { caseSearch, parameterCheck } from './catalog.js'
+import { exportWorkorderTrace } from './trace.js'
 
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item)
@@ -299,6 +300,11 @@ export function createWorkorderStore({ directory = wirelessDataDir() } = {}) {
   return function run({ operation, workorder_id, expected_revision, input = {} } = {}) {
     if (canonical(input).length > 512000) throw new Error('input 超过 512 KB，请拆分输入')
     if (operation === 'read') return load(workorder_id)
+    if (operation === 'export_trace') {
+      const record = load(workorder_id)
+      if (present(expected_revision) && expected_revision !== record.revision) throw new Error('工单 revision 冲突，请先读取最新版本')
+      return exportWorkorderTrace(record, input)
+    }
     if (operation === 'history') {
       const record = load(workorder_id), limit = input.limit ?? 20
       if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('history limit 必须为 1 至 100')

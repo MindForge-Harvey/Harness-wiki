@@ -1,0 +1,29 @@
+{
+  "synthetic": true,
+  "dataset": "harness_demo_synthetic_v1",
+  "generator": "build-wireless-demo.mjs",
+  "seed": 20261109,
+  "source_commit": "e734ac032a7dc671878d05cd40d2b31b68d156fc",
+  "baseline_cutoff": "2026-11-01T00:00:00+08:00",
+  "decision_at": "2026-11-09T00:00:00+08:00",
+  "learning_at": "2026-11-19T00:00:00+08:00",
+  "counts": {
+    "history_traces": 188,
+    "historical_actions": 204,
+    "scenarios": 12,
+    "time_series_observations": 3456,
+    "issue_families": 8
+  },
+  "files": {
+    "history.jsonl": "27947e15cb70710c9be17b086e591a2ed4532f770ca1afb97e6c81cb58683162",
+    "observations.jsonl": "70b3dfee3451cafd618679891e450aa691fea7ac2415ef1ab535b9e0fedb8836",
+    "scenarios.json": "dbe6a9aa17b8bfc3f8a059f05298d6d597d989074860845c7d3d7908e0f6f231",
+    "feedback.private.json": "b0246f7fbef9d8ee3add9a01f1716f694d84e96ddb707ddec8ea980502c1c659"
+  },
+  "boundaries": [
+    "全部为人工合成；不证明现网收益",
+    "Demo.* 参数和范围仅用于算法演示",
+    "反馈工具在方案冻结后才揭示结果",
+    "未连接网管、校准 gate 或线上发布"
+  ]
+}

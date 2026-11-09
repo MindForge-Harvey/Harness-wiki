@@ -33,7 +33,7 @@ function invoke(python, request, signal) {
   })
 }
 
-export function createDecisionService({ memory = createMemoryService(), python, now = () => Date.now() } = {}) {
+export function createDecisionService({ memory = createMemoryService(), python, now = () => Date.now(), demoSandbox = false } = {}) {
   const managed = path.resolve(plugin, '../../.runtime/wireless-python/bin/python')
   const executable = python || globalThis.process.env.WIRELESS_PYTHON || (fs.existsSync(managed) ? managed : 'python3')
   const sets = new Map()
@@ -54,7 +54,7 @@ export function createDecisionService({ memory = createMemoryService(), python, 
   function load(ref, context, as_of) {
     if (!ref || !nonempty(ref.memory_id)) throw new Error('候选需要 package_id 和 memory_id')
     const result = memory.query({ package_id: ref.package_id, query: ref.memory_id, limit: 12 })
-    if (result.compiler.mode !== 'historical') throw new Error('演示包不能用于候选择优或目标值适配')
+    if (result.compiler.mode !== 'historical' && !(demoSandbox && result.compiler.mode === 'demo')) throw new Error('演示包不能用于候选择优或目标值适配')
     if (!Number.isFinite(Date.parse(result.compiler.as_of))) throw new Error('候选包缺有效截止时间')
     if (Date.parse(result.compiler.as_of) > Date.parse(as_of)) throw new Error('候选包晚于决策截止时间')
     const row = result.memories.find(row => row.memory.memory_id === ref.memory_id)
@@ -71,6 +71,7 @@ export function createDecisionService({ memory = createMemoryService(), python, 
       comparison[key] = known.length ? 'matches' : 'unknown_requires_confirmation'
     }
     return { ...row, candidate_id: `${ref.package_id}:${ref.memory_id}`, package_id: ref.package_id,
+      ...(demoSandbox ? { data_scope: 'synthetic_demo_only', field_effect_statistics: false } : {}),
       source: result.source, context_comparison: comparison }
   }
   return async function decision(args = {}, execution = {}) {

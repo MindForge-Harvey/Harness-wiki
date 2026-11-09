@@ -1,0 +1,1418 @@
+{
+  "demo-access": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-001-RRC 接通率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 92.5,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.AccessMargin": {
+        "after": [
+          {
+            "id": "SIM-CELL-001-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-001",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 97.324,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-access/AccessMargin/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.Msg3Retries": {
+        "after": [
+          {
+            "id": "SIM-CELL-001-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-001",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 95.85,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-access/Msg3Retries/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AdmissionExpansion": {
+        "after": [
+          {
+            "id": "SIM-CELL-001-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-001",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 90.49,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-access/AdmissionExpansion/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-handover": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-002-切换成功率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 87.4,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.HandoverMargin": {
+        "after": [
+          {
+            "id": "SIM-CELL-002-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-002",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 95.464,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-handover/HandoverMargin/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.TimeToTrigger": {
+        "after": [
+          {
+            "id": "SIM-CELL-002-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-002",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 93,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-handover/TimeToTrigger/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AggressiveHandover": {
+        "after": [
+          {
+            "id": "SIM-CELL-002-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-002",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 84.04,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-handover/AggressiveHandover/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-coverage": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-003-弱覆盖采样占比-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 24.6,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.ElectricalTilt": {
+        "after": [
+          {
+            "id": "SIM-CELL-003-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-003",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 10.128,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage/ElectricalTilt/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.CoverageOffset": {
+        "after": [
+          {
+            "id": "SIM-CELL-003-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-003",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 14.55,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage/CoverageOffset/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.PowerExpansion": {
+        "after": [
+          {
+            "id": "SIM-CELL-003-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-003",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 30.63,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage/PowerExpansion/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-interference": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-004-上行噪声抬升-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "上行噪声抬升",
+        "value": 11.8,
+        "unit": "dB",
+        "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 6,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.InterferenceControl": {
+        "after": [
+          {
+            "id": "SIM-CELL-004-上行噪声抬升-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-004",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "上行噪声抬升",
+            "value": 4.816,
+            "unit": "dB",
+            "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 6,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-interference/InterferenceControl/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.PuschOffset": {
+        "after": [
+          {
+            "id": "SIM-CELL-004-上行噪声抬升-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-004",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "上行噪声抬升",
+            "value": 6.95,
+            "unit": "dB",
+            "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 6,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-interference/PuschOffset/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.WidebandBoost": {
+        "after": [
+          {
+            "id": "SIM-CELL-004-上行噪声抬升-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-004",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "上行噪声抬升",
+            "value": 14.71,
+            "unit": "dB",
+            "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 6,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-interference/WidebandBoost/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-capacity": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-005-下行用户平均吞吐-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 4.2,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.LoadBalanceOffset": {
+        "after": [
+          {
+            "id": "SIM-CELL-005-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-005",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": 21.624,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity/LoadBalanceOffset/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.SchedulerWeight": {
+        "after": [
+          {
+            "id": "SIM-CELL-005-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-005",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": 16.3,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity/SchedulerWeight/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AdmissionLimit": {
+        "after": [
+          {
+            "id": "SIM-CELL-005-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-005",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": -3.06,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity/AdmissionLimit/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-throughput": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-006-下行用户平均吞吐-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 8.7,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 20,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.SchedulerWindow": {
+        "after": [
+          {
+            "id": "SIM-CELL-006-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-006",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": 40.092,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 20,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-throughput/SchedulerWindow/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.LinkAdaptation": {
+        "after": [
+          {
+            "id": "SIM-CELL-006-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-006",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": 30.5,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 20,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-throughput/LinkAdaptation/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.ConservativeMcs": {
+        "after": [
+          {
+            "id": "SIM-CELL-006-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-006",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": -4.38,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 20,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-throughput/ConservativeMcs/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-drop": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-007-异常释放率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "异常释放率",
+        "value": 4.8,
+        "unit": "%",
+        "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 2,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.RlfTimer": {
+        "after": [
+          {
+            "id": "SIM-CELL-007-异常释放率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-007",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "异常释放率",
+            "value": 1.632,
+            "unit": "%",
+            "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 2,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-drop/RlfTimer/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.RecoveryTimer": {
+        "after": [
+          {
+            "id": "SIM-CELL-007-异常释放率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-007",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "异常释放率",
+            "value": 2.6,
+            "unit": "%",
+            "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 2,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-drop/RecoveryTimer/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AggressiveRelease": {
+        "after": [
+          {
+            "id": "SIM-CELL-007-异常释放率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-007",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "异常释放率",
+            "value": 6.12,
+            "unit": "%",
+            "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 2,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-drop/AggressiveRelease/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-alarm": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-008-小区可用率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "小区可用率",
+        "value": 86.2,
+        "unit": "%",
+        "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 98,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.RecoveryGuard": {
+        "after": [
+          {
+            "id": "SIM-CELL-008-小区可用率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-008",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "小区可用率",
+            "value": 96.064,
+            "unit": "%",
+            "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 98,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-alarm/RecoveryGuard/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AvailabilityGuard": {
+        "after": [
+          {
+            "id": "SIM-CELL-008-小区可用率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-008",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "小区可用率",
+            "value": 93.05,
+            "unit": "%",
+            "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 98,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-alarm/AvailabilityGuard/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.RestartThreshold": {
+        "after": [
+          {
+            "id": "SIM-CELL-008-小区可用率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-008",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "小区可用率",
+            "value": 82.09,
+            "unit": "%",
+            "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 98,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-alarm/RestartThreshold/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-capacity-quality-conflict": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-009-下行用户平均吞吐-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 4.2,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.LoadBalanceOffset": {
+        "after": [
+          {
+            "id": "SIM-CELL-009-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-009",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": -3.06,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity-quality-conflict/LoadBalanceOffset/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      },
+      "Demo.SchedulerWeight": {
+        "after": [
+          {
+            "id": "SIM-CELL-009-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-009",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": 16.3,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity-quality-conflict/SchedulerWeight/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AdmissionLimit": {
+        "after": [
+          {
+            "id": "SIM-CELL-009-下行用户平均吞吐-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-009",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "下行用户平均吞吐",
+            "value": -3.06,
+            "unit": "Mbps",
+            "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-capacity-quality-conflict/AdmissionLimit/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-handover-window-mismatch": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-010-切换成功率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 87.4,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.HandoverMargin": {
+        "after": [
+          {
+            "id": "SIM-CELL-010-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-010",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 95.464,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-handover-window-mismatch/HandoverMargin/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.TimeToTrigger": {
+        "after": [
+          {
+            "id": "SIM-CELL-010-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-010",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 93,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-handover-window-mismatch/TimeToTrigger/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AggressiveHandover": {
+        "after": [
+          {
+            "id": "SIM-CELL-010-切换成功率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-010",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "切换成功率",
+            "value": 84.04,
+            "unit": "%",
+            "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 95,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-handover-window-mismatch/AggressiveHandover/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-access-missing-snapshot": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-011-RRC 接通率-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 92.5,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.AccessMargin": {
+        "after": [
+          {
+            "id": "SIM-CELL-011-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-011",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 97.324,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-access-missing-snapshot/AccessMargin/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.Msg3Retries": {
+        "after": [
+          {
+            "id": "SIM-CELL-011-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-011",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 95.85,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-access-missing-snapshot/Msg3Retries/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.AdmissionExpansion": {
+        "after": [
+          {
+            "id": "SIM-CELL-011-RRC 接通率-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-011",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "RRC 接通率",
+            "value": 90.49,
+            "unit": "%",
+            "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "higher",
+            "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+            "threshold": {
+              "operator": "lt",
+              "value": 97,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-access-missing-snapshot/AdmissionExpansion/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  },
+  "demo-coverage-cross-vendor": {
+    "synthetic": true,
+    "executed_at": "2026-11-10T00:00:00+08:00",
+    "evaluation_visible_at": "2026-11-18T00:00:00+08:00",
+    "before": [
+      {
+        "id": "SIM-CELL-012-弱覆盖采样占比-2026-11-08T16:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T16:00:00.000Z",
+          "end": "2026-11-09T16:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 24.6,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "by_parameter": {
+      "Demo.ElectricalTilt": {
+        "after": [
+          {
+            "id": "SIM-CELL-012-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-012",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 10.128,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage-cross-vendor/ElectricalTilt/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.CoverageOffset": {
+        "after": [
+          {
+            "id": "SIM-CELL-012-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-012",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 14.55,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_pass",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage-cross-vendor/CoverageOffset/declared-long-evaluation",
+        "note": "人工构造的改善反馈"
+      },
+      "Demo.PowerExpansion": {
+        "after": [
+          {
+            "id": "SIM-CELL-012-弱覆盖采样占比-2026-11-09T16:00:00.000Z",
+            "kind": "kpi",
+            "object_id": "SIM-CELL-012",
+            "time_window": {
+              "start": "2026-11-09T16:00:00.000Z",
+              "end": "2026-11-10T16:00:00.000Z"
+            },
+            "metric": "弱覆盖采样占比",
+            "value": 30.63,
+            "unit": "%",
+            "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+            "cohort": "synthetic-fixed-cohort",
+            "sample_count": 2400,
+            "good_direction": "lower",
+            "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+            "threshold": {
+              "operator": "gt",
+              "value": 10,
+              "source_ref": "演示业务判据 v1；不作为现网告警门限"
+            }
+          }
+        ],
+        "long_eval_result": "long_eval_fail",
+        "long_eval_source_ref": "synthetic://demo/demo-coverage-cross-vendor/PowerExpansion/declared-long-evaluation",
+        "note": "人工构造的反效果反馈；历史有效不保证当前条件适用"
+      }
+    }
+  }
+}

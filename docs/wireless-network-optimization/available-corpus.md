@@ -73,11 +73,11 @@
 
 ## 当前 harness-wiki 中的状态
 
-远程 LightRAG 当前有效文档仅 1 份：`A-RAG.pdf`。网优材料已通过本地结构化工具接入 Harness，不依赖远程文档入库：默认 `rag-kb` profile 加载 `dsh-wireless`，部署携带固定来源版本与 SHA-256 清单。
+既有语料审计记录远程 LightRAG 有效文档为 `A-RAG.pdf`；这不是本次的实时服务清单。网优材料已通过本地结构化工具接入 Harness，不依赖远程文档入库：默认 `rag-kb` profile 加载 `dsh-wireless`，部署携带固定来源版本与 SHA-256 清单。
 
-已安装 **13 个网优 Skill**：保留原 11 个，新增 `wireless-data-analysis` 与 `wireless-memory-engineering`。分析入口消费历史、对照当前数据回答；工程入口驱动记录、评价和编译。[ECHO-Mem 分析契约](../../skills/wireless-workorder-orchestrator/references/echo-analysis-method.md) 将源召回、候选分池、证据对照、方案比较、值适配与反证复核落实到真实入口，未接入研究消费者的步骤明确保留缺口。
+已安装 **14 个网优 Skill**：保留原 11 个，新增 `wireless-data-analysis` 与 `wireless-memory-engineering`。分析入口消费历史、对照当前数据回答；工程入口驱动记录、评价和编译。[ECHO-Mem 分析契约](../../skills/wireless-workorder-orchestrator/references/echo-analysis-method.md) 将源召回、候选分池、证据对照、方案比较、值适配与反证复核落实到真实入口，未接入研究消费者的步骤明确保留缺口。
 
-工具共 9 个：新增 `wireless_echo_decision` 和 `wireless_history_search`，保留 `wireless_echo_query`、`wireless_knowledge_query`、`wireless_case_search`、`wireless_parameter_check`、`wireless_workorder`、`wireless_compile_history`、`wireless_memory_query`。统一历史入口自动发现并校验本地包，返回六类记忆、正向/复核/反证池与来源状态，无需用户指定包 ID。ECHO 原理工具分别提供 158 份复现文本和 10 份根目录源 Skill/Shadow/选择提示文本。决策工具按需运行源 ranker、受限 ID 物化和真实当前快照值选择，三项可独立组合；未加载校准 gate。工单工具保存 ID/阶段、方案/实际反馈及事件输入结果，隔离观测、核对引用和比较效果；编译器沿用固定源准入/归因、状态/评分/画像与校验和。新包自动纳入后续检索，旧包与快照继续保留；演示与真实历史分开，不自动发布或开启现网 gate。
+工具共 11 个：新增 `wireless_data_analyze` 和独立空间的 `wireless_demo`；新增 `wireless_echo_decision` 和 `wireless_history_search`，保留 `wireless_echo_query`、`wireless_knowledge_query`、`wireless_case_search`、`wireless_parameter_check`、`wireless_workorder`、`wireless_compile_history`、`wireless_memory_query`。统一历史入口自动发现并校验本地包，返回六类记忆、正向/复核/反证池与来源状态，无需用户指定包 ID。ECHO 原理工具分别提供 158 份复现文本和 10 份根目录源 Skill/Shadow/选择提示文本。决策工具按需运行源 ranker、受限 ID 物化和真实当前快照值选择，三项可独立组合；未加载校准 gate。工单工具保存 ID/阶段、方案/实际反馈及事件输入结果，隔离观测、核对引用和比较效果；编译器沿用固定源准入/归因、状态/评分/画像与校验和。新包自动纳入后续检索，旧包与快照继续保留；演示与真实历史分开，不自动发布或开启现网 gate。
 
 缺少某个工单的当前 KPI 或归档评价时，相应阶段返回缺失输入；Skill 已接入。现场采集接口、全量生产历史导出和校准 gate 尚未预置。根因记忆的结构性 validated 不等于当前根因确证或参数效果通过。
 
@@ -95,3 +95,7 @@ Git 文件树未包含 `data/raw/train.csv`、原始 XLSX/大规模工单 CSV、
 - [方向约束与风险放松审计](https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/echo-mem-direction-guard-badcase-audit-dev-20260709.md)
 - [原始字段与准入边界审计](https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/docs/experiments/raw-source-field-opportunity-audit-20260711.md)
 - [JSAC 中文主稿](https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/paper/manuscript/ECHO-Mem_JSAC_Chinese_Full.md)、[专家经验分享大纲](https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/paper/manuscript/ECHO-Mem_Expert_Experience_Sharing_Master_Outline.md)
+
+## 2026-11-09 丰富合成数据与可运行记忆闭环
+
+新增 `wireless-demo-analysis` Skill、188 条独立合成历史、12 个当前场景和 3,456 条小时观测。演示空间真实运行固定源编译器、ranker 与值选择器，覆盖六类记忆；冻结方案后才揭示合成反馈，用实际账本导出 Trace，生成新包并再次读取。通用描述统计与账本导出属于本项目适配层，未改源科学代码。普通历史检索仍排除演示空间。见 [演示手册](demo-guide.md) 和 [逐场景数据卡](demo-scenario-cards.md)。

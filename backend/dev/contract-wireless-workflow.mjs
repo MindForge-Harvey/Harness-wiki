@@ -19,7 +19,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const names = ['wireless-workorder-orchestrator', 'wireless-workorder-intake', 'wireless-problem-identification',
   'wireless-case-retrieval', 'wireless-evidence-builder', 'wireless-root-cause-analysis', 'wireless-solution-decision',
   'wireless-parameter-adaptation', 'wireless-effect-evaluation', 'wireless-knowledge-compiler', 'wireless-echo-mem',
-  'wireless-data-analysis', 'wireless-memory-engineering']
+  'wireless-data-analysis', 'wireless-memory-engineering', 'wireless-demo-analysis']
 const window = { start: '2026-10-07T10:00:00+08:00', end: '2026-10-07T11:00:00+08:00' }
 const intake = { raw_text: 'LTE 小区 C1 低速率，PRB 高', problem: '低速率', object_id: 'C1', system: '4G',
   vendor: '华为', software_version: 'user-supplied-v1', time_window: window, source_ref: '本次用户工单' }

@@ -64,7 +64,7 @@ function HomePage() {
 
   useLayoutEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return undefined;
+    if (reduce || agents.length === 1) return undefined;
 
     const context = gsap.context(() => {
       const items = copyRef.current?.querySelectorAll("[data-animate]");
@@ -126,7 +126,7 @@ function HomePage() {
   };
 
   return (
-    <main ref={rootRef} className="site-shell">
+    <main ref={rootRef} className={`site-shell${agents.length === 1 ? " is-single-agent" : ""}`}>
       <div className="environment-image" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
 
@@ -206,6 +206,7 @@ function HomePage() {
             </div>
           </div>
 
+          {agents.length > 1 ? (
           <div className="stage-wrap" ref={stageFrameRef}>
             <div className="stage-aura" aria-hidden="true" />
             <div className="stage-orbits" aria-hidden="true">
@@ -234,6 +235,7 @@ function HomePage() {
               </div>
             )}
           </div>
+          ) : null}
         </div>
 
         <div className="agent-carousel">

@@ -10,10 +10,11 @@ const plugin = fileURLToPath(new URL('../', import.meta.url))
 const worker = path.join(plugin, 'worker/compile.py')
 const sourceManifest = JSON.parse(fs.readFileSync(path.join(plugin, 'vendor/echo_mem/source-manifest.json'), 'utf8'))
 const digest = value => crypto.createHash('sha256').update(value).digest('hex')
-// State pools follow pinned pipeline/shadow/retrieve.py; demos never enter decision pools.
-function memoryPool({ memory, compiler }) {
+// Normal readers exclude demo candidates. Only the isolated demo service opts
+// into applying the same pinned state pools to synthetic inputs.
+function memoryPool({ memory, compiler }, demoSandbox = false) {
   const strategy = ['strategy_memory', 'playbook_memory'].includes(memory.memory_type)
-  if (compiler.mode === 'demo' || memory.state === 'deprecated') return 'background'
+  if ((compiler.mode === 'demo' && !demoSandbox) || memory.state === 'deprecated') return 'background'
   if (memory.memory_type === 'counter_evidence_memory' || (strategy && memory.state === 'counter_evidence')) return 'counter_evidence'
   if (strategy && memory.state === 'restricted') return 'review_evidence'
   if (strategy && ['validated', 'reusable'].includes(memory.state)) return 'positive_candidates'
@@ -51,7 +52,7 @@ async function callWorker(python, args, signal) {
   })
 }
 
-export function createMemoryService({ directory = wirelessDataDir(), workspace = process.cwd(), python } = {}) {
+export function createMemoryService({ directory = wirelessDataDir(), workspace = process.cwd(), python, demoSandbox = false } = {}) {
   const packages = path.join(directory, 'packages')
   const managedPython = path.resolve(plugin, '../../.runtime/wireless-python/bin/python')
   const executable = python || process.env.WIRELESS_PYTHON || (fs.existsSync(managedPython) ? managedPython : 'python3')
@@ -122,12 +123,13 @@ export function createMemoryService({ directory = wirelessDataDir(), workspace =
       const memories = Object.values(by_type).flatMap(group => group.memories)
       // Bound each decision pool independently, before type pagination can hide warnings.
       const poolNames = ['positive_candidates', 'review_evidence', 'counter_evidence', 'background']
-      const poolRows = Object.fromEntries(poolNames.map(name => [name, found.filter(row => memoryPool(row) === name)]))
+      const poolRows = Object.fromEntries(poolNames.map(name => [name, found.filter(row => memoryPool(row, demoSandbox) === name)]))
       const candidate_pools = Object.fromEntries(poolNames.map(name => [name, poolRows[name].slice(0, limit)]))
       const candidate_pool_counts = Object.fromEntries(poolNames.map(name => [name,
         { total_matches: poolRows[name].length, truncated: poolRows[name].length > limit }]))
       const historical = sources.filter(row => row.mode === 'historical' && row.status === 'searched')
       return { sources, by_type, memories, candidate_pools, candidate_pool_counts, total_matches: found.length,
+        ...(demoSandbox ? { data_scope: 'synthetic_demo_only', field_effect_statistics: false } : {}),
         historical_package_count: historical.length,
         unique_matched_trace_ids: [...new Set(found.filter(row => row.compiler.mode === 'historical').flatMap(row => row.memory.trace_ids || []))],
         truncated: [...Object.values(by_type), ...Object.values(candidate_pool_counts)].some(group => group.truncated),

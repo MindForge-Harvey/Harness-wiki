@@ -7,6 +7,8 @@ const labels = {
   wireless_compile_history: '沉淀历史优化经验',
   wireless_memory_query: '读取已沉淀的经验',
   wireless_echo_decision: '比对历史候选与当前适配',
+  wireless_data_analyze: '计算指标变化与时段特征',
+  wireless_demo: '分析演示场景与经验复用',
   lightrag_query_data: '查阅网优资料',
   kb_ingest: '收录网优资料', kb_update: '更新网优资料',
   kb_status: '检查资料服务', kb_analyze: '检查资料质量',
@@ -19,6 +21,7 @@ const operations = {
   build_evidence: ['对齐当前分析证据', 'evidence'], diagnose: ['核对根因假设', 'diagnosis'],
   save_plan: ['保存优化候选方案', 'plan'], record_execution: ['记录执行反馈', 'execution'],
   evaluate: ['比较调整前后效果', 'evaluation'], read: ['读取工单进展'], history: ['核对工单历史'],
+  export_trace: ['导出有来源的历史记录'],
 };
 export const toolLabel = name => labels[name] || (name === 'wireless_workorder' ? '处理网优工单' : '处理分析资料');
 export function visibleTool(card) {
@@ -36,6 +39,16 @@ function outcome(card) {
   if (card.status === 'interrupted') return { status: 'error', summary: '任务已中断，这一阶段尚未完成。' };
   const done = summary => ({ status: 'done', summary });
   const pending = summary => ({ status: 'needs_data', summary });
+  if (card.name === 'wireless_data_analyze') return j.status === 'analyzed'
+    ? done(`已计算 ${j.series_count} 组指标的基线与变化${count(j.quarantined) ? `，隔离 ${count(j.quarantined)} 条问题观测` : ''}`)
+    : pending('尚无可比较的有效观测');
+  if (card.name === 'wireless_demo') {
+    const summary = { demo_memory_prepared: '已用 ECHO 编译器准备合成历史经验', demo_candidates_compared: `已比较 ${count(j.candidates)} 个合成历史候选及其反证`,
+      demo_decision_frozen: '演示方案与依据版本已冻结，尚未执行现场操作', demo_feedback_revealed: '已揭示模拟反馈并计算前后效果',
+      demo_memory_learned: '已生成新的演示经验版本，保留旧版', demo_memory_read: '已读取演示空间中的六类经验', no_candidates: '该场景没有兼容的演示候选' }[j.status];
+    if (j.status === 'needs_data') return pending('演示所需快照或评价尚不完整');
+    return done(summary || (j.scenario_id ? '已读取演示场景的决策前数据' : `已读取 ${j.counts?.scenarios || 0} 个合成演示场景`));
+  }
   if (card.name === 'wireless_echo_decision') {
     if (j.status === 'ranked_candidates') return done(`已按 ECHO 方法比较 ${count(j.candidates)} 个历史候选；仍需核对反证与当前条件。`);
     if (j.status === 'historical_candidate_selected') return done('已从历史候选中选择动作模式；尚未下发。');
@@ -72,6 +85,7 @@ function outcome(card) {
         : pending('已收到检查结果，仍需核对调整条件');
   if (card.name === 'wireless_workorder') {
     const op = args.operation, stage = j.stages?.[operations[op]?.[1]];
+    if (op === 'export_trace') return j.status === 'trace_exported' ? done('已按执行账本导出有来源的历史记录') : pending('历史记录导出尚未完成');
     if (op === 'read') return done('已读取当前工单记录');
     if (op === 'history') return done(`已读取 ${count(j.events)} 条阶段记录`);
     if (!stage) return pending('尚未取得这个阶段的有效记录');

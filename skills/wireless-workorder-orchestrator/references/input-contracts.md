@@ -2,6 +2,14 @@
 
 所有事实来自用户描述、已读取附件或明确提供的数据。`source_ref` 可指附件及页/行号，或“本次用户提供的指标”；这种引用不等于采集源已核验。工具不自动拉取现场系统。
 
+## export_trace
+
+保存方案并记录实际反馈后，`wireless_workorder` 可用 `operation="export_trace"`、已有 `workorder_id`，input 传 `execution_id` 和 `mode`（historical/demo）。该操作不补造未知执行字段，返回工作区 JSON 数组文件，可交 `wireless_compile_history`。计划值不能替代实际执行值；多动作方案中未反馈的动作仍保留为 unknown，不缩小归因范围。
+
+要保留长期评价时，另传明确声明的 `long_eval_result`（long_eval_pass/long_eval_fail/long_eval_unknown）、`long_eval_source_ref`、`evaluation_visible_at`（带时区）。缺少来源时不能导出 Pass/Fail；仅有描述性指标改善不自动生成长期标签。`root_cause_label`、`scheme_id`、`scheme_group` 只传有来源的既有标签；根因标签不等于已确认本单因果。
+
+`record_execution` 的动作可另保留实际来源中的 `issued_state`、`issued_at`，源编译器用它区分有效执行。未知下发状态保持未知，不能因为执行成功就补写下发成功。合成工单用 `synthetic=true` 或 `synthetic://` 来源标识，只能导出 demo。
+
 ## intake / read
 
 `wireless_workorder` 的 `operation="intake"`、`input`：

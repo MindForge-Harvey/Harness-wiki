@@ -1,0 +1,3445 @@
+[
+  {
+    "scenario_id": "demo-access",
+    "title": "园区晚高峰接入失败",
+    "issue_type": "低接通",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-access",
+      "raw_text": "【完全合成演示】园区晚高峰接入失败。SIM-CELL-001，华为 LTE B3，最近忙时低接通。园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。区分接入资源不足、随机接入重传异常、覆盖边缘以及设备告警；先看失败阶段分布，不能只凭接通率下降认定参数不当。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "低接通",
+      "object_id": "SIM-CELL-001",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-access"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-001-RRC 接通率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 92.5,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-001-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-001-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-001-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics"
+      },
+      {
+        "id": "SIM-CELL-001-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-001-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-001/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-001-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-access/alarm"
+      },
+      {
+        "id": "SIM-CELL-001-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-access/neighbor"
+      },
+      {
+        "id": "SIM-CELL-001-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-001",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。",
+        "source_ref": "synthetic://demo/demo-access/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-001-PEER-RRC 接通率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-001-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 99.281,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-001-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.AccessMargin": {
+        "parameter": "Demo.AccessMargin",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接入边界偏置"
+      },
+      "Demo.Msg3Retries": {
+        "parameter": "Demo.Msg3Retries",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟Msg3 重传次数"
+      },
+      "Demo.AdmissionExpansion": {
+        "parameter": "Demo.AdmissionExpansion",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接入范围扩张"
+      }
+    },
+    "investigation_questions": [
+      "区分接入资源不足、随机接入重传异常、覆盖边缘以及设备告警；先看失败阶段分布，不能只凭接通率下降认定参数不当。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。",
+      "serving_cell": "SIM-CELL-001",
+      "peer_cell": "SIM-CELL-001-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "低接通",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "低接通 / 接入资源与重传",
+      "root_cause_l2": "接入资源与重传"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "RRC 接通率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-access/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-handover",
+    "title": "高铁沿线切换失败",
+    "issue_type": "切换异常",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-handover",
+      "raw_text": "【完全合成演示】高铁沿线切换失败。SIM-CELL-002，中兴 NR n78，最近忙时切换异常。交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。区分邻区缺失、切换触发不合适、覆盖断点和目标侧资源问题；结合准备/执行阶段失败与移动方向核对。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "切换异常",
+      "object_id": "SIM-CELL-002",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-handover"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-002-切换成功率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 87.4,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-002-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-002-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-002-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics"
+      },
+      {
+        "id": "SIM-CELL-002-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-002-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-002/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-002-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-handover/alarm"
+      },
+      {
+        "id": "SIM-CELL-002-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟邻区关系已配置；个别目标小区切换执行失败增加，需核对目标侧资源",
+        "source_ref": "synthetic://demo/demo-handover/neighbor"
+      },
+      {
+        "id": "SIM-CELL-002-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-002",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。",
+        "source_ref": "synthetic://demo/demo-handover/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-002-PEER-切换成功率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-002-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 98.617,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-002-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.HandoverMargin": {
+        "parameter": "Demo.HandoverMargin",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟切换迟滞"
+      },
+      "Demo.TimeToTrigger": {
+        "parameter": "Demo.TimeToTrigger",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟切换触发时长"
+      },
+      "Demo.AggressiveHandover": {
+        "parameter": "Demo.AggressiveHandover",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟激进切换偏置"
+      }
+    },
+    "investigation_questions": [
+      "区分邻区缺失、切换触发不合适、覆盖断点和目标侧资源问题；结合准备/执行阶段失败与移动方向核对。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。",
+      "serving_cell": "SIM-CELL-002",
+      "peer_cell": "SIM-CELL-002-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "切换异常",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "切换异常 / 移动性与邻区配置",
+      "root_cause_l2": "移动性与邻区配置"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "切换成功率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-handover/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-coverage",
+    "title": "城郊弱覆盖投诉",
+    "issue_type": "覆盖异常",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-coverage",
+      "raw_text": "【完全合成演示】城郊弱覆盖投诉。SIM-CELL-003，华为 LTE B8，最近忙时覆盖异常。新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。比较弱覆盖、重叠覆盖、遮挡变化和采样人群变化；优化覆盖要同时观察干扰与切换保护指标。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "覆盖异常",
+      "object_id": "SIM-CELL-003",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B8",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-coverage"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-003-弱覆盖采样占比-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 24.6,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-003-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-003-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-003-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics"
+      },
+      {
+        "id": "SIM-CELL-003-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -118,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-003-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-003-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-coverage/alarm"
+      },
+      {
+        "id": "SIM-CELL-003-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-coverage/neighbor"
+      },
+      {
+        "id": "SIM-CELL-003-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-003",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。",
+        "source_ref": "synthetic://demo/demo-coverage/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-003-PEER-弱覆盖采样占比-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-003-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 4.249,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-003-PEER/metrics/peer",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.ElectricalTilt": {
+        "parameter": "Demo.ElectricalTilt",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟电下倾编码"
+      },
+      "Demo.CoverageOffset": {
+        "parameter": "Demo.CoverageOffset",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟覆盖偏置"
+      },
+      "Demo.PowerExpansion": {
+        "parameter": "Demo.PowerExpansion",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟覆盖功率扩张"
+      }
+    },
+    "investigation_questions": [
+      "比较弱覆盖、重叠覆盖、遮挡变化和采样人群变化；优化覆盖要同时观察干扰与切换保护指标。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。",
+      "serving_cell": "SIM-CELL-003",
+      "peer_cell": "SIM-CELL-003-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "覆盖异常",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B8",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "覆盖异常 / 覆盖边界与天线配置",
+      "root_cause_l2": "覆盖边界与天线配置"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "弱覆盖采样占比"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-coverage/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-interference",
+    "title": "工业园上行干扰",
+    "issue_type": "干扰问题",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-interference",
+      "raw_text": "【完全合成演示】工业园上行干扰。SIM-CELL-004，中兴 NR n78，最近忙时干扰问题。工业园生产时段上行质量恶化，夜间部分恢复；问题与下行业务负荷不完全同步。比较外部干扰、同频干扰、设备异常和负荷增长，按频域、时段与空间范围补证，不能用单点噪声直接定位干扰源。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "干扰问题",
+      "object_id": "SIM-CELL-004",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-interference"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-004-上行噪声抬升-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "上行噪声抬升",
+        "value": 11.8,
+        "unit": "dB",
+        "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 6,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-004-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-004-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-004-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics"
+      },
+      {
+        "id": "SIM-CELL-004-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-004-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-004-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-interference/alarm"
+      },
+      {
+        "id": "SIM-CELL-004-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-interference/neighbor"
+      },
+      {
+        "id": "SIM-CELL-004-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-004",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "工业园生产时段上行质量恶化，夜间部分恢复；问题与下行业务负荷不完全同步。",
+        "source_ref": "synthetic://demo/demo-interference/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-004-PEER-上行噪声抬升-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-004-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "上行噪声抬升",
+        "value": 2.116,
+        "unit": "dB",
+        "definition": "演示口径：上行噪声抬升，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-004-PEER/metrics/peer",
+        "threshold": {
+          "operator": "gt",
+          "value": 6,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.InterferenceControl": {
+        "parameter": "Demo.InterferenceControl",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-interference/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟上行干扰抑制"
+      },
+      "Demo.PuschOffset": {
+        "parameter": "Demo.PuschOffset",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-interference/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟PUSCH 偏置"
+      },
+      "Demo.WidebandBoost": {
+        "parameter": "Demo.WidebandBoost",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-interference/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟宽带功率增强"
+      }
+    },
+    "investigation_questions": [
+      "比较外部干扰、同频干扰、设备异常和负荷增长，按频域、时段与空间范围补证，不能用单点噪声直接定位干扰源。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "工业园生产时段上行质量恶化，夜间部分恢复；问题与下行业务负荷不完全同步。",
+      "serving_cell": "SIM-CELL-004",
+      "peer_cell": "SIM-CELL-004-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "干扰问题",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "干扰问题 / 上行干扰与频域分布",
+      "root_cause_l2": "上行干扰与频域分布"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "上行噪声抬升"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-interference/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-capacity",
+    "title": "商圈忙时拥塞低速率",
+    "issue_type": "负荷或容量异常",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-capacity",
+      "raw_text": "【完全合成演示】商圈忙时拥塞低速率。SIM-CELL-005，华为 LTE B3，最近忙时负荷或容量异常。商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。同时考虑资源拥塞、质量下降、调度限制与业务组成变化；吞吐按用户平均统计，不能与小区总吞吐混算。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "负荷或容量异常",
+      "object_id": "SIM-CELL-005",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-capacity"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-005-下行用户平均吞吐-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 4.2,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-005-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-005-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 96.3,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-005-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 328,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics"
+      },
+      {
+        "id": "SIM-CELL-005-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-005-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 18.7,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-005/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-005-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-capacity/alarm"
+      },
+      {
+        "id": "SIM-CELL-005-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-capacity/neighbor"
+      },
+      {
+        "id": "SIM-CELL-005-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-005",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。",
+        "source_ref": "synthetic://demo/demo-capacity/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-005-PEER-下行用户平均吞吐-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-005-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 28.692,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-005-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.LoadBalanceOffset": {
+        "parameter": "Demo.LoadBalanceOffset",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟负荷均衡偏置"
+      },
+      "Demo.SchedulerWeight": {
+        "parameter": "Demo.SchedulerWeight",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟调度权重"
+      },
+      "Demo.AdmissionLimit": {
+        "parameter": "Demo.AdmissionLimit",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接纳上限"
+      }
+    },
+    "investigation_questions": [
+      "同时考虑资源拥塞、质量下降、调度限制与业务组成变化；吞吐按用户平均统计，不能与小区总吞吐混算。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。",
+      "serving_cell": "SIM-CELL-005",
+      "peer_cell": "SIM-CELL-005-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "负荷或容量异常",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "负荷或容量异常 / 忙时负荷与资源分配",
+      "root_cause_l2": "忙时负荷与资源分配"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "下行用户平均吞吐"
+      ],
+      "min_absolute_improvement": 5,
+      "source_ref": "synthetic://demo/demo-capacity/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-throughput",
+    "title": "校园视频卡顿",
+    "issue_type": "低速率",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-throughput",
+      "raw_text": "【完全合成演示】校园视频卡顿。SIM-CELL-006，中兴 NR n41，最近忙时低速率。校园晚间视频体验下降，主要出现在活动区和宿舍交界，吞吐下降与业务高峰部分重叠。并列核对负荷、SINR/MCS、覆盖、回传和应用因素，不能把低速率统一归因为容量不足。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "低速率",
+      "object_id": "SIM-CELL-006",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n41",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-throughput"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-006-下行用户平均吞吐-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 8.7,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 20,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-006-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-006-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 96.3,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-006-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics"
+      },
+      {
+        "id": "SIM-CELL-006-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-006-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 18.7,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-006/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-006-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-throughput/alarm"
+      },
+      {
+        "id": "SIM-CELL-006-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-throughput/neighbor"
+      },
+      {
+        "id": "SIM-CELL-006-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-006",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "校园晚间视频体验下降，主要出现在活动区和宿舍交界，吞吐下降与业务高峰部分重叠。",
+        "source_ref": "synthetic://demo/demo-throughput/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-006-PEER-下行用户平均吞吐-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-006-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 52.09,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-006-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 20,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.SchedulerWindow": {
+        "parameter": "Demo.SchedulerWindow",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-throughput/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟调度窗口"
+      },
+      "Demo.LinkAdaptation": {
+        "parameter": "Demo.LinkAdaptation",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-throughput/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟链路自适应偏置"
+      },
+      "Demo.ConservativeMcs": {
+        "parameter": "Demo.ConservativeMcs",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-throughput/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟保守调制编码偏置"
+      }
+    },
+    "investigation_questions": [
+      "并列核对负荷、SINR/MCS、覆盖、回传和应用因素，不能把低速率统一归因为容量不足。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "校园晚间视频体验下降，主要出现在活动区和宿舍交界，吞吐下降与业务高峰部分重叠。",
+      "serving_cell": "SIM-CELL-006",
+      "peer_cell": "SIM-CELL-006-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "低速率",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n41",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "低速率 / 链路质量与调度",
+      "root_cause_l2": "链路质量与调度"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "下行用户平均吞吐"
+      ],
+      "min_absolute_improvement": 5,
+      "source_ref": "synthetic://demo/demo-throughput/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-drop",
+    "title": "住宅区晚间掉线",
+    "issue_type": "高掉线",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-drop",
+      "raw_text": "【完全合成演示】住宅区晚间掉线。SIM-CELL-007，华为 LTE B3，最近忙时高掉线。住宅区晚间通话和数据会话异常释放增加，部分用户移动时掉线，存在恢复后再次掉线的描述。比较覆盖、切换、无线链路计时、设备告警和异常释放原因；保护接入与移动性，不能只降低释放触发频率。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "高掉线",
+      "object_id": "SIM-CELL-007",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-drop"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-007-异常释放率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "异常释放率",
+        "value": 4.8,
+        "unit": "%",
+        "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 2,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-007-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-007-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-007-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics"
+      },
+      {
+        "id": "SIM-CELL-007-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-007-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-007-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-drop/alarm"
+      },
+      {
+        "id": "SIM-CELL-007-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-drop/neighbor"
+      },
+      {
+        "id": "SIM-CELL-007-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-007",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "住宅区晚间通话和数据会话异常释放增加，部分用户移动时掉线，存在恢复后再次掉线的描述。",
+        "source_ref": "synthetic://demo/demo-drop/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-007-PEER-异常释放率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-007-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "异常释放率",
+        "value": 0.352,
+        "unit": "%",
+        "definition": "演示口径：异常释放率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-007-PEER/metrics/peer",
+        "threshold": {
+          "operator": "gt",
+          "value": 2,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.RlfTimer": {
+        "parameter": "Demo.RlfTimer",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-drop/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟无线链路失败计时器"
+      },
+      "Demo.RecoveryTimer": {
+        "parameter": "Demo.RecoveryTimer",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-drop/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟恢复计时器"
+      },
+      "Demo.AggressiveRelease": {
+        "parameter": "Demo.AggressiveRelease",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-drop/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟激进释放门限"
+      }
+    },
+    "investigation_questions": [
+      "比较覆盖、切换、无线链路计时、设备告警和异常释放原因；保护接入与移动性，不能只降低释放触发频率。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "住宅区晚间通话和数据会话异常释放增加，部分用户移动时掉线，存在恢复后再次掉线的描述。",
+      "serving_cell": "SIM-CELL-007",
+      "peer_cell": "SIM-CELL-007-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "高掉线",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "高掉线 / 异常释放与无线链路",
+      "root_cause_l2": "异常释放与无线链路"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "异常释放率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-drop/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-alarm",
+    "title": "交通枢纽间歇退服",
+    "issue_type": "告警影响",
+    "synthetic": true,
+    "variant": "standard",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-alarm",
+      "raw_text": "【完全合成演示】交通枢纽间歇退服。SIM-CELL-008，中兴 NR n78，最近忙时告警影响。交通枢纽小区出现间歇退服，自动恢复后仍有短时不可用，用户影响集中在告警活动窗口。先对齐告警与可用率、恢复事件，再区分设备、供电、传输和维护影响；时间对应不等于已证实故障因果。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "告警影响",
+      "object_id": "SIM-CELL-008",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-alarm"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-008-小区可用率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "小区可用率",
+        "value": 86.2,
+        "unit": "%",
+        "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 98,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-008-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-008-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-008-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics"
+      },
+      {
+        "id": "SIM-CELL-008-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-008-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-008/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-008-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟射频链路告警覆盖异常窗口；维护变更记录待核对",
+        "source_ref": "synthetic://demo/demo-alarm/alarm"
+      },
+      {
+        "id": "SIM-CELL-008-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-alarm/neighbor"
+      },
+      {
+        "id": "SIM-CELL-008-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-008",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "交通枢纽小区出现间歇退服，自动恢复后仍有短时不可用，用户影响集中在告警活动窗口。",
+        "source_ref": "synthetic://demo/demo-alarm/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-008-PEER-小区可用率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-008-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "小区可用率",
+        "value": 100,
+        "unit": "%",
+        "definition": "演示口径：小区可用率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-008-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 98,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.RecoveryGuard": {
+        "parameter": "Demo.RecoveryGuard",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-alarm/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟恢复保护门限"
+      },
+      "Demo.AvailabilityGuard": {
+        "parameter": "Demo.AvailabilityGuard",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-alarm/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟可用性保护门限"
+      },
+      "Demo.RestartThreshold": {
+        "parameter": "Demo.RestartThreshold",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-alarm/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟重启触发门限"
+      }
+    },
+    "investigation_questions": [
+      "先对齐告警与可用率、恢复事件，再区分设备、供电、传输和维护影响；时间对应不等于已证实故障因果。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "交通枢纽小区出现间歇退服，自动恢复后仍有短时不可用，用户影响集中在告警活动窗口。",
+      "serving_cell": "SIM-CELL-008",
+      "peer_cell": "SIM-CELL-008-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "告警影响",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "告警影响 / 设备告警与可用性",
+      "root_cause_l2": "设备告警与可用性"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "小区可用率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-alarm/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "时序异常与同群对照",
+      "历史支持与反证",
+      "候选排序和当前值适配",
+      "反馈评价与记忆增量"
+    ]
+  },
+  {
+    "scenario_id": "demo-capacity-quality-conflict",
+    "title": "商圈忙时拥塞低速率 · 负荷与质量反证",
+    "issue_type": "负荷或容量异常",
+    "synthetic": true,
+    "variant": "quality_conflict",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-capacity-quality-conflict",
+      "raw_text": "【完全合成演示】商圈忙时拥塞低速率 · 负荷与质量反证。SIM-CELL-009，华为 LTE B3，最近忙时负荷或容量异常。商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。同时考虑资源拥塞、质量下降、调度限制与业务组成变化；吞吐按用户平均统计，不能与小区总吞吐混算。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "负荷或容量异常",
+      "object_id": "SIM-CELL-009",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-capacity-quality-conflict"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-009-下行用户平均吞吐-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 4.2,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-009-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": -2.5,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-009-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 96.3,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-009-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 328,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics"
+      },
+      {
+        "id": "SIM-CELL-009-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-009-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 18.7,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-009/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-009-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/alarm"
+      },
+      {
+        "id": "SIM-CELL-009-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/neighbor"
+      },
+      {
+        "id": "SIM-CELL-009-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-009",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-009-PEER-下行用户平均吞吐-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-009-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "下行用户平均吞吐",
+        "value": 28.615,
+        "unit": "Mbps",
+        "definition": "演示口径：下行用户平均吞吐，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-009-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.LoadBalanceOffset": {
+        "parameter": "Demo.LoadBalanceOffset",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟负荷均衡偏置"
+      },
+      "Demo.SchedulerWeight": {
+        "parameter": "Demo.SchedulerWeight",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟调度权重"
+      },
+      "Demo.AdmissionLimit": {
+        "parameter": "Demo.AdmissionLimit",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-capacity-quality-conflict/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接纳上限"
+      }
+    },
+    "investigation_questions": [
+      "同时考虑资源拥塞、质量下降、调度限制与业务组成变化；吞吐按用户平均统计，不能与小区总吞吐混算。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "商圈客流增大后视频与下载变慢，忙时 PRB 与活跃用户升高，对照小区用户吞吐基本稳定。",
+      "serving_cell": "SIM-CELL-009",
+      "peer_cell": "SIM-CELL-009-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "负荷或容量异常",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "负荷或容量异常 / 忙时负荷与资源分配",
+      "root_cause_l2": "忙时负荷与资源分配"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "下行用户平均吞吐"
+      ],
+      "min_absolute_improvement": 5,
+      "source_ref": "synthetic://demo/demo-capacity-quality-conflict/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "负荷与质量反证",
+      "缺口与复核路径"
+    ]
+  },
+  {
+    "scenario_id": "demo-handover-window-mismatch",
+    "title": "高铁沿线切换失败 · 跨时窗脏数据",
+    "issue_type": "切换异常",
+    "synthetic": true,
+    "variant": "window_mismatch",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-handover-window-mismatch",
+      "raw_text": "【完全合成演示】高铁沿线切换失败 · 跨时窗脏数据。SIM-CELL-010，中兴 NR n78，最近忙时切换异常。交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。区分邻区缺失、切换触发不合适、覆盖断点和目标侧资源问题；结合准备/执行阶段失败与移动方向核对。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "切换异常",
+      "object_id": "SIM-CELL-010",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-handover-window-mismatch"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-010-切换成功率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 87.4,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-010-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-010-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-010-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics"
+      },
+      {
+        "id": "SIM-CELL-010-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-010-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-010-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/alarm"
+      },
+      {
+        "id": "SIM-CELL-010-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟邻区关系已配置；个别目标小区切换执行失败增加，需核对目标侧资源",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/neighbor"
+      },
+      {
+        "id": "SIM-CELL-010-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/context"
+      },
+      {
+        "id": "SIM-CELL-010-bad-window",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010",
+        "time_window": {
+          "start": "2026-11-08T10:00:00.000Z",
+          "end": "2026-11-08T11:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 99,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-010-PEER-切换成功率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-010-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "切换成功率",
+        "value": 98.489,
+        "unit": "%",
+        "definition": "演示口径：切换成功率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-010-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 95,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.HandoverMargin": {
+        "parameter": "Demo.HandoverMargin",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟切换迟滞"
+      },
+      "Demo.TimeToTrigger": {
+        "parameter": "Demo.TimeToTrigger",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟切换触发时长"
+      },
+      "Demo.AggressiveHandover": {
+        "parameter": "Demo.AggressiveHandover",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-handover-window-mismatch/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟激进切换偏置"
+      }
+    },
+    "investigation_questions": [
+      "区分邻区缺失、切换触发不合适、覆盖断点和目标侧资源问题；结合准备/执行阶段失败与移动方向核对。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "交通沿线连续三个小区覆盖同一移动路线，投诉集中在进站与出站过程，驻留静止用户影响较小。",
+      "serving_cell": "SIM-CELL-010",
+      "peer_cell": "SIM-CELL-010-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "切换异常",
+      "vendor": "中兴",
+      "system": "NR",
+      "band": "n78",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "切换异常 / 移动性与邻区配置",
+      "root_cause_l2": "移动性与邻区配置"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "切换成功率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-handover-window-mismatch/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "跨时窗脏数据",
+      "缺口与复核路径"
+    ]
+  },
+  {
+    "scenario_id": "demo-access-missing-snapshot",
+    "title": "园区晚高峰接入失败 · 缺少当前参数",
+    "issue_type": "低接通",
+    "synthetic": true,
+    "variant": "missing_snapshot",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-access-missing-snapshot",
+      "raw_text": "【完全合成演示】园区晚高峰接入失败 · 缺少当前参数。SIM-CELL-011，华为 LTE B3，最近忙时低接通。园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。区分接入资源不足、随机接入重传异常、覆盖边缘以及设备告警；先看失败阶段分布，不能只凭接通率下降认定参数不当。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "低接通",
+      "object_id": "SIM-CELL-011",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-access-missing-snapshot"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-011-RRC 接通率-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 92.5,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-011-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-011-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-011-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics"
+      },
+      {
+        "id": "SIM-CELL-011-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -96,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-011-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-011/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-011-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/alarm"
+      },
+      {
+        "id": "SIM-CELL-011-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/neighbor"
+      },
+      {
+        "id": "SIM-CELL-011-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-011",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-011-PEER-RRC 接通率-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-011-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "RRC 接通率",
+        "value": 99.158,
+        "unit": "%",
+        "definition": "演示口径：RRC 接通率，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-011-PEER/metrics/peer",
+        "threshold": {
+          "operator": "lt",
+          "value": 97,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.AccessMargin": {
+        "parameter": "Demo.AccessMargin",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接入边界偏置"
+      },
+      "Demo.Msg3Retries": {
+        "parameter": "Demo.Msg3Retries",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟Msg3 重传次数"
+      },
+      "Demo.AdmissionExpansion": {
+        "parameter": "Demo.AdmissionExpansion",
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-access-missing-snapshot/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟接入范围扩张"
+      }
+    },
+    "investigation_questions": [
+      "区分接入资源不足、随机接入重传异常、覆盖边缘以及设备告警；先看失败阶段分布，不能只凭接通率下降认定参数不当。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "园区下班与餐饮客流在 18:00—22:00 汇聚，用户报告扫码与语音发起等待。异常前两天同一人群接入表现稳定。",
+      "serving_cell": "SIM-CELL-011",
+      "peer_cell": "SIM-CELL-011-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "低接通",
+      "vendor": "华为",
+      "system": "LTE",
+      "band": "B3",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "低接通 / 接入资源与重传",
+      "root_cause_l2": "接入资源与重传"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "RRC 接通率"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-access-missing-snapshot/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "缺少当前参数",
+      "缺口与复核路径"
+    ]
+  },
+  {
+    "scenario_id": "demo-coverage-cross-vendor",
+    "title": "城郊弱覆盖投诉 · 厂家不匹配",
+    "issue_type": "覆盖异常",
+    "synthetic": true,
+    "variant": "cross_vendor",
+    "decision_at": "2026-11-09T00:00:00+08:00",
+    "learning_at": "2026-11-19T00:00:00+08:00",
+    "intake": {
+      "external_id": "demo-coverage-cross-vendor",
+      "raw_text": "【完全合成演示】城郊弱覆盖投诉 · 厂家不匹配。SIM-CELL-012，中兴 LTE B8，最近忙时覆盖异常。新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。比较弱覆盖、重叠覆盖、遮挡变化和采样人群变化；优化覆盖要同时观察干扰与切换保护指标。请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。",
+      "problem": "覆盖异常",
+      "object_id": "SIM-CELL-012",
+      "vendor": "中兴",
+      "system": "LTE",
+      "band": "B8",
+      "region": "模拟城市",
+      "software_version": "SIM-v1",
+      "time_window": {
+        "start": "2026-11-08T13:00:00.000Z",
+        "end": "2026-11-08T14:00:00.000Z"
+      },
+      "source_ref": "synthetic://demo/demo-coverage-cross-vendor"
+    },
+    "observations": [
+      {
+        "id": "SIM-CELL-012-弱覆盖采样占比-2026-11-08T13:00:00.000Z",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 24.6,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      },
+      {
+        "id": "SIM-CELL-012-SINR",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 SINR",
+        "value": 15.2,
+        "unit": "dB",
+        "definition": "演示口径：固定采样人群下行 SINR 均值",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": 3,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-012-PRB",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "下行 PRB 利用率",
+        "value": 57.6,
+        "unit": "%",
+        "definition": "演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 90,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-012-users",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "活跃用户数",
+        "value": 91,
+        "unit": "人",
+        "definition": "演示口径：小区小时内活跃用户去重数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics"
+      },
+      {
+        "id": "SIM-CELL-012-RSRP",
+        "kind": "mr",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "RSRP 第十分位",
+        "value": -118,
+        "unit": "dBm",
+        "definition": "演示口径：固定区域、固定终端人群 RSRP 第十分位",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "higher",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "lt",
+          "value": -110,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-012-stall",
+        "kind": "kqi",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "metric": "视频卡顿会话占比",
+        "value": 3.2,
+        "unit": "%",
+        "definition": "演示口径：固定视频业务人群卡顿会话数 / 总会话数",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012/metrics",
+        "threshold": {
+          "operator": "gt",
+          "value": 8,
+          "source_ref": "演示业务判据 v1"
+        }
+      },
+      {
+        "id": "SIM-CELL-012-alarm",
+        "kind": "alarm",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟告警清单未见同期重大告警；仅限本次清单范围",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/alarm"
+      },
+      {
+        "id": "SIM-CELL-012-neighbor",
+        "kind": "neighbor",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "模拟一阶邻区清单完整；未以此证明配置正确",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/neighbor"
+      },
+      {
+        "id": "SIM-CELL-012-context",
+        "kind": "context",
+        "object_id": "SIM-CELL-012",
+        "time_window": {
+          "start": "2026-11-08T13:00:00.000Z",
+          "end": "2026-11-08T14:00:00.000Z"
+        },
+        "value": "新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/context"
+      }
+    ],
+    "peer_observations": [
+      {
+        "id": "SIM-CELL-012-PEER-弱覆盖采样占比-2026-11-08T15:00:00.000Z/peer",
+        "kind": "kpi",
+        "object_id": "SIM-CELL-012-PEER",
+        "time_window": {
+          "start": "2026-11-08T15:00:00.000Z",
+          "end": "2026-11-08T16:00:00.000Z"
+        },
+        "metric": "弱覆盖采样占比",
+        "value": 4.731,
+        "unit": "%",
+        "definition": "演示口径：弱覆盖采样占比，按小区、固定人群与等长窗口统计",
+        "cohort": "synthetic-fixed-cohort",
+        "sample_count": 2400,
+        "good_direction": "lower",
+        "source_ref": "synthetic://demo/SIM-CELL-012-PEER/metrics/peer",
+        "threshold": {
+          "operator": "gt",
+          "value": 10,
+          "source_ref": "演示业务判据 v1；不作为现网告警门限"
+        }
+      }
+    ],
+    "snapshots": {
+      "Demo.ElectricalTilt": {
+        "parameter": "Demo.ElectricalTilt",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟电下倾编码"
+      },
+      "Demo.CoverageOffset": {
+        "parameter": "Demo.CoverageOffset",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟覆盖偏置"
+      },
+      "Demo.PowerExpansion": {
+        "parameter": "Demo.PowerExpansion",
+        "current_value": 55,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "step_base": 0,
+        "unit": "模拟编码",
+        "source_ref": "synthetic://demo/demo-coverage-cross-vendor/snapshot",
+        "constraint_source": "人工构造的 0..100 演示范围，不代表厂家手册",
+        "description": "模拟覆盖功率扩张"
+      }
+    },
+    "investigation_questions": [
+      "比较弱覆盖、重叠覆盖、遮挡变化和采样人群变化；优化覆盖要同时观察干扰与切换保护指标。",
+      "异常是持续存在还是集中在特定时段？对照小区是否同步变化？",
+      "哪些证据支持或反对历史根因，哪些当前数据仍有缺口？",
+      "候选历史样本、反证与当前参数范围是否足以给出具体目标值？"
+    ],
+    "topology": {
+      "scene": "新建住宅与城郊道路的边缘采样变差，投诉人群在室外和楼宇边缘分布，邻近对照小区没有同步恶化。",
+      "serving_cell": "SIM-CELL-012",
+      "peer_cell": "SIM-CELL-012-PEER",
+      "peer_scope": "合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验"
+    },
+    "context": {
+      "issue_type": "覆盖异常",
+      "vendor": "中兴",
+      "system": "LTE",
+      "band": "B8",
+      "region": "模拟城市"
+    },
+    "root_clues": {
+      "root_cause_key": "覆盖异常 / 覆盖边界与天线配置",
+      "root_cause_l2": "覆盖边界与天线配置"
+    },
+    "evaluation_rule": {
+      "min_observation_hours": 24,
+      "required_metrics": [
+        "弱覆盖采样占比"
+      ],
+      "min_absolute_improvement": 1,
+      "source_ref": "synthetic://demo/demo-coverage-cross-vendor/evaluation-policy-v1"
+    },
+    "demo_goals": [
+      "厂家不匹配",
+      "缺口与复核路径"
+    ]
+  }
+]

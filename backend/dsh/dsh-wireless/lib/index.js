@@ -4,6 +4,8 @@ import { createMemoryService } from './compiler.js'
 import { echoQuery } from './echo.js'
 import { createHistorySearch } from './history.js'
 import { createDecisionService } from './decision.js'
+import { analyzeObservations, readObservations } from './analytics.js'
+import { createDemoService } from './demo.js'
 
 export const name = 'dsh-wireless'
 export const inject = ['tools']
@@ -69,7 +71,35 @@ export function apply(ctx) {
   const workorder = createWorkorderStore()
   const memory = createMemoryService()
   const decision = createDecisionService({ memory })
+  const demo = createDemoService()
   const workflowDefinitions = [
+    {
+      name: 'wireless_data_analyze',
+      description: '实际计算用户或演示观测的描述统计、基线变化、声明门限越界、时段分布和同对象同窗口相关性。输入为 observations 或工作区 JSON/JSONL file_path，二选一；object_id 可筛选。按对象/指标定义/单位/人群分组，隔离冲突与非法观测，不把相关性当根因。不是 ECHO 原仓自带的 KPI 根因算法，而是 Harness 数据适配层。',
+      parameters: { type: 'object', properties: {
+        observations: { type: 'array', maxItems: 10000, items: { type: 'object', additionalProperties: true } },
+        file_path: string('工作区 JSON 数组或 JSONL 文件，最多 8 MB；可用演示 read_case 返回的 series_file。'),
+        object_id: string('可选，只分析这个对象；省略可比较多个对象。'),
+        object_ids: { type: 'array', maxItems: 24, items: { type: 'string' }, description: '可选，限定本小区与同群对照的对象列表。演示可直接使用 read_case 的 analysis_arguments。' },
+        baseline_points: { type: 'integer', description: '每组最初多少个窗口为基线，默认 48。' },
+        timezone_offset_minutes: { type: 'integer', description: '时段汇总使用的 UTC 偏移分钟，默认北京时间 480。' },
+      }, additionalProperties: false },
+      execute(args) {
+        if (Boolean(args.observations) === Boolean(args.file_path)) throw new Error('observations 与 file_path 必须二选一')
+        return analyzeObservations({ ...args, observations: args.observations || readObservations(args.file_path) })
+      },
+    },
+    {
+      name: 'wireless_demo',
+      description: '使用独立空间的丰富合成网优数据，实际演示 ECHO agentic memory。catalog 列出场景；read_case 只读决策前观测、参数快照和时序文件，再用 wireless_data_analyze 分析。prepare_memory 编译初始合成历史；compare_candidates 实际运行源 ranker/值适配并返回反证；select_candidate 只能冻结返回的 candidate_id；reveal_feedback 需冻结 decision_id 后才揭示预置模拟反馈并评价；learn 导出真实账本字段为合成 Trace、实际编译新版；memory 查看当前版本六类记忆。所有值、效果和状态仅用于模拟，不操作网管，不混入生产检索。不自动揭示反馈，除非用户要求演示反馈或完整记忆闭环。',
+      parameters: { type: 'object', properties: {
+        operation: { type: 'string', enum: ['catalog', 'read_case', 'prepare_memory', 'compare_candidates', 'select_candidate', 'reveal_feedback', 'learn', 'memory'] },
+        scenario_id: string('catalog 返回的场景 ID。'),
+        candidate_id: string('compare_candidates 实际返回的候选 ID，不能自行编造。'),
+        decision_id: string('select_candidate 返回的冻结决定 ID。'),
+        query: string('memory 时可按参数、问题或经验名称筛选；省略列出各类记忆。'),
+      }, required: ['operation'], additionalProperties: false }, execute: demo,
+    },
     {
       name: 'wireless_echo_decision',
       description: '按需执行固定 ECHO-Mem 源候选排序、给定候选 ID 选择或当前快照值适配，三种能力独立调用，不强制整套流程。只接受实际历史包中的 validated/reusable 策略/组合；源 LCB/四项排序不等于当前成功率。选择动作从冻结候选填充，不能创造表外参数或统计；值适配不推定现值。未执行校准 gate 或网管下发。',
@@ -105,9 +135,9 @@ export function apply(ctx) {
     },
     {
       name: 'wireless_workorder',
-      description: '持久化网优工单、分型/证据/根因假设、候选方案版本、用户实际执行/失败/回退反馈和效果评估，或读取历史事件。返回稳定工单/方案/执行 ID 与 revision，保留来源和阶段输入结果。记录反馈不调用网管，不等于下发。input 契约见对应无线 Skill。',
+      description: '持久化网优工单、分型/证据/根因假设、候选方案版本、用户实际执行/失败/回退反馈和效果评估，或读取历史事件。export_trace 把已记录 execution_id 导出为源 Trace，长期标签须明确提供来源与可见时间；合成仅能 demo。返回稳定工单/方案/执行 ID 与 revision，保留来源和阶段输入结果。记录反馈不调用网管，不等于下发。input 契约见对应无线 Skill。',
       parameters: { type: 'object', properties: {
-        operation: { type: 'string', enum: ['intake', 'read', 'history', 'identify', 'build_evidence', 'diagnose', 'save_plan', 'record_execution', 'evaluate'] },
+        operation: { type: 'string', enum: ['intake', 'read', 'history', 'identify', 'build_evidence', 'diagnose', 'save_plan', 'record_execution', 'evaluate', 'export_trace'] },
         workorder_id: string('intake 返回的稳定 ID；后续操作必需。更新 intake 时传原 ID。'),
         expected_revision: { type: 'integer', description: '可选乐观锁；版本冲突先 read。' },
         input: { type: 'object', additionalProperties: true, description: 'intake: 原文/对象/问题/场景；build_evidence: observations/historical_case_ids；diagnose: hypotheses；save_plan: title/rationale/source_refs/actions/evidence_ids；record_execution: plan_id/source_ref/actions；evaluate: execution_id（优先）或 execution/before/after/evaluation_rule；history: limit。按 Skill 契约构造，不填造事实。' },

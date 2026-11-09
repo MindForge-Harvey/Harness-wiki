@@ -1,0 +1,41 @@
+.demo-dialog { width: min(960px, calc(100vw - 40px)); max-height: calc(100dvh - 48px); margin: auto; padding: 0; border: 1px solid #e5e5e5; border-radius: 16px; background: #ffffff; color: #333333; box-shadow: 0 30px 100px #00000020; }
+.demo-dialog::backdrop { background: #00000045; backdrop-filter: none; }
+.demo-dialog-content { padding: 28px; }
+.demo-header, .demo-footer, .demo-footer > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.demo-header > div { display: flex; align-items: center; gap: 14px; }
+.demo-header h2 { margin: 0; font-size: 24px; letter-spacing: -.6px; }
+.demo-badge { border-radius: 6px; padding: 5px 8px; color: #777777; background: #f3f3f3; font-size: 11px; }
+.demo-close { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: #f5f5f5; color: inherit; cursor: pointer; }
+.demo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 25px 0; padding: 20px 0; border-block: 1px solid #ededed; }
+.demo-stats > div { display: flex; align-items: baseline; gap: 10px; }
+.demo-stats strong { font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; color: #333333; }
+.demo-stats span { font-size: 12px; color: #999999; }
+.demo-body { display: grid; grid-template-columns: 300px 1fr; gap: 30px; }
+.demo-picker select { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 9px; background: white; color: #666666; font: inherit; font-size: 12px; }
+.demo-case-list { display: grid; gap: 6px; max-height: 348px; overflow-y: auto; margin-top: 12px; padding: 2px 6px 2px 0; }
+.demo-case-list button { display: flex; width: 100%; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #666666; text-align: left; cursor: pointer; }
+.demo-case-list button:hover { background: #f7f7f7; }
+.demo-case-list button.is-selected { background: #f1f1f1; border-color: #dedede; color: #333333; }
+.demo-case-list strong { font-size: 13px; font-weight: 500; }
+.demo-case-list span { font-size: 11px; color: #999999; }
+.demo-detail { min-height: 370px; padding: 20px 24px; background: #fff; border: 0; border-left: 1px solid #ededed; border-radius: 0; }
+.demo-issue { color: #999999; font-size: 11px; }
+.demo-detail h3 { margin: 10px 0; font-size: 21px; letter-spacing: -.5px; }
+.demo-object { margin: 0 0 25px; color: #999999; font-size: 11px; }
+.demo-detail table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.demo-detail caption { text-align: left; margin-bottom: 8px; color: #777777; font-size: 12px; }
+.demo-detail th { font-weight: 400; color: #999999; font-size: 10px; }
+.demo-detail td, .demo-detail th { padding: 10px 0; border-bottom: 1px solid #eeeeee; }
+.demo-detail td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-size: 16px; }
+.demo-detail td span { font-size: 11px; color: #999999; }
+.demo-data-note { color: #a66f2a; font-size: 11px; }
+.demo-footer { padding-top: 24px; margin-top: 22px; border-top: 1px solid #ededed; }
+.demo-footer > span { font-size: 11px; color: #999999; }
+.demo-footer button { display: flex; align-items: center; gap: 8px; border: 1px solid #dedede; border-radius: 8px; padding: 11px 16px; cursor: pointer; font: inherit; font-size: 12px; }
+.demo-secondary { background: white; color: #555555; }
+.demo-footer .demo-primary { background: #292929; border-color: #292929; color: white; }
+.demo-footer button:disabled { opacity: .45; cursor: default; }
+.demo-error { padding: 14px; margin-bottom: 14px; background: #fff2ea; border-radius: 8px; color: #98613a; font-size: 13px; }
+.demo-error button { margin-left: 16px; border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; }
+.demo-dialog :focus-visible { outline: 2px solid #777777; outline-offset: 3px; }
+@media (max-width: 700px) { .demo-dialog-content { padding: 18px; } .demo-body { grid-template-columns: 1fr; gap: 16px; } .demo-case-list { max-height: 180px; } .demo-detail { min-height: 300px; border-left: 0; padding: 15px 5px; } .demo-stats { gap: 8px; } .demo-stats > div { flex-direction: column; gap: 5px; } .demo-footer { align-items: flex-start; flex-direction: column; } .demo-footer > div { width: 100%; } .demo-footer button { flex: 1; justify-content: center; } }

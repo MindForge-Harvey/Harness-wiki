@@ -25,6 +25,7 @@ import { prepareHarnessHome, integrationHealth, analyzeImageAttachments, textRea
 import { plainAssistantText } from './harness/narrative.mjs'
 import { skillDirectories, listProjectSkills } from './harness/skills.mjs'
 import { presentNotification, projectHistory } from './harness/presentation.mjs'
+import { demoCatalog, demoScenario } from './dsh/dsh-wireless/lib/demo.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -281,6 +282,11 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname
   try {
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
+    if (req.method === 'GET' && p === '/api/wireless/demo/catalog') return json(res, 200, demoCatalog())
+    if (req.method === 'GET' && p.startsWith('/api/wireless/demo/scenarios/')) {
+      try { return json(res, 200, demoScenario(decodeURIComponent(p.slice('/api/wireless/demo/scenarios/'.length)))) }
+      catch (error) { return json(res, 404, { error: error.message }) }
+    }
 
     if (req.method === 'GET' && p === '/api/chat/history') {
       const sessionId = String(url.searchParams.get('sessionId') || '')

@@ -31,7 +31,7 @@ async function chat(name, message) {
 }
 
 const discovered = await (await fetch(base + '/api/skills')).json()
-assert.equal(discovered.skills.length, 13)
+assert.equal(discovered.skills.length, 14)
 assert.ok(discovered.skills.some(row => row.name === 'wireless-data-analysis'))
 assert.ok(discovered.skills.some(row => row.name === 'wireless-memory-engineering'))
 assert.ok(discovered.skills.some(row => row.name === 'wireless-echo-mem'))

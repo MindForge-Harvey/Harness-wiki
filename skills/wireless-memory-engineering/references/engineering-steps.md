@@ -10,6 +10,7 @@
 | 执行前支持评估与候选保存 | wireless-effect-evaluation + save_plan | 可比历史支持/反证、适用条件、plan_id/action_id；明确提供的业务评价规则随候选保存 |
 | 实际反馈 | record_execution | execution_id、来源、实际前后值与时间；不从候选补成反馈 |
 | 效果比较与成熟性 | evaluate | 同口径前后差异、用户判据达成状态；不自动写论文 long_eval 标签 |
+| 账本到源 Trace | export_trace | 关联已有 execution_id，保留实际下发/执行/回退；长期标签和可见时间需有独立来源，缺失不补造 |
 | Trace 准入、去重、截止/成熟时间过滤 | wireless_compile_history → worker/compile.py | Schema/来源验证、纳入/排除；历史评价可见声明由用户提供 |
 | 归因与六类编译 | 固定源 pipeline/compile/outcome_compilation.py、compile_rules.py | 源证据作用域与实际形成的记忆类型 |
 | 生命周期、评分与画像 | 固定源 pipeline/transition/state.py、scoring/score.py、compile/memory_evidence_profiles.py | 类型状态、历史可信度、支持与反证画像 |

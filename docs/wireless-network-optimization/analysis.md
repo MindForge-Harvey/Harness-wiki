@@ -302,3 +302,7 @@ flowchart TD
 [S12]: https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/echo-mem-reproducibility/docs/PRIVATE_REPRODUCTION.md
 [S13]: https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/echo-mem-reproducibility/pipeline/selection/action_value_selector.py
 [S14]: https://github.com/Jinbo666/wireless_knowledge_compilation/blob/e734ac032a7dc671878d05cd40d2b31b68d156fc/echo-mem-reproducibility/pipeline/evaluation/metrics.py
+
+## 2026-11-09 接入增量
+
+当前共有 14 个项目 Skill、11 个领域工具。新增丰富合成数据、数值描述分析、独立演示候选比较与反馈后经验学习；新增工单账本到源 Trace 的明确字段映射。参考仓库当前 main 仍为 e734ac0，原科学代码未改。前述 2026-10-10 的职责设计为历史记录；当前可运行范围与测试方法见 [演示手册](demo-guide.md)。

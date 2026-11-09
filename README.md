@@ -24,7 +24,7 @@ docker compose -f docker-compose.app.yml --env-file backend/.env up -d --build
 
 ## 网优与 ECHO-Mem 能力
 
-默认 `rag-kb` profile 专注历史驱动的网优分析，安装 13 个网优 Skill，分为两条路径：**分析回答**消费 ECHO-Mem 历史案例和已沉淀经验，对照当前数据做根因、参数与方案分析；**工单记忆工程**保存工单、方案与实际反馈，评价效果并编译本地经验版本。普通分析无需先保存工单；工程分析复用同一套历史方法。LightRAG/MinerU 用于网优资料补充，`wireless-echo-mem` 保留原理与源码问答。
+默认 `rag-kb` profile 专注历史驱动的网优分析，安装 14 个网优 Skill，分为两条路径：**分析回答**消费 ECHO-Mem 历史案例和已沉淀经验，对照当前数据做根因、参数与方案分析；**工单记忆工程**保存工单、方案与实际反馈，评价效果并编译本地经验版本。普通分析无需先保存工单；工程分析复用同一套历史方法。LightRAG/MinerU 用于网优资料补充，`wireless-echo-mem` 保留原理与源码问答。
 
 根因、方案与评估 Skills 共用 [ECHO-Mem 历史决策方法](skills/wireless-workorder-orchestrator/references/echo-decision-workflow.md)：从历史标签提出可区分的当前假设，从历史动作/组合生成适配候选，执行前评价历史支持和反证，执行后比较真实效果与业务判据。每项原则有固定源实现对应关系；普通评估可直接回答，需要保存或沉淀时再进入工程流程。
 
@@ -32,11 +32,19 @@ Harness 按目标自由组合 [ECHO 能力](skills/wireless-workorder-orchestrat
 
 根因、数据、参数应用与方案分析先调用 `wireless_history_search`，自动检索固定案例、参数经验、研究结论及本地冻结包中的六类记忆，返回命中/未命中、读取不完整与生产数据源未接入状态。已有经验保留；语义或研究结论不冒充实测工单。回答保留简短案例标识、历史动作/结果和当前适用差异。执行方法见 [ECHO-Mem 分析契约](skills/wireless-workorder-orchestrator/references/echo-analysis-method.md)，工程步骤见 [工单记忆工程](skills/wireless-memory-engineering/SKILL.md)。
 
-部署携带固定版本的参数语义快照（279 个签名映射）、4 个混合类型案例条目、3 条研究经验摘要、ECHO-Mem 158 份复现文本、10 份源 Skill/Shadow/选择提示文本及源规则编译器，不依赖临时研究目录。9 个领域工具支持统一历史检索、源状态候选分池、原理检索、工单/方案/反馈记录、观测对齐、根因引用核对、参数约束、源候选排序/受限选择/值适配、效果比较和源规则编译。新编译的本地历史包自动进入后续检索，旧版本保留；演示包默认排除，跨包重复 Trace 不累加效果统计。全量生产库、现场采集/下发、完整结构导航、校准 gate、线上发布与完整时序回放尚未连接。材料与范围见 [网优语料](docs/wireless-network-optimization/available-corpus.md)。
+部署携带固定版本的参数语义快照（279 个签名映射）、4 个混合类型案例条目、3 条研究经验摘要、ECHO-Mem 158 份复现文本、10 份源 Skill/Shadow/选择提示文本及源规则编译器，不依赖临时研究目录。11 个领域工具支持统一历史检索、源状态候选分池、原理检索、工单/方案/反馈记录、观测对齐、根因引用核对、参数约束、源候选排序/受限选择/值适配、效果比较和源规则编译。新编译的本地历史包自动进入后续检索，旧版本保留；演示包默认排除，跨包重复 Trace 不累加效果统计。全量生产库、现场采集/下发、完整结构导航、校准 gate、线上发布与完整时序回放尚未连接。材料与范围见 [网优语料](docs/wireless-network-optimization/available-corpus.md)。
 
 本机编译依赖首次安装：`python3 -m venv backend/.runtime/wireless-python`，然后 `backend/.runtime/wireless-python/bin/pip install -r backend/dsh/dsh-wireless/compiler-requirements.txt`；Docker 镜像安装到 `/opt/wireless-python`。可用 `WIRELESS_PYTHON` 覆盖解释器，使用源项目要求的 Python 3.12 验证。
 
 离线检查：`cd backend && npm run test:harness`。启动后运行 `node dev/smoke-wireless.mjs` 检查问答，或 `node dev/smoke-wireless-workflow.mjs` 检查模拟工单、效果评估和演示编译；`node dev/smoke-wireless-focus.mjs` 检查专用定位、ECHO 原理和方案/反馈/记录链（均调用所配置模型）；`HARNESS_TEST_BASE_URL` 指定入口。工单与版本包保存到 DSH_HOME 的 `storages/dsh-wireless`，可用 `WIRELESS_DATA_DIR` 覆盖。
+
+## 丰富演示数据与 Agentic Memory
+
+内置 188 张完全合成的历史工单、12 个当前场景、3,456 条小时观测，覆盖八类网优问题和当前值缺失、厂家不匹配、跨时窗数据、质量反证等边界。聊天工作台侧栏点击“演示场景”，可以只分析场景，也可完整演示冻结方案、揭示模拟反馈、效果评价、编译新版记忆和再次复盘。
+
+`wireless_data_analyze` 实际计算时序基线、声明门限、时段特征和同群对照；`wireless_demo` 在独立空间调用原 ECHO 编译器、候选排序和值选择。演示包不会进入普通生产候选池。`wireless_workorder export_trace` 补充账本到源 Trace 的桥接，长期标签必须明确提供来源，不从指标改善自动生成。
+
+用法、源码对应关系和边界见 [演示手册](docs/wireless-network-optimization/demo-guide.md)，详细数据见 [十二张场景卡](docs/wireless-network-optimization/demo-scenario-cards.md)。重新生成：`cd backend && npm run demo:build`；离线验证：`npm run test:wireless-demo`。
 
 ## 目录结构
 
