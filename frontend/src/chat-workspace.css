@@ -192,8 +192,10 @@ body.chat-view {
   font-weight: 500;
   letter-spacing: 0;
 }
+/* 顶部健康指示：只有三态，具体动作由执行过程卡片承担（唯一播报位）。 */
 .chat-page .chat-agent-status { font-size: 13px; color: #657d99; }
-.chat-page .chat-agent-status.is-waiting { display: none; }
+.chat-page .chat-agent-status.is-working { color: #3b82f6; }
+.chat-page .chat-agent-status.is-error { color: #dc2626; }
 .chat-page .chat-planner-shortcut,
 .chat-page .chat-mobile-menu {
   display: inline-flex;

@@ -18,3 +18,7 @@
 
 # Exclude local knowledge-base evaluation and diagnostic reports.
 backend/dsh/dsh-knowledge/reports
+
+# 镜像导出包、前端源码不参与后端镜像构建上下文
+deploy/
+frontend/

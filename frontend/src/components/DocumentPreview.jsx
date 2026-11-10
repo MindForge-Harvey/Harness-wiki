@@ -61,7 +61,9 @@ export function useDocumentContent(sessionId, doc, enabled = true) {
         if (blob.size > PREVIEW_LIMIT) throw Object.assign(new Error("文件过大，请下载后查看"), { previewable: false });
         if (doc.ext === "pdf") {
           release();
-          blobUrlRef.current = URL.createObjectURL(blob);
+          // 重建 blob 并指定 application/pdf，避免后端 content-type 不准时 iframe 空白。
+          const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
+          blobUrlRef.current = URL.createObjectURL(pdfBlob);
           if (alive) setState({ status: "ready", content: { kind: "pdf", url: blobUrlRef.current } });
           return;
         }

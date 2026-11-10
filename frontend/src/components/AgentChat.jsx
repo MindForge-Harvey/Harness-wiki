@@ -36,7 +36,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { DocumentPreview, DocumentBody, documentFileUrl, previewIcon, useDocumentContent } from "./DocumentPreview";
-import { toolLabel, taskProgress, visibleTool, groupTaskMessages, groupConversation, citationSources, citationPlan, linkCitations, stripOwnSourceLine, sourceName } from "../lib/task-progress.mjs";
+import { toolLabel, taskProgress, runningText, visibleTool, groupTaskMessages, groupConversation, runHeadline, citationSources, citationPlan, linkCitations, stripOwnSourceLine, sourceName } from "../lib/task-progress.mjs";
 import { useVoiceInput } from "../lib/use-voice-input";
 import { appUrl } from "../lib/app-url";
 import { copyText } from "../lib/copy-text.mjs";
@@ -386,32 +386,42 @@ const firstLine = (text, limit = 48) => {
 };
 
 /** 过程里的单条：推理、旁白、工具阶段、审批或异常，点击展开明细。 */
-function ProcessStep({ step }) {
+function ProcessStep({ step, current, live }) {
   const [open, setOpen] = useState(false);
   const parts = step.role === "note" ? step.parts : [];
   const narration = parts.findLast(part => part.role === "assistant");
   const tool = step.role === "tool" ? taskProgress(step) : null;
-  const status = tool ? tool.status
-    : step.role === "error" ? "error"
-      : step.role === "compaction" ? (step.status === "running" ? "running" : step.status === "error" ? "error" : "done")
-        : step.role === "approval" ? (step.status === "pending" ? "running" : "done") : "done";
+  // 铁律①（状态前向不可逆）：本轮运行中的当前步骤粘性保持 running，
+  // 不随子调用间隙在 done↔running 之间回摆（消灭秒闪）；错误/待确认如实显示。
+  const sticky = Boolean(current && live && tool && (tool.status === "done" || tool.status === "running"));
+  const status = sticky ? "running" : tool ? tool.status
+    : step.role === "thinking" ? "done"
+      : step.role === "error" ? "error"
+        : step.role === "compaction" ? (step.status === "running" ? "running" : step.status === "error" ? "error" : "done")
+          : step.role === "approval" ? (step.status === "pending" ? "running" : "done") : "done";
   const title = step.role === "note" ? "思考"
-    : step.role === "approval" ? `执行审批 · ${toolLabel(step.toolName)}`
-      : step.role === "error" ? (step.title || "本轮异常结束")
-        : step.role === "compaction" ? "压缩上下文"
-          : step.role === "tool" ? tool.title : "处理资料";
-  const brief = step.role === "note" ? firstLine(narration?.content || parts.at(-1)?.text, 44)
-    : step.role === "approval" ? (step.status === "allowed" ? "已批准" : step.status === "rejected" ? "已拒绝" : "等待你的决定")
-      : step.role === "error" ? firstLine(step.message, 44)
-        : step.role === "compaction" ? (step.status === "error" ? firstLine(step.message, 44) : "整理较早的对话，保持后续回答可用")
-          : tool && tool.status === "error" && step.calls.length > 1 ? `连续 ${step.calls.length} 次未成功`
-            : tool && step.calls.length > 1 ? `${tool.brief} 等 ${step.calls.length} 项`
-              : tool ? tool.brief || tool.summaries[0] : "";
-  const detail = step.role === "note" ? parts.map(part => part.role === "assistant" ? part.content : part.text).join("\n\n")
-    : step.role === "approval" ? step.reason
-      : step.role === "error" ? step.message
-        : step.role === "compaction" ? (step.message || "")
-          : tool ? tool.detail : "";
+    : step.role === "thinking" ? "思考"
+      : step.role === "approval" ? `执行审批 · ${toolLabel(step.toolName)}`
+        : step.role === "error" ? (step.title || "本轮异常结束")
+          : step.role === "compaction" ? "压缩上下文"
+            : step.role === "tool" ? tool.title : "处理资料";
+  // 铁律②：粘性运行期文案固定「正在…请稍候…」，不随子调用间隙翻转成「已生成」。
+  const brief = sticky ? runningText(step)
+    : step.role === "thinking" ? firstLine(step.text, 44)
+    : step.role === "note" ? firstLine(narration?.content || parts.at(-1)?.text, 44)
+      : step.role === "approval" ? (step.status === "allowed" ? "已批准" : step.status === "rejected" ? "已拒绝" : "等待你的决定")
+        : step.role === "error" ? firstLine(step.message, 44)
+          : step.role === "compaction" ? (step.status === "error" ? firstLine(step.message, 44) : "整理较早的对话，保持后续回答可用")
+            : tool && tool.status === "error" && step.calls.length > 1 ? `连续 ${step.calls.length} 次未成功`
+              : tool && step.calls.length > 1 ? (tool.brief ? `${tool.brief} 等 ${step.calls.length} 项`
+                : tool.merged ? tool.summaries[0] : `共 ${step.calls.length} 项`)
+                : tool ? tool.brief || tool.summaries[0] : "";
+  const detail = step.role === "thinking" ? step.text
+    : step.role === "note" ? parts.map(part => part.role === "assistant" ? part.content : part.text).join("\n\n")
+      : step.role === "approval" ? step.reason
+        : step.role === "error" ? step.message
+          : step.role === "compaction" ? (step.message || "")
+            : tool ? tool.detail : "";
   const references = tool?.references || [];
   const expandable = Boolean(detail) || references.length > 0;
 
@@ -440,33 +450,49 @@ function ProcessStep({ step }) {
   );
 }
 
-/** 一轮执行过程：运行中展开显示当前步骤，完成后收成一行摘要。 */
-function ProcessBlock({ block, live, activityText }) {
+/** 一轮执行过程：**唯一播报位**——图标与标题全部取自 runHeadline（唯一真相源），绝不自相矛盾。 */
+function ProcessBlock({ block, live, answering }) {
   const [open, setOpen] = useState(Boolean(live));
   const listRef = useRef(null);
   // 运行中自动展开，本轮结束后自动收成一行摘要。
   useEffect(() => { setOpen(Boolean(live)); }, [live]);
-  const running = block.running || live;
   const duration = block.end > block.start ? formatDuration(block.end - block.start) : "";
-  const summary = running ? (activityText || "正在处理…") : `已完成 ${block.steps.length} 个步骤`;
+
+  // 显示契约：图标、标题文案与步骤状态全部同源（铁律①②），不再各判各的。
+  const headline = runHeadline({ live, steps: block.steps, answering });
+  const spinning = headline.state === "running";
+  const errored = headline.state === "error";
+  const summary = headline.text;
+  // 当前步骤 = 最后一个工具步骤；粘性期到回答流出为止，此后文档步骤可提前翻绿。
+  const lastToolIndex = block.steps.findLastIndex(step => step.role === "tool");
+
   // 运行中始终展示最新一步。
   useEffect(() => {
-    if (running && open) listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [running, open, block.steps.length]);
+    if (spinning && open) listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [spinning, open, block.steps.length]);
 
   return (
-    <section className={`chat-process${open ? " is-open" : ""}${running ? " is-running" : ""}`} aria-label="执行过程">
+    <section className={`chat-process${open ? " is-open" : ""}${spinning ? " is-running" : ""}`} aria-label="执行过程">
       <button className="chat-process-head" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <span className="chat-process-state" aria-hidden="true">
-          {running ? <span className="chat-tool-spin"><i /><i /><i /></span> : <CheckCircle size={15} weight="fill" />}
+          {spinning ? <span className="chat-tool-spin"><i /><i /><i /></span>
+            : errored ? <X size={15} weight="bold" />
+              : <CheckCircle size={15} weight="fill" />}
         </span>
         <span className="chat-process-summary">{summary}</span>
-        {!running && duration ? <span className="chat-process-duration">{duration}</span> : null}
+        {!spinning && duration ? <span className="chat-process-duration">{duration}</span> : null}
         <CaretDown size={13} weight="bold" aria-hidden="true" className={open ? "is-down" : ""} />
       </button>
       {open ? (
         <ol className="chat-process-list" ref={listRef}>
-          {block.steps.map((step, index) => <ProcessStep key={step.id || `step-${index}`} step={step} />)}
+          {block.steps.map((step, index) => (
+            <ProcessStep
+              key={step.id || `step-${index}`}
+              step={step}
+              current={index === lastToolIndex}
+              live={live && !answering}
+            />
+          ))}
         </ol>
       ) : null}
     </section>
@@ -953,12 +979,37 @@ export default function AgentChat() {
   const pendingUserTextRef = useRef(null);
   const historyRequestRef = useRef(0);
 
-  // 后台回复由服务端继续执行，本页只轮询状态；用同一套「工作中」标识告诉用户它在跑。
-  const activity = isThinking || backgroundRun ? "working" : attachments.length ? "reading" : "waiting";
-  const activityLabel = isThinking ? activityText || "正在执行" : backgroundRun ? "正在后台回复" : attachments.length ? "附件已准备" : "在线，可以开始";
   const hasMessages = messages.length > 0;
   // 一轮里的推理、工具与旁白收进执行过程，正文只留最终回答。
-  const conversation = useMemo(() => groupConversation(messages), [messages]);
+  // turnEnded = 本轮已结束：兜底把最后一条 assistant 提升为回答（铁律③，下方必有内容）。
+  const conversation = useMemo(() => groupConversation(messages, !isThinking), [messages, isThinking]);
+  // 当前轮 = 最后一条用户消息之后的内容；过程卡片只有当前轮实时刷新（live）。
+  const lastUserIndex = conversation.findLastIndex(item => item.role === "user");
+  // 运行中的当前轮过程卡片从消息流中提出，集中渲染到机器人思考行下方（头像+气泡在上、步骤在下）。
+  const liveProcessBlocks = useMemo(
+    () => (isThinking
+      ? conversation.map((message, index) => ({ message, index }))
+          .filter(({ message, index }) => message.role === "process" && index > lastUserIndex)
+      : []),
+    [conversation, isThinking, lastUserIndex],
+  );
+  // 回答开始 = 思考正文或正文文本任一到达。此前卡片粘性显示当前动作，
+  // 此后切换为「整理回答」复合句——避免文档已完成时卡片仍宣称「正在生成文档」。
+  const answering = isThinking && Boolean(streamDraft?.text || streamDraft?.reasoning);
+  // 思考气泡与执行步骤卡头部同源：文案统一取 runHeadline（唯一真相源），
+  // 同一渲染帧、同一输入、同一输出，两处永不矛盾。
+  // （activityText 仍随 SSE 事件写入并随会话持久化，但展示层不再消费，漂移通道关闭。）
+  const liveHeadline = runHeadline({
+    live: isThinking,
+    steps: liveProcessBlocks.length ? liveProcessBlocks[liveProcessBlocks.length - 1].message.steps : [],
+    answering,
+  });
+  // 顶部状态条：只做健康指示，具体动作由执行过程卡片标题承担（唯一播报位）。
+  // 三态：思考中（小圆点）/ 正常在线（灰色小字）/ 异常（红色）。
+  const activityRunning = isThinking || backgroundRun;
+  const activityError = Boolean(pageError);
+  const activity = activityError ? "error" : activityRunning ? "working" : "idle";
+  const activityLabel = activityError ? "连接异常" : activityRunning ? "在线 · 思考中…" : "在线";
   // 每条回答对应的检索来源：与本轮 [[文件名]] 角标一一对应。
   const citationMap = useMemo(() => citationSources(messages), [messages]);
 
@@ -1372,7 +1423,9 @@ export default function AgentChat() {
     }
 
     if (event.type === "step/start") {
-      setActivity("正在分析问题与已有依据");
+      // 不插入任何占位「思考」：思考步骤只由模型真实产出的内容生成，
+      // 没有思考/旁白时过程里就只有工具步骤。
+      setActivity("正在思考与分析");
       return;
     }
 
@@ -1436,13 +1489,16 @@ export default function AgentChat() {
         },
       ]);
       const card = { name: data.name, args, status: "running" };
-      // 所有工具都更新当前动作，折叠块顶部才能如实说明这一步在做什么。
-      setActivity(`正在${taskProgress(card).title}`);
+      const progress = taskProgress(card);
+      // 所有工具都更新当前动作，折叠块顶部如实说明这一步正在做什么
+      // （如「正在生成文档，请稍候…」），不再显示笼统的处理中文案。
+      setActivity(runningText(card));
       if (!visibleTool(card)) return;
       const tlId = pushTimelineItem(sid, {
         kind: "tool",
         name: data.name, args, callId: data.callId,
-        title: taskProgress(card).title,
+        title: progress.title,
+        detail: progress.brief,
         status: "running",
       });
       if (data.callId) timelineCallRef.current.set(`${sid}:${data.callId}`, tlId);
@@ -1570,7 +1626,9 @@ export default function AgentChat() {
     state.activityText = '';
     dropStreamDelta(sid);
     state.streamDraft = null;
-    state.messages = state.messages.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
+    state.messages = state.messages.map(item =>
+      item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" }
+        : item.role === "thinking" && item.live ? { ...item, live: false } : item);
     state.timeline = state.timeline.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item);
     commitSession(sid);
   }, [sessionState, commitSession, dropStreamDelta]);
@@ -2276,7 +2334,7 @@ export default function AgentChat() {
               <div>
                 <h1>{sharedId ? "分享的回答" : kbAgent.short}</h1>
                 <div className={`chat-agent-status is-${activity}`} aria-live="polite">
-                  {isThinking || backgroundRun ? activityLabel : "知识问答与运营"}
+                  {activityLabel}
                 </div>
               </div>
             </div>
@@ -2337,14 +2395,10 @@ export default function AgentChat() {
                 {conversation.map((message, index) => {
                   if (message.role === "user") return <UserMessage key={message.id} message={message} onPreview={setPreview} />;
                   if (message.role === "process") {
-                    return (
-                      <ProcessBlock
-                        key={message.id}
-                        block={message}
-                        live={isThinking && index === conversation.length - 1}
-                        activityText={activityText}
-                      />
-                    );
+                    // 当前轮运行中的过程卡片移到机器人思考行下方渲染（见 liveProcessBlocks）；
+                    // 历史轮次与已结束的卡片保持在原位。
+                    if (isThinking && index > lastUserIndex) return null;
+                    return <ProcessBlock key={message.id} block={message} live={false} answering={false} />;
                   }
                   if (message.role === "approval") {
                     return <ApprovalCard key={message.id} card={message} onDecide={handleDecide} />;
@@ -2364,9 +2418,21 @@ export default function AgentChat() {
                     />
                   );
                 })}
-                {isThinking && !streamDraft?.text && !conversation.at(-1)?.role?.startsWith("process") ? (
-                  <AssistantMessage pending activityText={activityText} message={{ id: "pending", time: clockTime() }} />
+                {/* 铁律③：运行中底部永远有指示（思考中 / 流式回答 / pending 气泡三选一）。
+                    之前"最后一项是 process 就隐藏"的抑制会在过程块收尾时留下空白死区，已移除。 */}
+                {isThinking && !streamDraft?.text && !streamDraft?.reasoning ? (
+                  <AssistantMessage pending activityText={liveHeadline.text} message={{ id: "pending", time: clockTime() }} />
                 ) : null}
+                {/* 当前轮运行中的步骤卡片：渲染在机器人思考行下方（用户要求的布局），
+                    头部文案与上方思考气泡同取 runHeadline，保证两处一致。 */}
+                {liveProcessBlocks.map(({ message }) => (
+                  <ProcessBlock
+                    key={message.id}
+                    block={message}
+                    live={isThinking}
+                    answering={answering}
+                  />
+                ))}
                 {isThinking && streamDraft?.reasoning ? (
                   <div className="chat-message-row is-assistant">
                     <div className="chat-message-stack">

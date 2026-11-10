@@ -65,6 +65,11 @@ const PREVIEW_MIME = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
   svg: 'image/svg+xml', webp: 'image/webp', avif: 'image/avif', ico: 'image/x-icon',
   woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf',
+  // 文档成品：PDF/Word/Excel 的正确 MIME 让浏览器内联预览，而不是触发下载。
+  pdf: 'application/pdf',
+  doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 }
 
 const sessionStore = await createSessionStore({ sqlitePath: path.join(DSH_HOME, 'storages', 'chat-sessions.sqlite') })
@@ -129,6 +134,19 @@ function getHarness() {
     throw e
   })
   return harnessPromise
+}
+
+/**
+ * 关闭当前 harness 并清空会话表，用于子进程内 agent 被释放（idle 等）后重建。
+ * 新会话会从磁盘日志恢复历史，用户无感知。
+ */
+async function resetHarness() {
+  const old = harnessPromise
+  harnessPromise = null
+  sessions.clear()
+  if (old) {
+    try { await (await old).close() } catch (e) { log('旧 harness 关闭失败: ' + (e && e.message || e)) }
+  }
 }
 
 /** sessionId → HarnessSession。resume 用同一 id 重建轻量 handle。 */
@@ -268,9 +286,21 @@ async function handleChatStream(req, res) {
     await runOnce(session, sessionId)
   } catch (e) {
     const msg = String(e && e.message ? e.message : e)
-    // 适配层/子进程重启后，旧会话日志已在磁盘上，create 同名 id 直接撞车。
-    // 兜底：迁移到全新 id 重跑，并通过 renamed 事件让前端同步本地会话表（上下文重新开始）。
-    if (!closed && msg.includes('already exists')) {
+    // 历史会话的 agent 被释放（idle 超时等），SDK 内部仍持有过期 session 记录。
+    // 重启子进程清空记录，用同一会话 id 重建 agent（从磁盘日志恢复历史），用户无感知。
+    if (!closed && msg.includes('session agent was disposed')) {
+      log('检测到 agent 已释放，重启 harness 重建会话 ' + sessionId)
+      try {
+        await resetHarness()
+        const fresh = await getSession(sessionId)
+        await runOnce(fresh, sessionId)
+      } catch (e2) {
+        if (!closed) send('error', { message: String(e2 && e2.message ? e2.message : e2) })
+        log('run 失败（重启后）' + sessionId + ': ' + (e2 && e2.message ? e2.message : e2))
+      }
+    } else if (!closed && msg.includes('already exists')) {
+      // 适配层/子进程重启后，旧会话日志已在磁盘上，create 同名 id 直接撞车。
+      // 兜底：迁移到全新 id 重跑，并通过 renamed 事件让前端同步本地会话表（上下文重新开始）。
       const previous = await sessionStore.require(uid, sessionId)
       const newId = await sessionStore.create(uid, previous.title)
       sessions.delete(sessionId)
@@ -545,8 +575,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/chat/documents/file' && req.method === 'GET') {
       await sessionStore.require(req.identity.uid, url.searchParams.get('sessionId') || '')
       const file = documents.resolve(url.searchParams.get('path') || '')
+      const ext = path.extname(file.name).slice(1).toLowerCase()
+      // 正确的 MIME 让前端 blob 能被浏览器识别为 PDF 等并内联预览；
+      // content-disposition: attachment 仍保证直接打开链接时走下载。
       res.writeHead(200, {
-        'content-type': 'application/octet-stream',
+        'content-type': PREVIEW_MIME[ext] || 'application/octet-stream',
         'content-length': file.size,
         'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
         'x-content-type-options': 'nosniff',
