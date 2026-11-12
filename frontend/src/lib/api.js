@@ -57,7 +57,7 @@ export function renameSession(fromId, toId) {
  * @param {object} handlers - { onStart, onNotification, onRenamed, onDone, onError }
  * @returns {() => void} abort 函数（断开流；服务端回合继续但本端停止接收）。
  */
-export function streamChat({ sessionId, message, attachments }, handlers) {
+export function streamChat({ sessionId, message, attachments, selectedSkills }, handlers) {
   const controller = new AbortController();
 
   (async () => {
@@ -70,11 +70,12 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
           ...(sessionId ? { sessionId } : {}),
           message,
           ...(attachments && attachments.length ? { attachments } : {}),
+          ...(selectedSkills?.length ? { selectedSkills } : {}),
         }),
         signal: controller.signal,
       });
     } catch (e) {
-      handlers.onError?.(e.name === "AbortError" ? "已停止接收" : "连接适配层失败：" + e.message);
+      if (e.name !== "AbortError") handlers.onError?.("连接适配层失败：" + e.message);
       return;
     }
 
@@ -90,8 +91,10 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let finished = false;
 
     const handleBlock = (block) => {
+      if (controller.signal.aborted || finished) return;
       const lines = block.split("\n");
       const eventLine = lines.find((l) => l.startsWith("event: "));
       const dataLine = lines.find((l) => l.startsWith("data: "));
@@ -104,10 +107,11 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
         return;
       }
       if (event === "start") handlers.onStart?.(data.sessionId);
+      else if (event === "progress") handlers.onProgress?.(data);
       else if (event === "notification") handlers.onNotification?.(data);
       else if (event === "renamed") handlers.onRenamed?.(data);
-      else if (event === "done") handlers.onDone?.(data);
-      else if (event === "error") handlers.onError?.(data.message || "未知错误");
+      else if (event === "done") { finished = true; handlers.onDone?.(data); }
+      else if (event === "error") { finished = true; handlers.onError?.(data.message || "未知错误"); }
     };
 
     try {
@@ -122,8 +126,9 @@ export function streamChat({ sessionId, message, attachments }, handlers) {
         }
       }
       if (buffer.trim()) handleBlock(buffer.trim());
+      if (!finished && !controller.signal.aborted) handlers.onError?.("输出连接已结束，本轮结果尚未确认；可重新打开会话查看记录。");
     } catch (e) {
-      if (e.name !== "AbortError") handlers.onError?.("流中断：" + e.message);
+      if (!finished && e.name !== "AbortError") handlers.onError?.("流中断：" + e.message);
     }
   })();
 

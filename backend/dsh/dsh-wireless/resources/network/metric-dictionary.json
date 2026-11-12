@@ -1,0 +1,191 @@
+[
+  {
+    "system": "4G",
+    "column": "his001",
+    "name": "E-RAB建立成功率",
+    "unit": "%",
+    "formula": "erab_nbrsuccestab/erab_nbrattestab",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his002",
+    "name": "无线接通率",
+    "unit": "%",
+    "formula": "(erab_nbrsuccestab/erab_nbrattestab)*(rrc_succconnestab/rrc_attconnestab)",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his007",
+    "name": "切换成功率",
+    "unit": "%",
+    "formula": "(ho_succoutinterenbs1+ho_succoutinterenbx2+ho_succoutintraenb)/(ho_attoutinterenbs1+ho_attoutinterenbx2+ho_attoutintraenb)",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his020",
+    "name": "RRC连接平均数",
+    "unit": "个",
+    "formula": "rrc_connmean",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his021",
+    "name": "RRC连接最大数",
+    "unit": "个",
+    "formula": "rrc_connmax",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his023",
+    "name": "上行PRB利用率",
+    "unit": "%",
+    "formula": "RRU_PUSCHPRBASSN/rru_puschprbtot",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his024",
+    "name": "下行PRB利用率",
+    "unit": "%",
+    "formula": "RRU_PDSCHPRBASSN/rru_pdschprbtot",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his040",
+    "name": "MR覆盖率",
+    "unit": "%",
+    "formula": "Cell_SUM_Day_NR.NRSCRSRP_OVER_COUNTER/Cell_SUM_Day_NR.VALID_LTESCRSRP",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "4G",
+    "column": "his045",
+    "name": "SINR<-3比例",
+    "unit": "%",
+    "formula": "Cell_SUM_Day.SINRUL_MINUS3/Cell_SUM_Day.VALID_NRSCSINRUL",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his006",
+    "name": "全频段干扰值",
+    "unit": "dBm",
+    "formula": "根据需求文档1_2 计算干扰的公共方法计算全频道天级指标",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his010",
+    "name": "SA 切换成功率(SA)",
+    "unit": "%",
+    "formula": "(HO_SuccOutIntraFreq+HO_SuccOutInterFreq)/(HO_AttOutExecIntraFreq+HO_AttOutExecInterFreq)",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his013",
+    "name": "掉线率(SA)",
+    "unit": "%",
+    "formula": "(CONTEXT_AttRelgNB-CONTEXT_AttRelgNB_Normal)/(CONTEXT_SuccInitalSetup+CONTEXT_NbrLeft+HO_SuccExecInc +RRC_SuccConnReestab_NonSrccell+RRC.SuccConnResume.NonSrccell+IRATHO.SuccExecInc)",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his016",
+    "name": "上行PRB平均利用率(SA)",
+    "unit": "%",
+    "formula": "RRU_PuschPrbAssn/RRU_PuschPrbTot",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his017",
+    "name": "下行PRB平均利用率(SA)",
+    "unit": "%",
+    "formula": "RRU_PdschPrbAssn/RRU_PdschPrbTot",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his019",
+    "name": "RRC连接建立成功率(SA)",
+    "unit": "%",
+    "formula": "RRC_SuccConnEstab/RRC_AttConnEstab",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his020",
+    "name": "Flow建立成功率(SA)",
+    "unit": "%",
+    "formula": "Flow_NbrSuccEstab/Flow_NbrAttEstab",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his034",
+    "name": "RRC连接平均数(SA)",
+    "unit": "个",
+    "formula": "RRC_ConnMean",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his035",
+    "name": "RRC连接最大数(SA)",
+    "unit": "个",
+    "formula": "RRC_ConnMax",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his036",
+    "name": "CCE利用率(SA)",
+    "unit": "%",
+    "formula": "RRU_PdcchCceUtil/RRU_PdcchCceAvail",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his054",
+    "name": "MR覆盖率",
+    "unit": "%",
+    "formula": "NRSCRSRP_OVER_COUNTER/VALID_NRSCRSRP",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  },
+  {
+    "system": "5G",
+    "column": "his081",
+    "name": "SINR<-3比例",
+    "unit": "%",
+    "formula": "Cell_SUM_Day_NR.SINRUL_MINUS3/Cell_SUM_Day_NR.VALID_NRSCSINRUL",
+    "source_path": "network-ops-loop-v3/services/kpi_interpretation/assets/kpi_columns.yaml",
+    "source_sha256": "973481fd40b3d0002e7cc099b781e74d73ac59e946692fbc73c19a1ae3a1d222"
+  }
+]

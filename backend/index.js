@@ -23,9 +23,13 @@ import { fileURLToPath } from 'node:url'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
 import { prepareHarnessHome, integrationHealth, analyzeImageAttachments, textReasoningEffort } from './integrations.js'
 import { plainAssistantText } from './harness/narrative.mjs'
-import { skillDirectories, listProjectSkills } from './harness/skills.mjs'
+import { skillDirectories, listProjectSkills, validateSelectedSkills } from './harness/skills.mjs'
 import { presentNotification, projectHistory } from './harness/presentation.mjs'
 import { demoCatalog, demoScenario } from './dsh/dsh-wireless/lib/demo.js'
+import { createOrderArchive, prepareOrderArchive } from './dsh/dsh-wireless/lib/orders.js'
+import { greetingReply, createQuickReplyHistory } from './harness/quick-replies.mjs'
+import { restoredConversation } from './harness/conversation.mjs'
+import { completedRunText } from './harness/run-result.mjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -43,6 +47,12 @@ const WORKSPACE_CWD = path.resolve(here, '..') // 工作区根：kb_ingest file_
 const SPOOL_DIR = path.join(here, '.spool')
 const DSH_HOME = path.resolve(here, process.env.DSH_HOME_DIR || '.runtime/dsh-home')
 const runtimePatch = prepareHarnessHome(DSH_HOME, here)
+const quickReplies = createQuickReplyHistory(DSH_HOME)
+const orderArchive = createOrderArchive()
+const archiveReady = prepareOrderArchive().catch(error => {
+  log('工单索引准备失败：' + error.message)
+  return { available: false, status: 'index_error' }
+})
 
 function log(msg) { console.log('[rag-kb-server] ' + msg) }
 
@@ -167,6 +177,9 @@ async function handleChatStream(req, res) {
   if (!message) return json(res, 400, { ok: false, error: 'message 不能为空' })
   const sessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : `session-${crypto.randomUUID().replaceAll('-', '')}`
   if (activeRuns.has(sessionId)) return json(res, 409, { ok: false, error: '该会话正在处理上一条消息，请稍候' })
+  let selectedSkills
+  try { selectedSkills = await validateSelectedSkills(WORKSPACE_CWD, body.selectedSkills) }
+  catch (error) { return json(res, error.status || 400, { error: error.message }) }
 
   const attachmentPaths = saveAttachments(body.attachments)
   let prompt = attachmentPaths.length
@@ -176,36 +189,60 @@ async function handleChatStream(req, res) {
 
   res.writeHead(200, {
     'content-type': 'text/event-stream; charset=utf-8',
-    'cache-control': 'no-cache',
+    'cache-control': 'no-cache, no-transform',
+    'x-accel-buffering': 'no',
     connection: 'keep-alive',
   })
+  res.flushHeaders?.()
+  res.socket?.setNoDelay(true)
   const send = (event, data) => res.write('event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n')
 
+  const greeting = greetingReply(message, attachmentPaths.length > 0 || selectedSkills.length > 0)
+  if (greeting) {
+    quickReplies.append(sessionId, message, greeting)
+    send('start', { sessionId })
+    send('done', { sessionId, finalResponse: greeting, instant: true })
+    return res.end()
+  }
+
+  send('start', { sessionId })
+  send('progress', { phase: 'preparing', text: selectedSkills.length ? `正在准备 ${selectedSkills.length} 个已选 Skills` : '已接收请求，正在准备分析' })
+  activeRuns.add(sessionId)
+  let closed = false
+  const heartbeat = setInterval(() => { if (!closed) res.write(': ping\n\n') }, 15000)
+  res.on('close', () => { closed = true; clearInterval(heartbeat) })
   let session
   try {
     session = await getSession(sessionId)
   } catch (e) {
+    clearInterval(heartbeat)
+    activeRuns.delete(sessionId)
     send('error', { message: 'dsh 子进程启动失败：' + (e && e.message ? e.message : e) })
     return res.end()
   }
-  send('start', { sessionId })
-
-  activeRuns.add(sessionId)
-  let closed = false
-  res.on('close', () => { closed = true })
 
   const runOnce = async (handle, id) => {
     const result = await handle.run(prompt, {
       onNotification: (n) => {
-        if (!closed) send('notification', presentNotification(n))
+        const assistantOutput = n.method === 'agent/assistant-delta' || n.params?.event?.type === 'assistant/message'
+        if (assistantOutput && n.params?.sessionId !== handle.id) return
+        const shown = presentNotification(n)
+        if (!closed && shown) send('notification', shown)
       },
     })
-    if (!closed) send('done', { sessionId: id, finalResponse: plainAssistantText(result.finalResponse) })
+    const finalResponse = completedRunText(result)
+    if (!closed) send('done', { sessionId: id, finalResponse })
     log('run 完成 ' + id + '（' + result.events.length + ' 事件）')
   }
 
   try {
     prompt += await analyzeImageAttachments(attachmentPaths, message)
+    prompt += quickReplies.context(sessionId)
+    if (selectedSkills.length) prompt += '\n\n<selected-skills>用户明确选定以下全部 Skills，本轮必须逐个通过 skill 工具加载，不能因任务简单或暂不需要而省略任何一个。此要求优先于简单查询时省略方法加载的默认规则。先完成以下调用：\n'
+      + selectedSkills.map(name => 'skill(' + JSON.stringify({ name }) + ')').join('\n')
+      + '\n全部加载后，按用户问题执行必要业务步骤；加载某方法不代表需要强行执行无关分析。需要输入时提出具体问题，不虚构数据。</selected-skills>'
+    const archive = await archiveReady
+    if (archive.available) prompt += '\n\n<workspace-data>当前工作台已接入用户提供的工单库，可调用 wireless_order_query 按业务单号、月份或日期查询。不要将历史经验检索范围当作工单库范围；不需要用户再次提供数据库或工单文件。</workspace-data>'
     await runOnce(session, sessionId)
   } catch (e) {
     const msg = String(e && e.message ? e.message : e)
@@ -216,8 +253,10 @@ async function handleChatStream(req, res) {
       sessions.delete(sessionId)
       sessionAlias.set(sessionId, newId)
       try {
+        const restored = restoredConversation(await readSessionEvents(sessionId))
+        prompt += restored
         const migrated = await getSession(newId)
-        send('renamed', { from: sessionId, to: newId })
+        send('renamed', { from: sessionId, to: newId, restored: Boolean(restored) })
         log('会话迁移 ' + sessionId + ' → ' + newId)
         await runOnce(migrated, newId)
       } catch (e2) {
@@ -229,6 +268,7 @@ async function handleChatStream(req, res) {
       log('run 失败 ' + sessionId + ': ' + msg)
     }
   } finally {
+    clearInterval(heartbeat)
     activeRuns.delete(sessionId)
     res.end()
   }
@@ -283,6 +323,18 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'POST' && p === '/api/chat/stream') return await handleChatStream(req, res)
     if (req.method === 'GET' && p === '/api/wireless/demo/catalog') return json(res, 200, demoCatalog())
+    if (req.method === 'GET' && p === '/api/wireless/network') {
+      const args = Object.fromEntries(url.searchParams)
+      if (!args.ticket_id && !args.operation) args.operation = 'catalog'
+      return json(res, 200, orderArchive.networkQuery(args))
+    }
+
+    if (req.method === 'GET' && p === '/api/wireless/orders') {
+      await archiveReady
+      const args = Object.fromEntries(url.searchParams)
+      for (const key of ['limit', 'offset']) if (args[key] !== undefined) args[key] = Number(args[key])
+      return json(res, 200, orderArchive(args))
+    }
     if (req.method === 'GET' && p.startsWith('/api/wireless/demo/scenarios/')) {
       try { return json(res, 200, demoScenario(decodeURIComponent(p.slice('/api/wireless/demo/scenarios/'.length)))) }
       catch (error) { return json(res, 404, { error: error.message }) }
@@ -292,7 +344,7 @@ const server = http.createServer(async (req, res) => {
       const sessionId = String(url.searchParams.get('sessionId') || '')
       if (!sessionId) return json(res, 400, { ok: false, error: 'sessionId 必填' })
       const events = await readSessionEvents(sessionId)
-      return json(res, 200, { sessionId, events: events ? projectHistory(events) : [] })
+      return json(res, 200, { sessionId, events: quickReplies.merge(sessionId, events ? projectHistory(events) : []) })
     }
 
     if (p === '/api/approvals/pending' && req.method === 'GET') {

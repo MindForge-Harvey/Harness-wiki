@@ -8,13 +8,13 @@
 
 本地包可独立调用 `wireless_echo_decision`：
 
-- `rank_candidates`：candidate_refs 为检索返回的 package_id/memory_id；context 只填写当前已知 issue_type/vendor/system/region/band，root 为本轮假设，parameter_clues 为已知身份。源四项排序实际执行，返回 candidate_set_id、候选 ID 与逐项分数。正向状态、演示、厂家/制式不兼容、截止时间由工具检查。
+- `rank_candidates`：candidate_refs 为检索返回的 package_id/memory_id；context 只填写当前已知 issue_type/vendor/system/region/band，root 为本轮假设，parameter_clues 为已知身份。源四项排序实际执行，返回 candidate_set_id、候选 ID 与逐项分数。正向状态、样本来源、厂家/制式不兼容、截止时间由工具检查。
 - `select_candidate`：传 candidate_set_id 和表内 selected_candidate_id；也可直接给本轮 candidate_refs 与 selected_candidate_id（由实际 package_id 和 memory_id 以冒号连接），无需先排序。模型解释为什么选，系统从冻结来源填充动作模式与统计；不能改写参数、方向、步长、评价数字或共同动作。可选择备选而非机械取 Top1。候选集过期时按当前条件重建，不凭旧 ID 补造来源。
 - `adapt_value`：可以直接使用检索获得的具体策略引用，无需先排序。传 current_snapshot 中实际参数身份、current_value、min/max、unit、source_ref、constraint_source，已知 step/step_base 时一并提供。工具执行源值选择器并检查当前声明约束，缺快照不做中位数/中点推定。
 
 三种能力独立组合。排序不等于风险门控；选择不等于下发；值适配不等于实际效果。源码四项权重用于明确版本的候选排序，不能成为 KPI 异常门限或当前根因概率。
 
-用户直接给候选表时保持原 ID、动作和统计，按同样受限方法选择；它不是本地包，不能编造 package_id 调工具。模拟评价只能说明如何比较，不能说真实策略已经反复验证或可靠有效。固定表模式不扩展新候选；候选均不适用时说明无可推荐项或需复核。只有输入本身提供 rule_baseline 时可选它，不制造虚构基线。
+用户直接给候选表时保持原 ID、动作和统计，按同样受限方法选择；它不是本地包，不能编造 package_id 调工具。假设评价只能说明如何比较，不能说真实策略已经反复验证或可靠有效。固定表模式不扩展新候选；候选均不适用时说明无可推荐项或需复核。只有输入本身提供 rule_baseline 时可选它，不制造虚构基线。
 
 ## 条件性方案建议
 

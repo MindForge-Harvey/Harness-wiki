@@ -18,7 +18,7 @@ import { LocalSandboxProvider } from '@deepseek-ai/dsh-sandbox-local'
 import { SandboxBashExecutor } from '@deepseek-ai/dsh-bash-sandbox'
 import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
 import { composeEntries, loadProfileDirectory } from '@deepseek-ai/dsh-app-boot'
-import { skillDirectories, listProjectSkills } from '../harness/skills.mjs'
+import { skillDirectories, listProjectSkills, validateSelectedSkills } from '../harness/skills.mjs'
 import { prepareHarnessHome, textReasoningEffort } from '../integrations.js'
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -62,6 +62,9 @@ test('SDK discovers project roots with stable precedence and excludes user-home 
   assert.deepEqual((await listProjectSkills(root)).map(skill => skill.name).sort(), ['extra', 'shared'])
   assert.deepEqual((await registry.list({ cwd: root })).map(skill => skill.name).sort(), ['extra', 'shared'])
   assert.equal((await registry.get('shared', { cwd: root })).content, 'Project implementation.')
+  assert.deepEqual(await validateSelectedSkills(root, ['extra', 'shared', 'extra']), ['extra', 'shared'])
+  await assert.rejects(() => validateSelectedSkills(root, ['missing']), /不在当前 Skills 库/)
+  await assert.rejects(() => validateSelectedSkills(root, 'shared'), /名称数组/)
 })
 
 test('real skill tool loads the shipped ECHO-Mem workflow and its resource directory', async t => {

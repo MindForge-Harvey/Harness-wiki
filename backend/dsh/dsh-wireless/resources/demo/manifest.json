@@ -15,14 +15,14 @@
     "issue_families": 8
   },
   "files": {
-    "history.jsonl": "27947e15cb70710c9be17b086e591a2ed4532f770ca1afb97e6c81cb58683162",
-    "observations.jsonl": "70b3dfee3451cafd618679891e450aa691fea7ac2415ef1ab535b9e0fedb8836",
-    "scenarios.json": "dbe6a9aa17b8bfc3f8a059f05298d6d597d989074860845c7d3d7908e0f6f231",
-    "feedback.private.json": "b0246f7fbef9d8ee3add9a01f1716f694d84e96ddb707ddec8ea980502c1c659"
+    "history.jsonl": "51a5a9dfd76aec12448328c47f387a14f316d6f1bb767dae57bb1420a7acc102",
+    "observations.jsonl": "258e93749410fb753a25df3aa587e08766cd8b33ce7a91dc0795ae5a5257e95d",
+    "scenarios.json": "69cda305e9510fbfffeea843608079f21206e746efd0c6ba71027982cbd9373a",
+    "feedback.private.json": "bc16749b05549a320a21b945b26b4570c3b0b3ea8b3159ce9ddec80c88297628"
   },
   "boundaries": [
     "全部为人工合成；不证明现网收益",
-    "Demo.* 参数和范围仅用于算法演示",
+    "参数和范围属于合成样本约束",
     "反馈工具在方案冻结后才揭示结果",
     "未连接网管、校准 gate 或线上发布"
   ]

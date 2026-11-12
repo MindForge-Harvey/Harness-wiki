@@ -3,6 +3,10 @@ name: wireless-case-retrieval
 description: 实际检索已有无线案例和本地 ECHO-Mem 六类记忆，比较场景、根因、动作、效果与反证，并报告未命中或数据源未接入；用于历史工单与经验对照。
 ---
 
+## ICOS 同类案例
+
+处理 ICOS run_id 时按 [ICOS 契约](../wireless-workorder-orchestrator/references/icos-workflow.md) 调用 wireless_icos_cases，执行原同参数、二级原因、问题类型匹配及成败/幅度统计。工具同时查询现有 ECHO-Mem 历史，shared_history 供解释与反证，不混入 ICOS 成败分母。没有提供 ICOS 案例快照时如实交付未命中及已有 ECHO 结果；不制造同类先例。普通历史检索继续使用下方方法。
+
 读 [ECHO-Mem 分析契约](../wireless-workorder-orchestrator/references/echo-analysis-method.md)。调用 `wireless_history_search`，query 用具体问题、参数或方案编号，按已知厂家/制式筛选；用户指定版本时传 package_ids，否则自动发现本地包。查看固定案例清单可用 `wireless_case_search(query="")`，这不替代具体分析的历史检索。
 
 读取案例与 case/rca/strategy/playbook/risk/counter_evidence 六类结果，保留正向、复核、反证与背景分池。未命中说明实际范围；读取错误说明检索不完整；生产库未接入与本地材料命中可以同时成立。已有语义和研究经验照常保留，不补造实测案例。
@@ -13,7 +17,7 @@ description: 实际检索已有无线案例和本地 ECHO-Mem 六类记忆，比
 
 保留三类材料的区别：
 
-- `onboarding_demo`：演示结构，不计入真实效果证据。
+- `onboarding_demo`：结构化样本，不计入真实效果证据。
 - `anonymized_real_case_summary`：实际工单摘要，有执行记录但缺原始完整 Trace；按 `outcome.scope` 使用结果。
 - `published_experiment_case_summary`：研究中的推荐与历史 gold 对照；`recommended_not_execution_record` 不能说成已执行。
 

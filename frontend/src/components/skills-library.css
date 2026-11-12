@@ -1,0 +1,29 @@
+.skills-library { width: min(840px, calc(100vw - 36px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid #dcebf6; border-radius: 14px; background: #fff; color: #18344d; overflow-y: auto; box-shadow: 0 20px 80px #164c7826; }
+.skills-library::backdrop { background: #123c6255; }
+.skills-library header, .skills-library footer, .skills-library footer > div, .skill-choice > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.skills-library h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.skills-library h2 span { padding-left: 8px; color: #71889c; font-size: 14px; font-weight: 400; }
+.skills-library header > button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.skills-search { display: flex; align-items: center; gap: 9px; padding: 10px 12px; margin: 20px 0 14px; border: 1px solid #dcebf6; border-radius: 8px; color: #638099; }
+.skills-search input { width: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; }
+.skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.skill-choice { border: 1px solid #dcebf6; border-radius: 9px; padding: 15px; background: #fff; text-align: left; color: #18344d; cursor: pointer; }
+.skill-choice:hover { border-color: #71889c; }
+.skill-choice.is-selected { border-color: #0085d0; background: #edf7ff; }
+.skill-choice strong { font-size: 14px; font-weight: 600; }
+.skill-choice svg { flex-shrink: 0; color: #638099; }
+.skill-choice.is-selected svg { color: #0085d0; }
+.skill-choice code { display: block; margin-top: 7px; color: #71889c; font-size: 11px; overflow-wrap: anywhere; }
+.skill-choice p { margin: 8px 0 0; color: #638099; font-size: 13px; line-height: 1.7; }
+.skills-library footer { position: sticky; bottom: -24px; margin-top: 18px; padding: 17px 0 0; background: white; border-top: 1px solid #dcebf6; font-size: 13px; }
+.skills-library footer button { padding: 9px 13px; border: 1px solid #b7d9ef; border-radius: 7px; background: white; color: #46627a; font: inherit; cursor: pointer; }
+.skills-library footer .skills-apply { color: white; border-color: #0085d0; background: #0085d0; }
+.chat-selected-skills { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 12px 0; }
+.chat-selected-skills button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #c9e4f7; border-radius: 6px; background: #edf7ff; color: #0075b9; font: inherit; font-size: 11px; cursor: pointer; }
+.chat-tool-detail { margin-top: 8px; }
+.chat-tool-detail code { color: #46627a; font-size: 11px; }
+.chat-tool-detail pre { max-height: 240px; overflow: auto; padding: 10px; border: 1px solid #dcebf6; border-radius: 6px; background: #f4f9fe; color: #46627a; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .skills-grid { grid-template-columns: 1fr; } .skills-library { padding: 18px; } .skills-library footer { bottom: -18px; } }
+
+.skills-search:focus-within { border-color: #0085d0; box-shadow: 0 0 0 3px #0085d00a; }
+.skills-library footer .skills-apply:hover { background: #006cac; }

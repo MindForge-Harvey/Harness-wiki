@@ -292,7 +292,7 @@ settings: { default_kb: 'company', rerank_enabled: false, kb_routes: { company: 
 
 **范围**：§4 中标注 MVP 的全部条目 + 图谱编辑操作集（D2）+ 会话反哺（D3）。
 
-**验收用例**（逐条可演示）：
+**验收用例**（逐条可验证）：
 
 1. 上传《新员工公司规章制度学习手册》→ 状态 pending→processing→active → 对话中提问"差旅报销标准"→ 带引用回答。
 2. 替换该手册为新版 → 旧版 outdated、版本链 v1→v2、审计有 replace 记录 → 检索命中新版内容。

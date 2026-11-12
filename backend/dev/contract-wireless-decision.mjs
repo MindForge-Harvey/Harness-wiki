@@ -76,10 +76,23 @@ test('candidate admission preserves source state, time and manufacturer boundari
   assert.equal((await decision({ operation: 'rank_candidates' })).status, 'no_candidates')
   for (const [char, state] of [['b', 'restricted'], ['c', 'counter_evidence'], ['d', 'unverified']]) {
     const refs = pack(char, [strategy(state, 10, 5, state)])
-    await assert.rejects(decision({ operation: 'rank_candidates', candidate_refs: refs, context }), /正向候选/)
+    const result = await decision({ operation: 'rank_candidates', candidate_refs: refs, context })
+    assert.equal(result.status, 'no_candidates')
+    assert.equal(result.algorithm_executed, false)
+    assert.equal(result.rejected_candidates[0].state, state)
+    assert.equal(result.rejected_candidates[0].reason, 'state_not_validated_or_reusable')
+    await assert.rejects(decision({ operation: 'select_candidate', candidate_refs: refs,
+      selected_candidate_id: `${refs[0].package_id}:${refs[0].memory_id}`, context }), /正向候选/)
   }
+  const caseMemory = { ...strategy('case-only'), memory_type: 'case_memory' }
+  const caseOnly = await decision({ operation: 'rank_candidates', candidate_refs: pack('9', [caseMemory]), context })
+  assert.equal(caseOnly.status, 'no_candidates')
+  assert.equal(caseOnly.rejected_candidates[0].reason, 'not_a_strategy_or_playbook')
+  const mixed = await decision({ operation: 'rank_candidates', candidate_refs: pack('8', [strategy('eligible'), caseMemory]), context })
+  assert.equal(mixed.candidates.length, 1)
+  assert.equal(mixed.rejected_candidates.length, 1)
   const demo = pack('e', [strategy('demo')], { mode: 'demo' })
-  await assert.rejects(decision({ operation: 'rank_candidates', candidate_refs: demo }), /演示包/)
+  await assert.rejects(decision({ operation: 'rank_candidates', candidate_refs: demo }), /样本包/)
   const future = pack('f', [strategy('future')], { as_of: '2026-10-11T00:00:00+08:00' })
   await assert.rejects(decision({ operation: 'rank_candidates', candidate_refs: future }), /截止时间/)
   const refs = pack('a', [strategy('known')])

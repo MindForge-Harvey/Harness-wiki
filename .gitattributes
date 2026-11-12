@@ -1,0 +1,2 @@
+# Preserve the upstream rule asset byte-for-byte; its source hash is verified by the ICOS contracts.
+backend/dsh/dsh-wireless/vendor/icos/services/compliance/assets/sys_cell_execute_jiangsu.csv -whitespace

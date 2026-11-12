@@ -6,6 +6,10 @@ metadata:
   source_commit: e734ac032a7dc671878d05cd40d2b31b68d156fc
 ---
 
+## ICOS 参数风险与步长
+
+对 ICOS run_id 按 [ICOS 契约](../wireless-workorder-orchestrator/references/icos-workflow.md) 调用 wireless_icos_parameter_risk，使用原规则匹配、取值约束、带符号步长及案例幅度适配。解释每条参数的原值、ICOS 建议值、规则后的建议值、匹配规则及未校验原因。缺匹配键、规则未命中、读取失败、不满足约束分别说明。源规则快照与当前厂家版本的适用性保持明确；数值由工具计算，模型不另造步长。
+
 读 [ECHO-Mem 分析契约](../wireless-workorder-orchestrator/references/echo-analysis-method.md)。参数含义、应用、方向与调多少的问题先用 `wireless_history_search` 同时取得参数语义、历史案例、策略/组合和反证，按已知厂家/制式筛选；已有同条件历史检索直接复用。仅对用户已完整声明的数值约束做算术检查时可直接 parameter_check；一旦讨论效果或适用性就要查历史。
 
 未命中历史时如实说明，并保留查到的参数机制与研究经验。单纯补查未返回的参数身份可用 wireless_knowledge_query，不把语义查询替代本地历史包检索。
@@ -24,7 +28,7 @@ metadata:
 
 案例里的 `matched_actions` 是所问参数，完整 `actions` 是当时整套方案。调整目的可以按参数机制解释，必须区别已记录的原因与推测；没有历史根因证据时不能把意图说成已确证原因。整单效果不能单独归给所问参数。未知厂家保持未知，前后值沿用源编码，不自行换算单位，不把历史值当作当前网元目标或范围。
 
-明确区分实际执行的工单、演示和研究中的推荐/历史对照；后两类不能说成实际执行成功。案例摘要没有 KPI 前后值时直接说明只能知道整单评价，无法给出改善幅度。无匹配案例就说明当前资料暂无，不用假设例子冒充历史工单。
+明确区分实际执行的工单、合成样本和研究中的推荐/历史对照；后两类不能说成实际执行成功。案例摘要没有 KPI 前后值时直接说明只能知道整单评价，无法给出改善幅度。无匹配案例就说明当前资料暂无，不用假设例子冒充历史工单。
 
 `effect_direction` 是材料中的机制解释/优化意图；`confidence` 是语义标注置信度，均不是现场改善概率。原材料保留 `needs_human_review`；`signature_policy.hard_aggregation_policy` 只涉及签名归并。blocked 或 conditional 不得说成等价身份；反向动作、不同对象和厂家参数不自动互换。未命中时明确缺少该参数资料。
 

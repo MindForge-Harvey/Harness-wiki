@@ -3,6 +3,14 @@ name: wireless-effect-evaluation
 description: 按 ECHO-Mem 方法评价无线候选方案的历史支持与反证，或比较实际执行后的同口径效果、业务判据和归因范围；用于方案可靠性及优化效果评估。
 ---
 
+## ICOS 执行回执与短评估
+
+对 ICOS run_id 先按 [ICOS 契约](../wireless-workorder-orchestrator/references/icos-workflow.md) 调用 wireless_icos_feedback 读取已提交的回执与短评估分类。改善/通过、恶化/不通过和缺失保持不同含义，执行行按 short_result_id 关联评估。短评估来自输入，工具没有新采集现场指标。
+
+归档数据含真实 actions 的执行与长期评价时，在用户要求评价执行后结果的这一阶段，将带 source_ref 的 archived_feedback 交给 wireless_icos_feedback；不要把反馈写进决策前 context。字段对应 trace 的 exec_state、short_eval_result、long_eval_result 和 improvement_result，并用 context 中的 execution_id 关联。短评估“未启用”不当作失败；失败动作的 after 只是尝试目标，不当作实际值；“改善”与长期 Fail 冲突时分别说明。没有 KPI 前后值时只评价执行与归档标签，不能计算改善幅度。
+
+有真实执行与同口径前后观测时，继续使用下方 wireless_workorder 的 record_execution/evaluate 保存并计算效果；恶化后需要新一轮建议加载 wireless-multi-round-reasoning。最终候选动作不是执行反馈，不得据此补造 after 值或成功结论。
+
 先确定评估对象：尚未执行的候选看历史支持与当前适用条件；已执行方案看真实反馈与前后效果。读 [历史决策方法的评估阶段](../wireless-workorder-orchestrator/references/echo-decision-workflow.md#评估)，按所需模式完成，不要求两者都运行。
 
 ## 执行前评估

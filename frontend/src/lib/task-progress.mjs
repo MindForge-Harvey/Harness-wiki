@@ -1,4 +1,21 @@
+import { skillTitle } from './skill-catalog.mjs';
+
 const labels = {
+  todo_write: '任务拆解与进度',
+  skill: '加载 Skill',
+  wireless_icos_context: '读取工单分析上下文',
+  wireless_icos_root_cause: '分析根因与证据',
+  wireless_icos_objective: '确认优化目标',
+  wireless_icos_cases: '对照同类历史工单',
+  wireless_icos_candidates: '组织与比较候选方案',
+  wireless_icos_alignment: '核对方案与根因的对应关系',
+  wireless_icos_parameter_risk: '检查参数取值与风险',
+  wireless_icos_consistency: '复核整单方案一致性',
+  wireless_icos_decision: '形成综合决策',
+  wireless_icos_multi_round: '分析下一轮优化方向',
+  wireless_icos_feedback: '核对执行与评价反馈',
+  wireless_order_query: '查询工单与整理信息',
+  wireless_network_query: '读取指标、参数和规则',
   wireless_echo_query: '梳理经验复用机制',
   wireless_knowledge_query: '核对参数含义与经验',
   wireless_case_search: '查找可参考的历史案例',
@@ -8,7 +25,7 @@ const labels = {
   wireless_memory_query: '读取已沉淀的经验',
   wireless_echo_decision: '比对历史候选与当前适配',
   wireless_data_analyze: '计算指标变化与时段特征',
-  wireless_demo: '分析演示场景与经验复用',
+  wireless_demo: '分析场景与复用经验',
   lightrag_query_data: '查阅网优资料',
   kb_ingest: '收录网优资料', kb_update: '更新网优资料',
   kb_status: '检查资料服务', kb_analyze: '检查资料质量',
@@ -25,11 +42,10 @@ const operations = {
 };
 export const toolLabel = name => labels[name] || (name === 'wireless_workorder' ? '处理网优工单' : '处理分析资料');
 export function visibleTool(card) {
-  // Loading instructions and reading files are internal operations, not completed business tasks.
-  return Boolean(labels[card.name] || card.name === 'wireless_workorder' || card.status === 'error');
+  return Boolean(card.name);
 }
 export function stageKey(card) {
-  return [card.name, card.args?.operation || '', card.args?.workorder_id || ''].join(':');
+  return card.callId ? `call:${card.callId}` : [card.name, card.args?.operation || '', card.args?.workorder_id || ''].join(':');
 }
 const count = value => Array.isArray(value) ? value.length : 0;
 function outcome(card) {
@@ -39,15 +55,48 @@ function outcome(card) {
   if (card.status === 'interrupted') return { status: 'error', summary: '任务已中断，这一阶段尚未完成。' };
   const done = summary => ({ status: 'done', summary });
   const pending = summary => ({ status: 'needs_data', summary });
+  if (card.name.startsWith('wireless_') && !card.resultJson && card.resultText) {
+    return done(card.resultTruncated ? '资料已返回，完整结果已转存，可结合后续读取查看' : '资料已返回，可展开查看结果');
+  }
+  if (card.name === 'todo_write') {
+    const tasks = j.todos || args.todos || [];
+    const complete = tasks.filter(task => task.status === 'completed').length;
+    const active = tasks.find(task => task.status === 'in_progress');
+    return done(`已完成 ${complete}/${tasks.length} 项${active ? `，正在${active.content}` : ''}`);
+  }
+  if (card.name === 'skill') return done(`已加载「${skillTitle(args.name)}」`);
+  if (card.name.startsWith('wireless_icos_')) {
+    if (card.name === 'wireless_icos_context' && j.analysis_selection?.selected_date) {
+      const selection = j.analysis_selection;
+      return done(`已读取工单资料，分析日期 ${selection.selected_date}${selection.cross_period ? '，与原工单分期分析' : ''}`);
+    }
+    if (j.read_only && j.operation === 'explain') return done('已读取逐动作的实际规则、复核与最终去留');
+    if (j.status === 'needs_stages') return pending(`需要先完成：${(j.missing_stages || []).join('、')}`);
+    if (j.status === 'needs_judgment') return pending('已取得分析要求，正在核对依据与判断');
+    if (j.status === 'needs_data') return pending('本阶段所需信息尚不完整');
+    if (j.status === 'completed') return done(j.result?.status === 'not_called' ? '已核对输入，本阶段缺少可判断的证据' : '本阶段已完成，依据和结果可展开查看');
+    return done(j.reused ? '已复用本轮有效分析记录' : '已读取当前阶段记录');
+  }
+  if (card.name === 'wireless_order_query') {
+    if (j.status === 'found' && j.ticket) return done(`已读取工单 ${j.ticket.id} 的小区、动作与处理记录`);
+    if (j.status === 'found' || j.status === 'no_matches') return done(`查询到 ${j.total || 0} 张工单，本页展示 ${count(j.tickets)} 张`);
+    if (j.status === 'available') return done(`工单库已收录 ${j.total_tickets} 张工单`);
+    if (j.status === 'not_found') return done('未找到这个工单号，可核对编号后继续查询');
+    return pending('工单索引正在准备');
+  }
+  if (card.name === 'wireless_network_query') return j.status === 'found'
+    ? done(j.total !== undefined ? `已读取 ${j.total} 条指标观测` : `已读取 ${j.snapshot_date} 的指标、诊断与 ${j.rule_count || 0} 条参数规则`)
+    : j.status === 'available' ? done(`已有 ${count(j.snapshots)} 份小区数据快照`)
+      : pending(j.analysis_selection?.selected_date ? `未匹配 ${j.analysis_selection.selected_date} 的快照，其他日期未带入` : '当前查询条件下尚无已入库快照');
   if (card.name === 'wireless_data_analyze') return j.status === 'analyzed'
     ? done(`已计算 ${j.series_count} 组指标的基线与变化${count(j.quarantined) ? `，隔离 ${count(j.quarantined)} 条问题观测` : ''}`)
     : pending('尚无可比较的有效观测');
   if (card.name === 'wireless_demo') {
-    const summary = { demo_memory_prepared: '已用 ECHO 编译器准备合成历史经验', demo_candidates_compared: `已比较 ${count(j.candidates)} 个合成历史候选及其反证`,
-      demo_decision_frozen: '演示方案与依据版本已冻结，尚未执行现场操作', demo_feedback_revealed: '已揭示模拟反馈并计算前后效果',
-      demo_memory_learned: '已生成新的演示经验版本，保留旧版', demo_memory_read: '已读取演示空间中的六类经验', no_candidates: '该场景没有兼容的演示候选' }[j.status];
-    if (j.status === 'needs_data') return pending('演示所需快照或评价尚不完整');
-    return done(summary || (j.scenario_id ? '已读取演示场景的决策前数据' : `已读取 ${j.counts?.scenarios || 0} 个合成演示场景`));
+    const summary = { demo_memory_prepared: '历史经验已准备', demo_candidates_compared: `已比较 ${count(j.candidates)} 个历史候选及其反证`,
+      demo_decision_frozen: '方案与依据版本已冻结', demo_feedback_revealed: '已读取方案反馈并比较前后效果',
+      demo_memory_learned: '已生成新的经验版本，保留旧版', demo_memory_read: '已读取当前版本的六类经验', no_candidates: '该场景没有兼容的历史候选' }[j.status];
+    if (j.status === 'needs_data') return pending('当前快照或评价尚不完整');
+    return done(summary || (j.scenario_id ? '已读取场景的决策前数据' : `已读取 ${j.counts?.scenarios || 0} 个场景`));
   }
   if (card.name === 'wireless_echo_decision') {
     if (j.status === 'ranked_candidates') return done(`已按 ECHO 方法比较 ${count(j.candidates)} 个历史候选；仍需核对反证与当前条件。`);
@@ -58,7 +107,7 @@ function outcome(card) {
   }
   if (card.name === 'wireless_history_search') {
     const cases = count(j.cases), memories = Object.values(j.memories || {}).reduce((n, group) => n + count(group.memories), 0);
-    const connector = j.sources?.production_workorder_connector?.status === 'not_connected' ? '；完整生产工单库尚未接入' : '';
+    const connector = '';
     if (j.status === 'search_incomplete') return { status: 'warning', summary: `部分历史来源读取失败，已保留可用结果${connector}` };
     if (j.status === 'no_history_match') return done(`历史检索已完成，未找到匹配工单或记忆${connector}`);
     if (j.status === 'history_match') return done(`历史已查：${cases} 条案例、${memories} 条记忆，需与当前条件比对${connector}`);
@@ -104,7 +153,7 @@ function outcome(card) {
     }
   }
   if (card.name === 'wireless_compile_history') return j.status === 'needs_data' ? pending('历史经验编译所需记录尚待补齐') : j.package_id
-    ? done(args.mode === 'demo' ? '已生成演示经验包，不能作为现场效果结论' : '已生成可追溯的本地经验包') : pending('尚未取得可用的经验包');
+    ? done(args.mode === 'demo' ? '已生成本地经验包' : '已生成可追溯的本地经验包') : pending('尚未取得可用的经验包');
   if (card.name === 'wireless_memory_query') return count(j.memories) ? done(`读到 ${count(j.memories)} 条经验及其支持、反对依据`) : pending('所选经验包中未找到匹配条目');
   if (card.name === 'lightrag_query_data') return count(j.data?.chunks || j.chunks) ? done(`找到 ${count(j.data?.chunks || j.chunks)} 段相关资料`) : pending('本次查询未返回可引用的资料片段');
   return done('已收到处理结果');
@@ -127,4 +176,11 @@ export function groupTaskMessages(messages) {
     else { const group = { ...message, calls: [message] }; out.push(group); groups.set(key, group); }
   }
   return out;
+}
+
+export function latestTaskPlan(messages) {
+  const start = messages.findLastIndex(message => message.role === 'user');
+  const last = messages.slice(start + 1).findLast(message => message.role === 'tool'
+    && message.name === 'todo_write' && message.status === 'done');
+  return last?.resultJson?.todos || [];
 }

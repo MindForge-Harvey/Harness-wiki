@@ -58,7 +58,7 @@ cd backend/cas-server
 .venv/bin/python app.py
 ```
 
-监听端口：`9000`。演示账号：`wangqiyue / Wqy@2026#Secure!Cas`。
+监听端口：`9000`。开发账号：`wangqiyue / Wqy@2026#Secure!Cas`。
 
 ### 门户认证后端
 

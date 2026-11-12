@@ -9,6 +9,17 @@ import { echoQuery, echoTopics } from '../dsh/dsh-wireless/lib/echo.js'
 import { createWorkorderStore } from '../dsh/dsh-wireless/lib/workflow.js'
 import { parameterCheck } from '../dsh/dsh-wireless/lib/catalog.js'
 import { groupTaskMessages, taskProgress } from '../../frontend/src/lib/task-progress.mjs'
+import { assistantDelta, assistantComplete, safeToolDetails } from '../../frontend/src/lib/chat-stream.mjs'
+import { latestTaskPlan } from '../../frontend/src/lib/task-progress.mjs'
+import { completedRunText } from '../harness/run-result.mjs'
+
+test('SDK idle after interruption cannot be reported as an empty successful answer', () => {
+  const interrupted = { finalResponse: '', events: [{ type: 'turn/end', data: { reason: { kind: 'aborted', reason: { kind: 'disposed' } } } }] }
+  assert.throws(() => completedRunText(interrupted), { code: 'HARNESS_RUN_INTERRUPTED' })
+  assert.throws(() => completedRunText({ ...interrupted, finalResponse: '已开始查找' }), { code: 'HARNESS_RUN_INTERRUPTED' })
+  assert.throws(() => completedRunText({ finalResponse: '', events: [] }), { code: 'HARNESS_EMPTY_RESPONSE' })
+  assert.equal(completedRunText({ finalResponse: '已找到工单。', events: [] }), '已找到工单。')
+})
 
 test('live and historical browser projections omit raw reasoning without changing SDK context or requested technical details', () => {
   const event = { type: 'assistant/message', seq: 1, data: { message: { content: [
@@ -22,6 +33,13 @@ test('live and historical browser projections omit raw reasoning without changin
   assert.deepEqual(notification, before);
   assert.deepEqual(projectHistory([event]).map(e => e.kind), ['assistant']);
   assert.ok(!JSON.stringify(projectHistory([event])).includes('PRIVATE_REASONING_SENTINEL'));
+  const user = { type: 'user/message', seq: 2, data: { source: { kind: 'user' }, content: [{ type: 'text',
+    text: '进行信息总结\n\n<workspace-data>内部运行信息</workspace-data>\n\n<restored-conversation>恢复信息</restored-conversation>' }] } };
+  assert.equal(projectHistory([user])[0].text, '进行信息总结');
+  assert.match(user.data.content[0].text, /内部运行信息/);
+  const delta = { method: 'agent/assistant-delta', params: { kind: 'text', text: '正在对比当前指标。' } };
+  assert.deepEqual(presentNotification(delta), delta);
+  assert.equal(presentNotification({ method: 'agent/assistant-delta', params: { kind: 'reasoning', text: 'PRIVATE_REASONING_SENTINEL' } }), null);
 });
 
 test('Chinese explanatory asides become sentences consistently while evidence values and technical notation remain intact', () => {
@@ -52,22 +70,69 @@ test('history keeps structured results larger than the text preview and marks un
   assert.equal(taskProgress({ ...history[1], args: {} }).status, 'error');
 });
 
-test('repeated mechanism queries form one stage per turn, while failed calls and distinct workorders stay distinguishable', () => {
-  const call = (id, status) => ({ id, role: 'tool', name: 'wireless_echo_query', status, args: {},
+test('the execution chain keeps Skill loading and every identified tool call in chronological order', () => {
+  const call = (id, status) => ({ id, callId: id, role: 'tool', name: 'wireless_echo_query', status, args: {},
     resultJson: echoQuery({ topic: 'authority' }) });
   const messages = [{ id: 'u', role: 'user' }, { role: 'thinking', content: 'PRIVATE' },
-    { role: 'tool', name: 'skill', status: 'done' }, call('a', 'done'), call('b', 'error'),
+    { role: 'tool', name: 'skill', status: 'done', args: { name: 'wireless-data-analysis' } }, call('a', 'done'), call('b', 'error'),
     { id: 'u2', role: 'user' }, call('c', 'done')];
   const grouped = groupTaskMessages(messages);
-  assert.equal(grouped.length, 4);
-  assert.equal(grouped[1].calls.length, 2);
-  assert.equal(taskProgress(grouped[1]).status, 'error');
-  assert.equal(taskProgress(grouped[3]).status, 'done');
-  assert.ok(grouped[1].calls[0].resultJson.guides[0].references.length > 0); // Sources stay in agent evidence, outside presentation.
+  assert.equal(grouped.length, 6);
+  assert.equal(grouped[1].name, 'skill');
+  assert.match(taskProgress(grouped[1]).summaries[0], /已加载.*指标与数据分析/);
+  assert.deepEqual(grouped.filter(m => m.callId).map(m => m.callId), ['a', 'b', 'c']);
+  assert.equal(taskProgress(grouped[3]).status, 'error');
+  assert.equal(taskProgress(grouped[5]).status, 'done');
+  assert.ok(grouped[2].calls[0].resultJson.guides[0].references.length > 0);
   const orders = ['wo_a', 'wo_b'].map(id => ({ role: 'tool', name: 'wireless_workorder', status: 'done', args: { operation: 'intake', workorder_id: id } }));
   assert.equal(groupTaskMessages(orders).length, 2);
   assert.equal(messages.length, 7); // Presentation does not mutate underlying events.
 });
+
+test('real text deltas update one message and durable completion replaces it without duplicate output', () => {
+  let messages = [{ id: 'u', role: 'user', content: '查工单' }];
+  messages = assistantDelta(messages, 'stream-1', '已查到');
+  messages = assistantDelta(messages, 'stream-1', '工单 123。');
+  assert.equal(messages.length, 2);
+  assert.equal(messages[1].content, '已查到工单 123。');
+  assert.equal(messages[1].streaming, true);
+  messages = assistantComplete(messages, 'stream-1', '已查到工单 123。');
+  assert.equal(messages.length, 2);
+  assert.equal(messages[1].streaming, false);
+  messages = assistantDelta(messages, 'stream-2', '接下来核对指标。');
+  assert.equal(messages.length, 3);
+  const safe = safeToolDetails({ month: '2026-06', nested: { api_key: 'sensitive', judgment_token: 'private' } });
+  assert.ok(!safe.includes('sensitive') && !safe.includes('private'));
+  assert.match(safe, /2026-06/);
+});
+
+test('native Harness plans display the latest confirmed snapshot for this turn and survive projected history', () => {
+  const todos = [{ content: '读取工单', status: 'completed' }, { content: '比较候选', status: 'in_progress' }]
+  const events = [{ type: 'user/message', seq: 1, data: { source: { kind: 'user' }, content: [{ type: 'text', text: '生成方案' }] } },
+    { type: 'tool/call', seq: 2, data: { callId: 'plan', name: 'todo_write', arguments: JSON.stringify({ todos }) } },
+    { type: 'tool/result', seq: 3, data: { message: { content: [{ type: 'tool-result', toolCallId: 'plan', content: [{ type: 'text', text: JSON.stringify({ todos }) }] }] } } }]
+  const messages = projectHistory(events).map(event => ({ ...event, role: event.kind }))
+  assert.deepEqual(latestTaskPlan(messages), todos)
+  assert.equal(taskProgress(messages[1]).title, '任务拆解与进度')
+  assert.match(taskProgress(messages[1]).summaries[0], /1\/2/)
+  assert.deepEqual(latestTaskPlan([...messages, { role: 'user', content: '另一个问题' }]), [])
+  assert.deepEqual(latestTaskPlan([{ role: 'tool', name: 'todo_write', status: 'error', resultJson: { todos } }]), [])
+})
+
+test('SDK-spilled tool results remain completed information in live and restored progress', () => {
+  const result='{"status":"history_match","memories":['+'x'.repeat(5000)+'\n(Output truncated. Full output written to /tmp/result.txt. Use read with offset/limit.)';
+  const history=projectHistory([
+    {type:'tool/call',seq:1,data:{callId:'large',name:'wireless_history_search',arguments:'{}'}},
+    {type:'tool/result',seq:2,data:{message:{content:[{type:'tool-result',toolCallId:'large',content:[{type:'text',text:result}]}]}}},
+  ]);
+  assert.equal(history[0].status,'done');assert.equal(history[0].resultTruncated,true);
+  assert.equal(history[0].resultText.length,4000);
+  for(const name of ['wireless_history_search','wireless_data_analyze','wireless_network_query']) {
+    const progress=taskProgress({...history[0],name});
+    assert.equal(progress.status,'done');assert.match(progress.summaries[0],/资料已返回/);
+    assert.doesNotMatch(progress.summaries[0],/无有效|尚未取得|未入库/);
+  }
+})
 
 test('progress uses actual domain outcomes: persisted drafts and successful tool calls are not completed optimization', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-presentation-'));

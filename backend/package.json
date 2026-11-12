@@ -8,7 +8,8 @@
     "node": ">=22.19"
   },
   "scripts": {
-    "test:harness": "node --test dev/contract-harness.mjs dev/contract-wireless.mjs dev/contract-wireless-history.mjs dev/contract-wireless-decision.mjs dev/contract-wireless-workflow.mjs dev/contract-presentation.mjs dev/contract-wireless-demo.mjs",
+    "test:harness": "node --test dev/contract-chat-sessions.mjs dev/contract-harness.mjs dev/contract-wireless.mjs dev/contract-wireless-history.mjs dev/contract-wireless-decision.mjs dev/contract-wireless-workflow.mjs dev/contract-presentation.mjs dev/contract-wireless-demo.mjs dev/contract-wireless-icos.mjs dev/contract-wireless-orders.mjs dev/contract-wireless-network.mjs",
+    "test:wireless-icos": "node --test dev/contract-wireless-icos.mjs",
     "demo:build": "node dev/build-wireless-demo.mjs",
     "test:wireless-demo": "node --test dev/contract-wireless-demo.mjs"
   },

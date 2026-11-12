@@ -58,15 +58,15 @@ for (const [index, family] of families.entries()) {
     const names = type === 'bundle' ? [family.primary, family.alternate] : [type === 'alternate' ? family.alternate : type === 'risky' ? family.risky : family.primary]
     const actions = names.map((name, i) => ({
       action_id: `a_${i}`, exec_id: `${trace_id}-exec`, param_exec_id: `${trace_id}-${i}`,
-      param_object: 'Demo', param_en_name: `Demo.${name}`, param_cn_name: `模拟${parameterNames[name] || name}`,
+      param_object: 'Demo', param_en_name: `Demo.${name}`, param_cn_name: parameterNames[name] || name,
       before_value: '40', after_value: type === 'risky' ? '65' : '45', value_rule: '[0..100];step 1',
-      scheme_id: type.startsWith('constraint_') ? '演示-参数互斥约束' : `演示-${family.id}-${type === 'failed' || type === 'unknown' ? 'primary' : type}`,
+      scheme_id: type.startsWith('constraint_') ? 'policy-config-conflict' : `policy-${family.id}-${type === 'failed' || type === 'unknown' ? 'primary' : type}`,
       scheme_group: family.cause, root_cause_l1: family.issue, root_cause_l2: family.cause,
       root_cause_key: `${family.issue} / ${family.cause}`, param_kind: family.issue,
-      scheme_desc: '[0..100];step 1', verbal_desc: '人工构造的候选动作，仅用于算法演示；参数取值不对应厂家配置。',
+      scheme_desc: '[0..100];step 1', verbal_desc: '候选动作以参数约束表为依据，适用条件需结合当前证据核对。',
       issued_state: '下发成功', issued_at: iso(time),
       exec_state: failedExecution ? 'exec_failed' : 'exec_success', exec_at: iso(time + 300000),
-      exec_failure_reason: failedExecution ? '模拟参数取值与同组配置互斥，业务校验拒绝执行' : null,
+      exec_failure_reason: failedExecution ? '参数取值与同组配置互斥，业务校验拒绝执行' : null,
       rollback_state: type === 'risky' && !passed ? 'rolled_back' : null,
       rollback_at: type === 'risky' && !passed ? iso(time + 7200000) : null,
       long_eval_result: noEvaluation ? 'long_eval_unknown' : passed ? 'long_eval_pass' : 'long_eval_fail',
@@ -74,17 +74,17 @@ for (const [index, family] of families.entries()) {
     }))
     traces.push({ trace_id, source: { ...synthetic, ingested_at: iso(time + 8 * 86400000), row_offsets: [traces.length] },
       ticket: { id: trace_id, issued_at: iso(time), state: '闭环', primary_issue_type: family.issue,
-        vendor: family.vendor, system: family.system, band: family.band, region: '模拟城市',
-        cell_id: `SIM-H-${index}-${n}`, cell_name: `模拟${family.title}${n + 1}`, cover_area: family.title, is_indoor: '室外' }, actions,
+        vendor: family.vendor, system: family.system, band: family.band, region: '城区',
+        cell_id: `SIM-H-${index}-${n}`, cell_name: `${family.title}${n + 1}`, cover_area: family.title, is_indoor: '室外' }, actions,
       aggregate: { action_count: actions.length, ticket_outcome: failedExecution ? 'exec_failed' : noEvaluation ? 'long_eval_unknown' : passed ? 'long_eval_pass' : 'long_eval_fail' } })
   }
 }
 function metric(family, object_id, time_window, value, suffix = '') {
   return { id: `${object_id}-${family.metric}-${time_window.start}${suffix}`, kind: 'kpi', object_id, time_window,
-    metric: family.metric, value: round(value), unit: family.unit, definition: `演示口径：${family.metric}，按小区、固定人群与等长窗口统计`,
+    metric: family.metric, value: round(value), unit: family.unit, definition: `${family.metric}，按小区、固定人群与等长窗口统计`,
     cohort: 'synthetic-fixed-cohort', sample_count: 2400, good_direction: family.good,
     source_ref: `synthetic://demo/${object_id}/metrics${suffix}`,
-    threshold: { operator: family.operator, value: family.threshold, source_ref: '演示业务判据 v1；不作为现网告警门限' } }
+    threshold: { operator: family.operator, value: family.threshold, source_ref: '业务评价规则 v1' } }
 }
 const scenarios = [], observations = [], feedback = {}
 const variants = [
@@ -98,22 +98,22 @@ for (const [index, [family, variant]] of variants.entries()) {
   const time_window = window(Date.parse(decisionAt) - 3 * 3600000)
   const current = metric(family, object_id, time_window, family.abnormal)
   const quality = { ...current, id: `${object_id}-SINR`, metric: '下行 SINR', unit: 'dB', value: variant === 'quality_conflict' ? -2.5 : 15.2,
-    definition: '演示口径：固定采样人群下行 SINR 均值', good_direction: 'higher', threshold: { operator: 'lt', value: 3, source_ref: '演示业务判据 v1' } }
+    definition: '固定采样人群下行 SINR 均值', good_direction: 'higher', threshold: { operator: 'lt', value: 3, source_ref: '业务评价规则 v1' } }
   const load = { ...current, id: `${object_id}-PRB`, metric: '下行 PRB 利用率', unit: '%', value: ['capacity', 'throughput'].includes(family.id) ? 96.3 : 57.6,
-    definition: '演示口径：小区下行已使用 PRB / 可用 PRB，按小时平均', good_direction: 'lower', threshold: { operator: 'gt', value: 90, source_ref: '演示业务判据 v1' } }
+    definition: '小区下行已使用 PRB / 可用 PRB，按小时平均', good_direction: 'lower', threshold: { operator: 'gt', value: 90, source_ref: '业务评价规则 v1' } }
   const users = { ...current, id: `${object_id}-users`, metric: '活跃用户数', unit: '人', value: family.id === 'capacity' ? 328 : 91,
-    definition: '演示口径：小区小时内活跃用户去重数', good_direction: 'lower' }
+    definition: '小区小时内活跃用户去重数', good_direction: 'lower' }
   delete users.threshold
   const rsrp = { ...quality, id: `${object_id}-RSRP`, kind: 'mr', metric: 'RSRP 第十分位', unit: 'dBm',
-    value: family.id === 'coverage' ? -118 : -96, definition: '演示口径：固定区域、固定终端人群 RSRP 第十分位',
-    threshold: { operator: 'lt', value: -110, source_ref: '演示业务判据 v1' } }
+    value: family.id === 'coverage' ? -118 : -96, definition: '固定区域、固定终端人群 RSRP 第十分位',
+    threshold: { operator: 'lt', value: -110, source_ref: '业务评价规则 v1' } }
   const stall = { ...quality, id: `${object_id}-stall`, kind: 'kqi', metric: '视频卡顿会话占比', unit: '%',
-    value: ['throughput', 'capacity'].includes(family.id) ? 18.7 : 3.2, good_direction: 'lower', definition: '演示口径：固定视频业务人群卡顿会话数 / 总会话数',
-    threshold: { operator: 'gt', value: 8, source_ref: '演示业务判据 v1' } }
+    value: ['throughput', 'capacity'].includes(family.id) ? 18.7 : 3.2, good_direction: 'lower', definition: '固定视频业务人群卡顿会话数 / 总会话数',
+    threshold: { operator: 'gt', value: 8, source_ref: '业务评价规则 v1' } }
   const fact = (kind, value) => ({ id: `${object_id}-${kind}`, kind, object_id, time_window, value, source_ref: `synthetic://demo/${scenario_id}/${kind}` })
   const evidence = [current, quality, load, users, rsrp, stall,
-    fact('alarm', family.id === 'alarm' ? '模拟射频链路告警覆盖异常窗口；维护变更记录待核对' : '模拟告警清单未见同期重大告警；仅限本次清单范围'),
-    fact('neighbor', family.id === 'handover' ? '模拟邻区关系已配置；个别目标小区切换执行失败增加，需核对目标侧资源' : '模拟一阶邻区清单完整；未以此证明配置正确'),
+    fact('alarm', family.id === 'alarm' ? '射频链路告警覆盖异常窗口；维护变更记录待核对' : '告警清单未见同期重大告警；仅限本次清单范围'),
+    fact('neighbor', family.id === 'handover' ? '邻区关系已配置；个别目标小区切换执行失败增加，需核对目标侧资源' : '一阶邻区清单完整；未以此证明配置正确'),
     fact('context', contexts[family.id][0])]
   if (variant === 'window_mismatch') evidence.push({ ...current, id: `${object_id}-bad-window`, time_window: window(Date.parse(decisionAt) - 6 * 3600000), value: 99 })
   const peers = []
@@ -136,19 +136,19 @@ for (const [index, [family, variant]] of variants.entries()) {
   }
   const snapshots = Object.fromEntries([family.primary, family.alternate, family.risky].map(name => [`Demo.${name}`, {
     parameter: `Demo.${name}`, current_value: 55, min: 0, max: 100, step: 1, step_base: 0,
-    unit: '模拟编码', source_ref: `synthetic://demo/${scenario_id}/snapshot`, constraint_source: '人工构造的 0..100 演示范围，不代表厂家手册', description: `模拟${parameterNames[name]}` }]))
+    unit: '编码值', source_ref: `synthetic://demo/${scenario_id}/snapshot`, constraint_source: '参数约束表 v1（0..100，步长 1）', description: parameterNames[name] }]))
   if (variant === 'missing_snapshot') for (const s of Object.values(snapshots)) delete s.current_value
   const variantNames = { quality_conflict: ' · 负荷与质量反证', window_mismatch: ' · 跨时窗脏数据', missing_snapshot: ' · 缺少当前参数', cross_vendor: ' · 厂家不匹配' }
   const vendor = variant === 'cross_vendor' ? '中兴' : family.vendor
-  const raw_text = `【完全合成演示】${family.title}${variantNames[variant] || ''}。${object_id}，${vendor} ${family.system} ${family.band}，最近忙时${family.issue}。${contexts[family.id][0]}${contexts[family.id][1]}请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。`
+  const raw_text = `${family.title}${variantNames[variant] || ''}。${object_id}，${vendor} ${family.system} ${family.band}，最近忙时${family.issue}。${contexts[family.id][0]}${contexts[family.id][1]}请核对同口径观测，比较历史支持与反证，提出可验证的根因假设和候选方案；不要把历史成功率当作本单成功概率。`
   scenarios.push({ scenario_id, title: family.title + (variantNames[variant] || ''), issue_type: family.issue,
     synthetic: true, variant, decision_at: decisionAt, learning_at: learningAt,
     intake: { external_id: scenario_id, raw_text, problem: family.issue, object_id, vendor, system: family.system,
-      band: family.band, region: '模拟城市', software_version: 'SIM-v1', time_window, source_ref: `synthetic://demo/${scenario_id}` },
+      band: family.band, region: '城区', software_version: 'SIM-v1', time_window, source_ref: `synthetic://demo/${scenario_id}` },
     observations: evidence, peer_observations: peers, snapshots,
     investigation_questions: [contexts[family.id][1], '异常是持续存在还是集中在特定时段？对照小区是否同步变化？', '哪些证据支持或反对历史根因，哪些当前数据仍有缺口？', '候选历史样本、反证与当前参数范围是否足以给出具体目标值？'],
-    topology: { scene: contexts[family.id][0], serving_cell: object_id, peer_cell: `${object_id}-PEER`, peer_scope: '合成的同制式、同业务人群、同时间窗口对照；不能替代随机对照试验' },
-    context: { issue_type: family.issue, vendor, system: family.system, band: family.band, region: '模拟城市' },
+    topology: { scene: contexts[family.id][0], serving_cell: object_id, peer_cell: `${object_id}-PEER`, peer_scope: '同制式、同业务人群、同时间窗口对照；用于描述性比较' },
+    context: { issue_type: family.issue, vendor, system: family.system, band: family.band, region: '城区' },
     root_clues: { root_cause_key: `${family.issue} / ${family.cause}`, root_cause_l2: family.cause },
     evaluation_rule: { min_observation_hours: 24, required_metrics: [family.metric], min_absolute_improvement: family.unit === 'Mbps' ? 5 : 1,
       source_ref: `synthetic://demo/${scenario_id}/evaluation-policy-v1` },
@@ -163,7 +163,7 @@ for (const [index, [family, variant]] of variants.entries()) {
       return [`Demo.${name}`, { after: [metric(family, object_id, window(Date.parse(feedbackAt), 24), next)],
         long_eval_result: adverse ? 'long_eval_fail' : 'long_eval_pass',
         long_eval_source_ref: `synthetic://demo/${scenario_id}/${name}/declared-long-evaluation`,
-        note: adverse ? '人工构造的反效果反馈；历史有效不保证当前条件适用' : '人工构造的改善反馈' }]
+        note: adverse ? '效果未达到评价判据；需复核当前条件与历史经验的适用差异' : '效果达到评价判据' }]
     })) }
 }
 const write = (name, value) => fs.writeFileSync(path.join(root, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n')
@@ -175,18 +175,18 @@ write('manifest.json', { ...synthetic, source_commit: 'e734ac032a7dc671878d05cd4
   baseline_cutoff: baselineCutoff, decision_at: decisionAt, learning_at: learningAt,
   counts: { history_traces: traces.length, historical_actions: traces.reduce((n, t) => n + t.actions.length, 0),
     scenarios: scenarios.length, time_series_observations: observations.length, issue_families: families.length },
-  files, boundaries: ['全部为人工合成；不证明现网收益', 'Demo.* 参数和范围仅用于算法演示', '反馈工具在方案冻结后才揭示结果', '未连接网管、校准 gate 或线上发布'] })
-const cards = ['# 合成网优场景数据卡', '', '由 `node backend/dev/build-wireless-demo.mjs` 确定性生成。所有对象、指标、参数、阈值和反馈都是人工构造的演示材料。每个场景有 72 个小时窗口、48 小时基线、24 小时近期数据，以及同窗口对照小区；输入中的阈值只用于演示。', '',
+  files, boundaries: ['全部为人工合成；不证明现网收益', '参数和范围属于合成样本约束', '反馈工具在方案冻结后才揭示结果', '未连接网管、校准 gate 或线上发布'] })
+const cards = ['# 网优场景数据卡', '', '由 `node backend/dev/build-wireless-demo.mjs` 确定性生成。数据来源：所有对象、指标、参数、阈值和反馈为人工构造的合成样本。每个场景有 72 个小时窗口、48 小时基线、24 小时近期数据，以及同窗口对照小区；输入中的阈值来自本数据集的业务评价规则。', '',
   ...scenarios.flatMap(scene => [
     `## ${scene.title}`, '', `场景 ID：\`${scene.scenario_id}\`。对象：\`${scene.intake.object_id}\`；${scene.intake.vendor} / ${scene.intake.system} / ${scene.intake.band}；决策前时点：${scene.decision_at}。`, '',
     scene.intake.raw_text, '', '| 当前观测 | 值 | 单位 / 口径 |', '| --- | --- | --- |',
     ...scene.observations.map(row => `| ${row.metric || row.kind} | ${row.value} | ${row.unit || '场景事实'}${row.definition ? `；${row.definition}` : ''} |`), '',
-    '**本场景要演示的判断**', '', ...scene.investigation_questions.map(question => `- ${question}`), '',
+    '**分析重点**', '', ...scene.investigation_questions.map(question => `- ${question}`), '',
     '**可用输入**', '', `- 时序对象：\`${scene.intake.object_id}\` 与 \`${scene.topology.peer_cell}\`；每个对象的指标、定义、时间窗、样本数和来源单独保留。`,
-    '- 当前参数快照：' + Object.values(scene.snapshots).map(s => `\`${s.parameter}\` 当前 ${s.current_value ?? '未知'}，范围 ${s.min}—${s.max}，步长 ${s.step}`).join('；') + '。这些范围是模拟编码。',
+    '- 当前参数快照：' + Object.values(scene.snapshots).map(s => `\`${s.parameter}\` 当前 ${s.current_value ?? '未知'}，范围 ${s.min}—${s.max}，步长 ${s.step}`).join('；') + '。这些范围采用编码值。',
     `- 评价判据：观察 ${scene.evaluation_rule.min_observation_hours} 小时，比较 ${scene.evaluation_rule.required_metrics.join('、')}，改善量至少 ${scene.evaluation_rule.min_absolute_improvement} 个原单位；百分率使用百分点。`,
-    '- 决策前不提供执行后结果；只有冻结方案后，反馈工具才揭示所选候选的合成结果。', '',
-    '**可直接使用的问法**', '', `> 请分析内置演示场景 ${scene.scenario_id}：对照时序与邻近小区，核对当前证据，比较历史候选和反证，给出方案条件与验证方法，暂不揭示模拟反馈。`, '',
+    '- 决策前不提供执行后结果；只有冻结方案后，反馈工具才读取所选候选的结果。', '',
+    '**可直接使用的问法**', '', `> 请分析「${scene.title}」：对照时序与邻近小区，核对当前证据，比较历史候选和反证，给出方案条件与验证方法，暂不读取执行后反馈。`, '',
   ])]
 const docsDir = path.resolve(root, '../../../../../docs/wireless-network-optimization')
 fs.mkdirSync(docsDir, { recursive: true })

@@ -3,6 +3,10 @@ name: wireless-problem-identification
 description: 依据标准工单现象与当前异常指标做无线问题初步分型，保留候选类型、未知严重度和后续取证方向；用于诊断前的问题识别。
 ---
 
+## ICOS 问题类型
+
+ICOS 工单先用 wireless_icos_context 创建或恢复原始 task_type，再用 wireless_icos_objective 核对指标与对象。保留原问题类型作为现象，不把它直接当根因。缺失原类型时可用下方方法提出待确认分型，不将其自动写成 ICOS 已确认字段。契约见 [ICOS 阶段工具](../wireless-workorder-orchestrator/references/icos-workflow.md)。
+
 已有 workorder_id 用 `wireless_workorder(operation="identify", workorder_id=...)`；新工单先加载 wireless-workorder-intake。工具使用原始现象和已对齐证据中的声明阈值异常，返回 primary_issue_type、candidate_issue_types 和所需取证。
 
 初步类型是症状分类，不是原因确证：低速率不等于容量不足，切换差不等于邻区漏配，掉线不等于弱覆盖。保留混合类型与尚未排除的方向。工具的关键词规则可能只给出部分候选；补充解释必须说明依据，不能给没有阈值或业务定义的指标贴“异常”标签。

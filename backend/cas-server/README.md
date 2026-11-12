@@ -4,7 +4,7 @@
 门户（homepage + portal-auth）和各业务系统是 CAS 的 client（service），
 登录成功后由 CAS 302 回跳 service 即可回到门户或业务系统。
 
-> 本服务从外部 mock-cas-server 项目收入本项目，删除了其自带的演示门户页面，
+> 本服务从外部 mock-cas-server 项目收入本项目，删除了其自带的示例门户页面，
 > 仅保留 CAS 协议核心，不再依赖任何外部项目。
 
 ## 职责边界
@@ -43,7 +43,7 @@ cp .env.example .env
 .venv/bin/python app.py
 ```
 
-默认监听 `http://127.0.0.1:9000/cas/login`，演示账号：`wangqiyue / Wqy@2026#Secure!Cas`。
+默认监听 `http://127.0.0.1:9000/cas/login`，开发账号：`wangqiyue / Wqy@2026#Secure!Cas`。
 
 ## 配置
 

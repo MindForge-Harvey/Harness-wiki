@@ -1,0 +1,4 @@
+ICOS decision kernels copied from the user's local wireless-network-optimizaton-agent project.
+Original source files are unchanged and SHA-256 pinned in source-manifest.json.
+Runtime integration is maintained separately in worker/icos.py and lib/icos.js.
+No credentials, production configuration, customer workorders, or database dumps are included.

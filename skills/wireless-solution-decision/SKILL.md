@@ -1,10 +1,33 @@
 ---
 name: wireless-solution-decision
-description: 依 ECHO-Mem 源方案 Skill 和 Shadow 选择方法比较历史策略与组合、受限选择候选或给条件性方向；用于方案生成、择优、备选和适配。
+description: 按原项目代码构建方案组、候选方案与参数，执行组内寻优并按需衔接根因对齐、规则适配、整单复核和综合决策；用于具体工单方案生成与比较。
 metadata:
+  code_source: network-ops-loop-v3/services/decision/candidate_set.py; relevance.py; chain.py
   method_source: wireless-solution-decision/SKILL.md; wireless-solution-decision/SHADOW.md
   source_commit: e734ac032a7dc671878d05cd40d2b31b68d156fc
 ---
+
+解释已完成方案为什么保留/剔除时，先调用 wireless_icos_decision(operation="explain", ticket_id=业务工单号) 读取真实逐动作记录。以 final_stage/final_reason 为最终决定，规则的 para 与 rule_scope 分开引用，reviewed 按实际值解释；早期剔除的动作仍可能有独立复核评价。不得补写满分、夹边/格点吸附、未复核等记录未给出的结论，也不据新快照断言旧执行错误。
+
+
+具体工单默认按工单日期取数：wireless_network_query / wireless_icos_context / wireless_data_analyze(ticket_id=...) 使用同一时点，analysis_selection 给出选定日期及其他可用日期。仅用户明确要求最新状态时用 analysis_scope="latest"，明确指定日期时用 snapshot_date；不得为补齐证据自行跨期。其他日期快照不能解释原工单根因或原执行效果。工单期指标缺失仍可总结归档方案、执行与评价，并按原代码做条件性候选复核。旧会话先 context read 清除失效跨期结果；series 支持 his016 等原列名。
+
+
+## ICOS 初案候选与组内寻优
+
+具体工单的方案生成默认复用原项目代码。只有业务单号时先由总编排 Skill 拆解任务，用 wireless_icos_context(ticket_id=...) 取得原始候选及 run_id；用户已有 run_id 或 initial_plans 时直接复用。按 [ICOS 契约](../wireless-workorder-orchestrator/references/icos-workflow.md) 使用 wireless_icos_candidates。先补齐 root_cause / cases，阅读每组判断请求；judgments 按返回 key 提交 relevant_plans 和 reasoning，同时传 judgment_token。只能选本组原有方案，关联并列保留，全组无关联时按源规则处理，不凭 final_ratio 排序。
+
+没有 judgment_requests 时不提交 judgments，也不为了产生分数调用 ECHO 排序器代替 ICOS 组内选择。用户只要求候选组织/比较时，在该阶段交付归档方案结构、已有历史支持与缺口即可。补充查询 ECHO 包时，只有 candidate_pools.positive_candidates 中明确为 validated/reusable 的策略或组合才传给 rank_candidates；unverified、restricted 或反证条目只用于说明边界，不试调用正向排序。不用“被拒绝一次”来代替检查已返回的状态。
+
+`status=completed` 且 `judgment_requests=[]` 是本阶段的结束条件；即使 selected_count=0 或 relevance=null，也不能据此自建判断请求、猜 judgment_token 或使用 refresh 试图触发评分。refresh 会使下游阶段失效，仅在输入或分析依据确有变化、需要重算时使用。当前根因缺失时保留该缺口，候选比较不必得到选中动作才能完成。
+
+类型必须是 strategy_memory 或 playbook_memory；case_memory 即使 validated、标题中带“组合”，也只是案例。若工具返回 no_candidates 与 rejected_candidates，解释不准入原因并保留背景用途，不声称已执行源排序。
+
+候选完成后按需要加载 wireless-cause-plan-alignment、wireless-parameter-adaptation、wireless-plan-consistency 和 wireless-comprehensive-decision，分别执行对齐、规则检查、整单复核与裁决。ECHO 历史方案仍可通过下方工具单独比较，不把它们自动伪装成 ICOS 初案。
+
+## 补充历史候选与开放式建议
+
+以下用于原方案链中的历史补充，或无工单初案时的开放式条件建议；不能用历史排序替代原代码的组内关联、规则适配和整单复核。归档初案的复核不表述为新创作动作，缺初案时明确提出补充初案或独立生成条件建议。
 
 先读 [ECHO-Mem 分析契约](../wireless-workorder-orchestrator/references/echo-analysis-method.md)，用 `wireless_history_search` 找可比历史案例、策略、组合及反证，并复用其参数语义与研究经验。已有同条件结果足够则复用；没有命中也必须说明查过哪些来源，保留有来源的条件性方向。
 

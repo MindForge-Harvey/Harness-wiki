@@ -4,7 +4,7 @@ FROM node:24-slim
 # SDK 会话日志使用多帧 Zstandard；历史消息读取需要 zstd CLI。
 RUN apt-get update && apt-get install -y --no-install-recommends zstd python3 python3-venv && apt-get clean
 
-# 仅安装冻结规则编译器的运行依赖，不包含绘图/评测模型等研究依赖。
+# 安装冻结的 ECHO-Mem 编译器与 ICOS 分析内核依赖，不包含研究评测依赖。
 COPY backend/dsh/dsh-wireless/compiler-requirements.txt /tmp/wireless-requirements.txt
 RUN python3 -m venv /opt/wireless-python && /opt/wireless-python/bin/pip install --no-cache-dir -r /tmp/wireless-requirements.txt
 ENV WIRELESS_PYTHON=/opt/wireless-python/bin/python

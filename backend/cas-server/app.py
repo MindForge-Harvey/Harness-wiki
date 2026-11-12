@@ -40,7 +40,7 @@ _tickets: dict = {}
 _tickets_lock = threading.Lock()
 
 # ---------------- 用户库 ----------------
-# 生产应替换为真实账号数据源（LDAP/数据库等）；这里用环境变量读取的演示账号。
+# 生产应替换为真实账号数据源（LDAP/数据库等）；这里用环境变量读取的开发账号。
 SIMULATED_USERS = {
     "wangqiyue": {
         "password": os.environ.get("WANGQIYUE_PASSWORD", "Wqy@2026#Secure!Cas"),
@@ -95,7 +95,7 @@ LOGIN_TEMPLATE = """<!doctype html>
     <label for="password">密码</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <button type="submit">登 录</button>
-    <div class="tip">演示账号：wangqiyue / Wqy@2026#Secure!Cas</div>
+    <div class="tip">开发账号：wangqiyue / Wqy@2026#Secure!Cas</div>
   </form>
 </body>
 </html>

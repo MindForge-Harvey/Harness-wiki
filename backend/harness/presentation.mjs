@@ -1,7 +1,11 @@
 /** Only the browser projection is filtered; SDK context and persisted events stay intact. */
 import { plainAssistantText } from './narrative.mjs'
+const isTruncatedToolResult = text => /Output truncated|Full output (?:written|saved)|Use read with offset\/limit/i.test(text || '')
 
 export function presentNotification(notification) {
+  if (notification.method === 'agent/assistant-delta') {
+    return notification.params?.kind === 'text' ? notification : null
+  }
   const event = notification.params?.event
   if (event?.type !== 'assistant/message') return notification
   const message = event.data?.message
@@ -26,7 +30,8 @@ export function projectHistory(events) {
     switch (e.type) {
       case 'user/message': {
         if (d.source?.kind !== 'user') break
-        out.push({ seq: e.seq, time: e.time, kind: 'user', text: textOf(d.content) })
+        const text = textOf(d.content).split(/\n\n<(?:workspace-data|earlier-greetings|restored-conversation|selected-skills)>/)[0]
+        out.push({ seq: e.seq, time: e.time, kind: 'user', text })
         break
       }
       case 'assistant/message': {
@@ -47,6 +52,7 @@ export function projectHistory(events) {
         out[idx].status = block?.isError ? 'error' : 'done'
         const result = textOf(block?.content)
         out[idx].resultText = result.slice(0, 4000)
+        out[idx].resultTruncated = isTruncatedToolResult(result)
         try { out[idx].resultJson = JSON.parse(result) } catch { /* 非结构化结果保留文本 */ }
         break
       }

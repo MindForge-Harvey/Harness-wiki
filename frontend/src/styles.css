@@ -2204,7 +2204,7 @@ body.chat-view {
   line-height: 1.78;
 }
 
-.chat-assistant-content ul {
+.chat-assistant-content > ul {
   display: grid;
   gap: 9px;
   margin: 14px 0 0;
@@ -2212,7 +2212,7 @@ body.chat-view {
   list-style: none;
 }
 
-.chat-assistant-content li {
+.chat-assistant-content > ul > li {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: start;
@@ -2222,7 +2222,7 @@ body.chat-view {
   line-height: 1.58;
 }
 
-.chat-assistant-content li svg {
+.chat-assistant-content > ul > li svg {
   margin-top: 1px;
   color: var(--accent);
 }
@@ -6395,10 +6395,16 @@ body.chat-view {
 .chat-md ol {
   margin: 8px 0 12px;
   padding-left: 22px;
-  display: grid;
-  gap: 6px;
+  display: block;
   line-height: 1.65;
 }
+.chat-md ul { list-style: disc; }
+.chat-md ol { list-style: decimal; }
+.chat-md li { display: list-item; margin: 6px 0; color: inherit; font-size: inherit; line-height: inherit; }
+.chat-md li > p { margin: 0 0 6px; }
+.chat-md li > :is(ul, ol) { margin: 6px 0; }
+.chat-md .contains-task-list { list-style: none; padding-left: 0; }
+.chat-md .task-list-item input { margin-right: 7px; }
 .chat-md h1,
 .chat-md h2,
 .chat-md h3 {

@@ -1,113 +1,64 @@
-ui-onboarding:
-  welcomeNoticeVersion: 2026-08-13.1
-ui-theme:
-  preference: light
-agent-default-model:
-  provider: qwen-token-plan
-  model: glm-5.2
-  reasoningEffort: max
-pet:
-  visible: true
-  size: 160
-  right: 18
-  bottom: 122
-  petId: cat
-skin-custom-theme:
-  applied: true
-agent-presets:
-  default: cordis
-llm-pi-ai:
-  providers:
-    {
-      qwen-token-plan:
-        {
-          baseURL: https://dashscope.aliyuncs.com/compatible-mode/v1,
-          models:
-            [
-              {
-                  id: MiniMax-M2.5,
-                  name: MiniMax-M2.5,
-                  contextWindow: 196608,
-                  maxTokens: 32768
-                },
-              {
-                  id: deepseek-v3.2,
-                  name: DeepSeek V3.2,
-                  contextWindow: 131072,
-                  maxTokens: 65536
-                },
-              {
-                  id: deepseek-v4-flash,
-                  name: DeepSeek V4 Flash,
-                  contextWindow: 1000000,
-                  maxTokens: 384000
-                },
-              {
-                  id: deepseek-v4-flash-0731,
-                  name: DeepSeek V4 Flash 0731,
-                  contextWindow: 1000000,
-                  maxTokens: 384000
-                },
-              {
-                  id: deepseek-v4-pro,
-                  name: DeepSeek V4 Pro,
-                  contextWindow: 1000000,
-                  maxTokens: 384000
-                },
-              {
-                  id: deepseek-v4-pro-0813,
-                  name: DeepSeek V4 Pro 0813,
-                  contextWindow: 1000000,
-                  maxTokens: 384000
-                },
-              { id: glm-5, name: GLM-5, contextWindow: 202752, maxTokens: 16384 },
-              { id: glm-5.1, name: GLM-5.1, contextWindow: 202752, maxTokens: 128000 },
-              { id: glm-5.2, name: GLM-5.2, contextWindow: 1000000, maxTokens: 131072 },
-              { id: kimi-k2.5, name: Kimi K2.5, contextWindow: 262144, maxTokens: 98304 },
-              { id: kimi-k2.6, name: Kimi K2.6, contextWindow: 262144, maxTokens: 262144 },
-              {
-                  id: kimi-k2.7-code,
-                  name: Kimi K2.7 Code,
-                  contextWindow: 262144,
-                  maxTokens: 262144
-                },
-              {
-                  id: qwen3.6-flash,
-                  name: Qwen3.6 Flash,
-                  contextWindow: 1000000,
-                  maxTokens: 65536
-                },
-              {
-                  id: qwen3.6-plus,
-                  name: Qwen3.6 Plus,
-                  contextWindow: 1000000,
-                  maxTokens: 65536
-                },
-              {
-                  id: qwen3.7-max,
-                  name: Qwen3.7 Max,
-                  contextWindow: 1000000,
-                  maxTokens: 131072
-                },
-              {
-                  id: qwen3.7-plus,
-                  name: Qwen3.7 Plus,
-                  contextWindow: 1000000,
-                  maxTokens: 65536
-                },
-              {
-                  id: qwen3.8-flash,
-                  name: Qwen3.8 Flash,
-                  contextWindow: 1000000,
-                  maxTokens: 131072
-                },
-              {
-                  id: qwen3.8-max,
-                  name: Qwen3.8 Max,
-                  contextWindow: 1000000,
-                  maxTokens: 131072
-                }
+{
+  "ui-theme": {
+    "preference": "light"
+  },
+  "agent-presets": {
+    "default": "cordis"
+  },
+  "agent-default-model": {
+    "provider": "qwen-token-plan",
+    "model": "qwen3.8-flash"
+  },
+  "llm-pi-ai": {
+    "providers": {
+      "qwen-token-plan": {
+        "baseURL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "api": "openai-completions",
+        "apiKeyEnv": "LLM_API_KEY",
+        "compat": {
+          "supportsDeveloperRole": false,
+          "supportsReasoningEffort": false,
+          "thinkingFormat": "qwen"
+        },
+        "reasoning": "off",
+        "models": [
+          {
+            "id": "qwen3.8-flash",
+            "name": "qwen3.8-flash",
+            "input": [
+              "text"
             ],
-          apiKeyEnv: QWEN_TOKEN_PLAN_API_KEY
-        }
+            "contextWindow": 1000000,
+            "maxTokens": 65536,
+            "reasoningEfforts": {
+              "off": null,
+              "medium": "medium"
+            }
+          }
+        ]
+      },
+      "aliyun-vision": {
+        "baseURL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "api": "openai-completions",
+        "apiKeyEnv": "VLM_API_KEY",
+        "compat": {
+          "supportsDeveloperRole": false,
+          "supportsReasoningEffort": false
+        },
+        "models": [
+          {
+            "id": "qwen3.8-omni-flash",
+            "name": "qwen3.8-omni-flash",
+            "input": [
+              "text",
+              "image"
+            ],
+            "contextWindow": 1000000,
+            "maxTokens": 65536,
+            "reasoningEfforts": false
+          }
+        ]
+      }
     }
+  }
+}

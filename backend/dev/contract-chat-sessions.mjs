@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createChatSessions } from '../../frontend/src/lib/chat-sessions.mjs';
+import { streamChat } from '../../frontend/src/lib/api.js';
+
+test('switching and starting another chat retain background streams, progress, drafts and independent completion', () => {
+  const store = createChatSessions(), a = store.getSnapshot().activeKey, aState = store.bind(a);
+  let stoppedA = 0, stoppedB = 0;
+  store.refs(a).abortRef.current = () => stoppedA++;
+  aState.setSessionId('A'); aState.setIsThinking(true);
+  aState.setMessages([{ role: 'user', content: '分析工单A' }]);
+  aState.setDraft('A的后续问题');
+  const b = store.newChat(), bState = store.bind(b);
+  store.refs(b).abortRef.current = () => stoppedB++;
+  bState.setSessionId('B'); bState.setIsThinking(true);
+  bState.setMessages([{ role: 'user', content: '分析工单B' }]);
+  aState.setMessages(rows => [...rows, { role: 'tool', callId: 'A-1', status: 'running' }]);
+  aState.setActivityText('正在检查A的指标');
+  aState.setTimeline([{ callId: 'A-1', status: 'running' }]);
+  assert.equal(store.getSnapshot().activeKey, b);
+  assert.equal(store.get(b).messages.length, 1);
+  assert.equal(store.get(a).isThinking, true);
+  assert.equal(stoppedA + stoppedB, 0);
+  store.activate(store.create('A'));
+  assert.equal(store.getSnapshot().activeKey, a);
+  assert.equal(store.get(a).draft, 'A的后续问题');
+  assert.equal(store.get(a).timeline[0].callId, 'A-1');
+  bState.setMessages(rows => [...rows, { role: 'assistant', content: 'B已完成' }]);
+  bState.setIsThinking(false);
+  assert.equal(store.get(a).messages.at(-1).role, 'tool');
+  assert.equal(store.get(a).isThinking, true);
+  assert.equal(store.get(b).isThinking, false);
+  assert.equal(store.get(b).messages.at(-1).content, 'B已完成');
+  store.refs(a).abortRef.current();
+  assert.equal(stoppedA, 1); assert.equal(stoppedB, 0);
+});
+
+test('late start/rename and late history loading update their original view without stealing selection or another stream cursor', () => {
+  const store = createChatSessions(), a = store.getSnapshot().activeKey, aState = store.bind(a);
+  aState.setMessages([{ role: 'user', content: 'A' }]);
+  const b = store.newChat();
+  aState.setSessionId('old-A'); aState.setSessionId('new-A');
+  assert.equal(store.getSnapshot().activeKey, b);
+  assert.equal(store.get(b).sessionId, null);
+  assert.equal(store.create('old-A'), a); assert.equal(store.create('new-A'), a);
+  store.refs(a).assistantStreamRef.current = 'A-stream';
+  store.refs(b).assistantStreamRef.current = 'B-stream';
+  const c = store.create('history-C');
+  store.patch(c, { messages: [{ role: 'assistant', content: 'C历史加载完成' }], historyLoaded: true });
+  assert.equal(store.getSnapshot().activeKey, b);
+  assert.equal(store.get(b).messages.length, 0);
+  assert.equal(store.refs(a).assistantStreamRef.current, 'A-stream');
+  assert.equal(store.refs(b).assistantStreamRef.current, 'B-stream');
+  assert.equal(store.get(a).sessionId, 'new-A');
+});
+
+test('the SSE client ignores late terminal events after explicit cancellation and reports premature EOF', async t => {
+  const realFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = realFetch; });
+  let controller;
+  globalThis.fetch = async () => new Response(new ReadableStream({ start(value) { controller = value; } }));
+  let done = 0, errors = [];
+  const abort = streamChat({ message: 'A' }, { onDone: () => done++, onError: message => errors.push(message) });
+  await new Promise(resolve => setImmediate(resolve));
+  abort();
+  controller.enqueue(new TextEncoder().encode('event: done\ndata: {"finalResponse":"late"}\n\n'));
+  controller.close();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(done, 0); assert.deepEqual(errors, []);
+  globalThis.fetch = async () => new Response('event: start\ndata: {"sessionId":"A"}\n\n');
+  streamChat({ message: 'A' }, { onError: message => errors.push(message) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(errors.length, 1); assert.match(errors[0], /本轮结果尚未确认/);
+});

@@ -52,7 +52,7 @@ test('analysis actually searches retained experience and distinguishes missing p
   assert.equal(hit.cases[0].outcome.kpi_before_after, null)
   assert.equal(hit.parameter_semantics.length > 0, true)
   assert.equal(hit.method_lessons.length, 3)
-  assert.equal(hit.sources.production_workorder_connector.status, 'not_connected')
+  assert.equal(hit.sources.workorder_archive.query_tool, 'wireless_order_query')
   assert.equal(hit.sources.local_memory_packages.status, 'no_eligible_historical_package')
   assert.equal(fs.existsSync(path.join(directory, 'packages')), false, 'analysis is read-only')
   const miss = search({ query: 'FooHistoryOnly' })
@@ -142,7 +142,8 @@ test('the interface shows completed historical search even on no match, with inc
   const card = { name: 'wireless_history_search', status: 'done', resultJson: search({ query: 'FooHistoryOnly' }) }
   assert.equal(visibleTool(card), true)
   assert.equal(taskProgress(card).status, 'done')
-  assert.match(taskProgress(card).summaries[0], /检索已完成.*未找到.*未接入/)
+  assert.match(taskProgress(card).summaries[0], /检索已完成.*未找到/)
+  assert.doesNotMatch(taskProgress(card).summaries[0], /生产工单库.*未接入/)
   card.resultJson = search({ query: 'QRxLevMin' })
   assert.match(taskProgress(card).summaries[0], /历史已查.*案例/)
   card.resultJson = search({ query: 'FooHistoryOnly', package_ids: ['wp_' + 'a'.repeat(24)] })

@@ -1,0 +1,65 @@
+# 决策步 04 组内寻优：方案与根因关联判定（差额清单 ② Phase-1 LLM 载体）
+#
+# 调用方：services/decision/relevance.py::judge_relevance_llm
+# 输入：02 根因收敛（root_cause_convergence）里置信度达到阈值的根因 + 一个方案组内的若干方案
+#       （2026-09-24 业务：收敛独立成 02、每单一次，04 直接用它；只有高置信根因才是寻优依据）
+# 输出：与这些根因**最直接相关**的方案编号集合（并列全保留，**不是排序、不是评分**）
+# 失败：bypass —— 返回 None，组内全保留（relevant 全 True），只窄化、不扩展
+# 案例证据（2026-09-27 起）：案例库开着且 relevance_evidence 为真时，参数带 cases 字段、CASE_RULES 插入
+#   「案例怎么用」一段（正文在 services/decision/relevance.py::CASE_RULES_TEXT）；没喂时 CASE_RULES 为空串。
+#   「反例为主不选」不交模型：模型只判与根因的关联，判完由 relevance.apply_case_veto 按案例统计改判（2026-09-27）。
+#
+# 占位符用 str.format 渲染，正文里字面量花括号必须写成 {{ }}（见输出示例）。
+
+version: 1
+
+scenes:
+  plan_relevance:
+    title: 方案与根因关联判定
+    stage: 04 组内寻优
+    caller: services.decision.relevance.judge_relevance_llm
+    output: json
+    trigger: 一个方案组内有 >1 个方案、且 02 收敛出至少一条达到置信度阈值的根因时，整组调一次：判哪些方案与这些根因最关联
+    contract: services.decision.relevance._RELEVANCE_LLM_KEYS
+    on_failure: bypass  # 调用失败/解析失败 → 组内全保留（relevant 全 True），不阻断主链路
+    placeholders:
+      - ROOT_CAUSE_JSON
+      - GROUP_NAME
+      - PLANS_JSON
+      - CASE_RULES
+    template: |
+      你是无线网络优化专家。下面给你**一张工单已经收敛好的根因**与**一个方案组里的若干方案**。
+      请判断每个方案与这些根因的**关联性**，输出与本单根因**最直接相关**的方案编号集合。
+
+      --- 判定规则（硬约束，违反即废）
+      0. **根因已经给定，不要另行收敛**：输入里的每条根因都来自上一步对工单原文的收敛，并且置信度
+         已达到采信的阈值（confidence 是原文对它的支撑强度，0–100）。只拿这几条根因判关联，
+         不要自己补根因，也不要因为某条置信度相对低就不认它。
+      1. **不排序、不评分**：只输出「相关 / 不相关」二态。多个方案同等相关时**全部列入**，
+         不要按主观强弱排序、不要给置信度、不要打分。
+      2. **关联判据**：方案的优化意图（组名 type2、参数名 parachinname、目标值 b_para 的调整方向）
+         是否**直接针对**其中**任一条**根因 —— 例如根因为「弱覆盖」时，抬升最低接收电平 / 增加发射功率类
+         方案直接相关；切换迟滞、邻区偏移等切换类参数与覆盖根因关联弱。
+      3. **不确定时列入**：拿不准是否相关的方案，**列入 relevant_plans**（fail-open，
+         宁可多保留、不窄化到漏发；只窄化、不扩展）。
+      4. **输出只含 plan_number 字符串**，不要带参数名、不要把解释写进数组；解释写进 reasoning。
+      5. relevant_plans 为空数组 = 没有方案与根因直接相关 —— 调用方会记下「全组不关联」，
+         整组按通用方案路径保留（不会因此漏发）；只有在你确信**全部都不相关**时才给空数组，
+         并在 reasoning 里写明为什么这组方案都不针对这些根因。
+
+      {CASE_RULES}
+      --- 输出 JSON（禁止 Markdown 代码块包裹、禁止 JSON 以外文字）
+      {{
+        "relevant_plans": ["LDJT005", "LDJT007"],
+        "reasoning": "根因为弱覆盖。LDJT005 抬升最低接收电平，直接针对覆盖；LDJT007 增加发射功率同样直接相关；LDJT022 调整切换迟滞与覆盖弱相关，不列入。"
+      }}
+
+      --- 本单根因（JSON：causes 数组，每条 cause / category / confidence / evidence）
+      {ROOT_CAUSE_JSON}
+
+      --- 方案组
+      组名：{GROUP_NAME}
+
+      --- 该组内的方案（JSON，每个方案一个 plan_number + 参数清单；无 plan_number 的方案不在此列；
+      参数可能带 cases 字段，见上面「同类案例证据」一段）
+      {PLANS_JSON}

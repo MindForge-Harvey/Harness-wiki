@@ -28,10 +28,15 @@ test('rich scenario inputs are synthetic, sourced and do not reveal target outco
   assert.equal(catalog.counts.issue_families, 8)
   assert.equal(catalog.counts.time_series_observations, 3456)
   assert.ok(catalog.synthetic && !catalog.device_operation_performed)
+  assert.equal(catalog.data_notes.source_kind, 'synthetic')
+  assert.match(catalog.data_notes.description, /合成/)
+  assert.doesNotMatch(JSON.stringify(catalog), /演示|模拟/)
   const timeSeries = readObservations(demoScenario('demo-capacity').series_file, root)
   for (const row of catalog.scenarios) {
     const scenario = demoScenario(row.scenario_id)
     assert.ok(scenario.intake.raw_text.length > 150)
+    assert.deepEqual(demoScenario(row.title), scenario, 'business title resolves the canonical scenario')
+    assert.doesNotMatch(JSON.stringify(scenario), /演示|模拟/)
     assert.ok(scenario.observations.length >= 9)
     assert.ok(scenario.observations.every(row => row.source_ref.startsWith('synthetic://')))
     assert.equal(scenario.feedback, undefined)
@@ -85,6 +90,8 @@ test('all six memory types compile from traces and actual ECHO consumers respect
   for (const scenario_id of ['demo-access', 'demo-handover', 'demo-coverage', 'demo-interference', 'demo-capacity', 'demo-throughput', 'demo-drop', 'demo-alarm']) {
     const compared = await demo({ operation: 'compare_candidates', scenario_id })
     assert.equal(compared.candidates.length, 2, scenario_id)
+    assert.doesNotMatch(JSON.stringify(compared), /演示|模拟/)
+    assert.ok(compared.candidates.every(row => row.parameter_label && row.source_records.every(source => source.label.startsWith('工单 '))))
     assert.ok(compared.counter_evidence.length > 0)
     assert.ok(compared.candidates.every(row => row.adaptation.target === 60 && row.adaptation.status === 'adapted_value_candidate'))
     assert.equal(compared.calibrated_gate_loaded, false)
@@ -100,7 +107,7 @@ test('all six memory types compile from traces and actual ECHO consumers respect
   const production = createDecisionService({ memory: ordinaryMemory })
   const compared = await demo({ operation: 'compare_candidates', scenario_id: 'demo-capacity' })
   const ref = compared.candidates[0]
-  await assert.rejects(production({ operation: 'rank_candidates', candidate_refs: [{ package_id: ref.package_id, memory_id: ref.memory_id }] }), /演示包/)
+  await assert.rejects(production({ operation: 'rank_candidates', candidate_refs: [{ package_id: ref.package_id, memory_id: ref.memory_id }] }), /样本包/)
   const ordinarySearch = ordinaryMemory.search({ query: '资源分配', include_demo: true, as_of: prepared.simulated_clock })
   assert.equal(ordinarySearch.candidate_pools.positive_candidates.length, 0)
   assert.equal(createMemoryService({ directory }).search({ query: '资源分配' }).total_matches, 0, 'parent production namespace never auto-discovers demo subdirectories')
@@ -113,6 +120,8 @@ test('freeze -> reveal -> ledger export -> source compile -> reuse changes evide
   const choice = before.candidates[0]
   const frozen = await demo({ operation: 'select_candidate', scenario_id: before.scenario_id, candidate_id: choice.candidate_id })
   assert.equal(frozen.status, 'demo_decision_frozen')
+  const aliasFrozen = await demo({ operation: 'select_candidate', scenario_id: demoScenario(before.scenario_id).title, candidate_id: choice.candidate_id })
+  assert.equal(aliasFrozen.decision_id, frozen.decision_id, 'business title and ID freeze the same decision')
   assert.equal(frozen.feedback, undefined)
   await assert.rejects(demo({ operation: 'learn', decision_id: frozen.decision_id }), /先揭示/)
   const feedback = await demo({ operation: 'reveal_feedback', decision_id: frozen.decision_id })

@@ -1,0 +1,120 @@
+# 决策步 02 根因收敛：模型从工单原文收敛根因，每条根因带 0–100 的置信度（2026-09-24 业务）
+#
+# 调用方：services/decision/cause_convergence.py::converge_root_causes_llm（每单一次，决策开始时）
+# 输入：工单 conclusion / smart_conclusion 两个字段的原文
+# 输出：若干条根因（按置信度从高到低），每条带根因名、类别（六词表）、置信度、原文依据
+# 用途：置信度达到阈值（order_loop.decision.root_cause.confidence_threshold，默认 40）的根因才作为
+#       04 组内寻优的依据；结果落裁决对象 causes，展示层的「根因收敛」表与大屏根因候选都读它
+# 失败：bypass —— 记「收敛失败」，裁决对象退回确定性解析的根因（无置信度），04 不窄化（组内全留）
+#
+# 两个 scene（2026-10-29 六维判定）：工单带了六维判定（cover / adj / param / interfere / alarm / resource_totalverdict，
+# 有几维算几维）时用 root_cause_convergence_dims，输入是 conclusion / smart_conclusion、六维与本单问题类型
+# （取舍依据，同 05 的 PROBLEM_JSON）—— 2026-10-29 晚用户定三路一起用，推翻当天上午的「六维全有才用、只送六维」；
+# 一维都没有就用 root_cause_convergence，输入只有 conclusion / smart_conclusion。
+# 取哪几维只在 services/decision/cause_dimensions.py::dimension_verdicts。两者输出契约、置信度刻度相同。
+#
+# 占位符用 str.format 渲染，正文里字面量花括号必须写成 {{ }}（见输出示例）。
+
+version: 1
+
+scenes:
+  root_cause_convergence:
+    title: 根因收敛（带置信度）
+    stage: 02 根因收敛
+    caller: services.decision.cause_convergence.converge_root_causes_llm
+    output: json
+    trigger: 每单一次、决策开始时；工单 conclusion / smart_conclusion 两个字段都空时不调
+    contract: services.decision.cause_convergence._CONVERGENCE_LLM_KEYS
+    on_failure: bypass  # 调用失败/解析失败 → 裁决对象退回确定性解析的根因（无置信度），04 组内全留
+    placeholders:
+      - ROOT_CAUSE_JSON
+    template: |
+      你是无线网络优化专家。下面给你一张工单的根因原文：conclusion（分析结果）与 smart_conclusion（分析概述）
+      两个字段。它们可能是分段的结构化文字（问题排序 / 问题分析 / 优化建议），也可能只是一句自由文本。
+      请凭网优专业知识，从原文收敛出本单的根因，并给每条根因一个置信度。
+
+      --- 规则（硬约束，违反即废）
+      1. **只从原文收敛**：每条根因都必须能在原文里找到依据，evidence 摘录原文里支撑它的那一句（可以截短，
+         不要改写成你自己的话）。原文没提到的根因不要写；原文读不出任何根因线索时，causes 给空数组。
+      2. **同一根因合并、不同根因分开**：原文里反复出现、指向同一个问题的条目收成一条；至多 5 条。
+      3. cause 用一个网优术语短语写清根因（如「过覆盖」「弱覆盖」「邻区漏配」「上行干扰」「高负荷」），不超过 20 个字。
+      4. category 取下列六个词之一：覆盖、邻区、参数、干扰、告警、资源；都不贴切时写「其他」。
+      5. confidence 是 0 到 100 的整数，表示**原文对这条根因的支撑强度**，按下面的刻度给：
+         * 85–100：原文明确点名这条根因，而且给了指标或测量证据（如「TA 大于 1500 米采样点占比大于 10%」）；
+         * 65–84：原文明确点名，但没有量化证据；或者有证据，但原文措辞本身不确定（「疑似」「可能」）；
+         * 40–64：原文只是间接指向（从描述的现象推得出，但原文没有直说），或与另一条根因互为因果、主次说不清；
+         * 0–39：只有很弱的线索，基本是你的推测。
+         「问题排序」只说明 ICOS 认为的先后，**置信度看原文证据的强弱**，不要因为排在前面就给高分。
+      6. causes 按 confidence 从高到低排列。reasoning 用一两句话说明收敛过程：哪些条目合并了、置信度为什么这样给。
+      7. 字符串里要引用原文词语时一律用「」，**不要用英文双引号 "** —— 没转义的英文双引号会让整段 JSON 失效。
+
+      --- 输出 JSON（禁止 Markdown 代码块包裹、禁止 JSON 以外文字）
+      {{
+        "causes": [
+          {{"cause": "过覆盖", "category": "覆盖", "confidence": 88, "evidence": "农村小区TA大于1500米采样点占比大于10%"}},
+          {{"cause": "邻区故障影响切换", "category": "邻区", "confidence": 70, "evidence": "邻区苏州-昆山-方港-H5H-2643存在历史告警"}}
+        ],
+        "reasoning": "问题分析里两条覆盖条目都指向 TA 过大，合并为过覆盖，有采样占比证据；邻区告警为原文直述但无量化证据。"
+      }}
+
+      --- 工单根因原文（JSON：conclusion / smart_conclusion 两个字段，原样照录）
+      {ROOT_CAUSE_JSON}
+
+  root_cause_convergence_dims:
+    title: 根因收敛（分析结论 + 六维判定，带置信度）
+    stage: 02 根因收敛
+    caller: services.decision.cause_convergence.converge_root_causes_llm
+    output: json
+    trigger: 每单每轮一次、决策开始时；工单带了六维判定（有几维算几维）就用本 scene，一维都没有用 root_cause_convergence
+    contract: services.decision.cause_convergence._CONVERGENCE_LLM_KEYS
+    on_failure: bypass  # 调用失败/解析失败 → 裁决对象退回确定性兜底（六维全有逐维一条，否则解析结论两字段；无置信度），04 组内全留
+    placeholders:
+      - ROOT_CAUSE_JSON
+      - DIMENSIONS_JSON
+      - PROBLEM_JSON
+    template: |
+      你是无线网络优化专家。下面给你一张工单的两份根因原文，请合在一起看：
+      * 分析结论：conclusion（分析结果）与 smart_conclusion（分析概述）两个字段，可能是分段的结构化文字
+        （问题排序 / 问题分析 / 优化建议），也可能只是一句自由文本，也可能为空；
+      * ICOS 六维判定：覆盖、邻区、参数、干扰、告警、资源中 ICOS 给出了判定的那几个维度，每维一段判定原文
+        （可能多条，一行一条）；没列出的维度是 ICOS 没给判定，**不等于该维没有问题**。
+      另给本单问题类型（要改善的指标所在）。请凭网优专业知识，从这两份原文收敛出导致本单问题的根因，并给每条根因一个置信度。
+
+      --- 规则（硬约束，违反即废）
+      1. **只从原文收敛**：每条根因都必须能在分析结论或某一维判定里找到依据，evidence 摘录原文里支撑它的那一句
+         （可以截短，不要改写成你自己的话）。原文没提到的根因不要写；读不出任何根因线索时，causes 给空数组。
+      2. **同一根因合并、不同根因分开**：两份原文里（或同一份里反复）指向同一个问题的条目收成一条；至多 5 条。
+         **取舍看本单问题类型**：合并后仍多于 5 条时，优先收在无线机理上能影响本单问题类型对应指标的根因，
+         与它无关的判定可以不收。
+         本单问题类型是现象、**不是根因**：不得把它本身写成 cause，也不得据它编出原文没有的根因。
+      3. cause 用一个网优术语短语写清根因（如「过覆盖」「弱覆盖」「邻区漏配」「上行干扰」「高负荷」），不超过 20 个字。
+      4. category 取下列六个词之一：覆盖、邻区、参数、干扰、告警、资源；依据在六维判定里的，写它所在的维度
+         （一条根因横跨两个维度时写主要的那一个）；都不贴切时写「其他」。
+      5. confidence 是 0 到 100 的整数，表示**原文对这条根因的支撑强度**，按下面的刻度给：
+         * 85–100：原文明确点名这条根因，而且给了指标或测量证据（如「TA 大于 700 米采样点占比大于 10%」「切换成功率 93.1%，失败 8 次」）；
+         * 65–84：原文明确点名，但没有量化证据；或者有证据，但原文措辞本身不确定（「疑似」「可能」）；
+         * 40–64：原文只是间接指向（从描述的现象推得出，但原文没有直说），或与另一条根因互为因果、主次说不清；
+         * 0–39：只有很弱的线索，基本是你的推测。
+         分析结论与六维判定都点名的根因，按两份里证据更强的那一句给；两份说法相左时，以有量化证据的一方为准，
+         在 reasoning 里点明。「问题排序」的先后、维度的先后都没有含义，问题类型也不加分，**置信度看原文证据的强弱**。
+      6. causes 按 confidence 从高到低排列。reasoning 用一两句话说明收敛过程：两份原文里哪些条目合并了、
+         按问题类型舍掉了哪些、置信度为什么这样给。
+      7. 字符串里要引用原文词语时一律用「」，**不要用英文双引号 "** —— 没转义的英文双引号会让整段 JSON 失效。
+
+      --- 输出 JSON（禁止 Markdown 代码块包裹、禁止 JSON 以外文字）
+      {{
+        "causes": [
+          {{"cause": "过覆盖", "category": "覆盖", "confidence": 88, "evidence": "城区小区TA大于700米采样点占比大于10%"}},
+          {{"cause": "单向邻区", "category": "邻区", "confidence": 72, "evidence": "本小区与宝成名苑六期FD-1小区存在单向邻区"}}
+        ],
+        "reasoning": "分析结论与覆盖维都指向 TA 过大，合并为过覆盖，覆盖维有采样占比证据；邻区维点名单向邻区但无量化证据。"
+      }}
+
+      --- 工单问题（JSON：task_type 是问题类型，即要改善的指标所在，不是根因）
+      {PROBLEM_JSON}
+
+      --- 工单分析结论原文（JSON：conclusion / smart_conclusion 两个字段，原样照录）
+      {ROOT_CAUSE_JSON}
+
+      --- 工单六维判定原文（JSON：维度 → 判定原文，只列 ICOS 给了判定的维度，原样照录）
+      {DIMENSIONS_JSON}

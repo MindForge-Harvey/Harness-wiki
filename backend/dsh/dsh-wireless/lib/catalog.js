@@ -12,7 +12,11 @@ for (const [name, entry] of Object.entries(manifest.resources)) {
 const ontology = read('ontology.json')
 const signaturePolicies = read('signature-policy.json')
 const linkPolicies = read('link-policy.json')
-const cases = read('cases.json')
+// Keep the pinned source bytes intact; use business titles in returned records.
+const cases = read('cases.json').map(row => row.evidence_type === 'onboarding_demo' ? {
+  ...row, title: row.title.replace(/^演示[：:]\s*/, ''),
+  limitations: row.limitations.map(text => text.replace('脱敏占位演示', '结构化样本')),
+} : row)
 const lessons = read('lessons.json')
 const policies = new Map(signaturePolicies.map(row => [row.signature_id, row]))
 const links = new Map()
@@ -112,9 +116,9 @@ export function catalogStatus() {
       'persisted_workorders', 'aligned_current_evidence', 'referenced_root_cause_hypotheses', 'before_after_evaluation',
       'pinned_rule_compilation', 'versioned_memory_readout', 'echo_source_qa', 'versioned_candidate_plans',
       'execution_feedback_ledger', 'workorder_event_history', 'sourced_candidate_ranker',
-      'bounded_candidate_selection', 'sourced_current_value_adaptation'],
-    limitations: ['未预置全量生产历史包；用户提供的历史可通过编译工具生成本地版本。',
-      '现场观测使用用户提供的数据；校准 gate 未加载，不执行参数下发。'],
+      'bounded_candidate_selection', 'sourced_current_value_adaptation', 'stored_kpi_query', 'archived_rule_binding'],
+    limitations: ['工单归档、指标快照与历史经验包分别查询，各自的实际覆盖不能相互替代。',
+      '观测从已入库快照或用户资料读取；现场实时采集、校准 gate 和参数下发尚未连接。'],
   }
 }
 
@@ -209,8 +213,8 @@ export function caseSearch({ query = '', vendor, system, evidence_type, limit } 
     truncated: ranked.length > count,
     interpretation: [
       'relevance_score 是字段检索命中数，不是因果可信度或成功概率。',
-      '四个条目混合演示与案例摘要，不用于计算历史成功率。',
-      'actions.role 区分实际执行、演示、推荐与 gold 对照；outcome.scope 决定结果能说明什么。',
+      '四个条目混合样本与案例摘要，不用于计算历史成功率。',
+      'actions.role 区分实际执行、样本、推荐与 gold 对照；outcome.scope 决定结果能说明什么。',
       '厂家/制式未知的条目仅作参考，不能当成已匹配当前厂家版本；不从历史范围推定当前范围。',
     ] }
 }

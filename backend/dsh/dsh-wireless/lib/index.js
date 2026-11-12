@@ -6,6 +6,8 @@ import { createHistorySearch } from './history.js'
 import { createDecisionService } from './decision.js'
 import { analyzeObservations, readObservations } from './analytics.js'
 import { createDemoService } from './demo.js'
+import { createIcosService, icosToolDefinitions } from './icos.js'
+import { createOrderArchive } from './orders.js'
 
 export const name = 'dsh-wireless'
 export const inject = ['tools']
@@ -42,7 +44,7 @@ const definitions = [
   },
   {
     name: 'wireless_case_search',
-    description: '只读检索已接入的 4 个无线案例条目（1 个演示 Trace、3 个案例摘要）。返回实际执行/推荐/gold 角色、参数前后值、工单级效果作用域、适用差异及原始来源；空 query 列出全部。没有全量历史成功率。',
+    description: '只读检索已接入的 4 个无线案例条目（1 个结构化样本 Trace、3 个案例摘要）。返回实际执行/推荐/gold 角色、参数前后值、工单级效果作用域、适用差异及原始来源；空 query 列出全部。没有全量历史成功率。',
     parameters: { type: 'object', properties: { ...filterProperties,
       evidence_type: { type: 'string', enum: ['onboarding_demo', 'anonymized_real_case_summary', 'published_experiment_case_summary'] },
     }, additionalProperties: false },
@@ -72,29 +74,66 @@ export function apply(ctx) {
   const memory = createMemoryService()
   const decision = createDecisionService({ memory })
   const demo = createDemoService()
+  const orders = createOrderArchive()
+  const historySearch = createHistorySearch({ memory, orders })
+  const icos = createIcosService({ historySearch, workorder, orders })
+  ctx.effect(() => () => orders.close())
   const workflowDefinitions = [
     {
+      name: 'wireless_order_query',
+      description: '查询用户已提供的完整本地工单库。按月份、日期、问题类型、地区、制式列出工单并给出总数和分类统计；按业务工单号读取小区信息、参数动作、执行及评价。查“6月工单”“现在有什么工单”或指定工单总结时优先调用此工具。不是经验检索，不需要内部 wo_/icos_ ID，不要求用户再次上传工单。',
+      parameters: { type: 'object', properties: {
+        operation: { type: 'string', enum: ['catalog', 'list', 'read'] },
+        ticket_id: string('read 使用业务工单号或 trace_id，按字符串保留。'),
+        month: string('列表筛选月份：YYYY-MM；仅给 6 或 6月时自动匹配库中最近有该月份的年份，并在返回 filters 中说明。'),
+        date_from: string('开始日期 YYYY-MM-DD，含当天。'), date_to: string('结束日期 YYYY-MM-DD，含当天。'),
+        issue: string('工单问题类型精确筛选，先用列表中的实际名称。'),
+        region: string('地市精确筛选，如西安。'), vendor: string('厂家，如华为、中兴。'),
+        system: string('LTE/NR，也支持 4G/5G。'), query: string('工单号、小区名或问题类型的文字检索。'),
+        limit: { type: 'integer', minimum: 1, maximum: 50, description: '每页条数，默认 10。' },
+        offset: { type: 'integer', minimum: 0, maximum: 1000000, description: '分页偏移，默认 0。' },
+      }, required: ['operation'], additionalProperties: false }, execute: orders,
+    },
+    {
+      name: 'wireless_network_query',
+      description: '按业务工单号读取已入库的指标、诊断原文、六维判定、当前参数、邻区、告警及参数规则。默认只读原工单日期的快照，其他日期不会自动带入；仅用户明确选择最新状态或指定日期时传 analysis_scope=latest 或 snapshot_date。series 按中文指标名或原列名读取时序。未匹配时返回可用日期，继续总结归档方案而非拒答。跨期快照不能解释原工单根因或执行效果。',
+      parameters: { type: 'object', properties: {
+        operation: { type: 'string', enum: ['catalog','read','series'] },
+        ticket_id: string('业务工单号；read/series 必需。'),
+        snapshot_date: string('用户明确指定的分析日期 YYYY-MM-DD；省略按原工单日期取数。'),
+        analysis_scope: { type: 'string', enum: ['ticket', 'latest'], description: '默认 ticket；仅用户明确要求最新状态时用 latest，不与 snapshot_date 同传。' },
+        metric: string('series 时需要中文指标名或原始列，如 his016；结合当前制式使用。'),
+        object_id: string('series 可选，限定本小区或指定邻区；省略返回该指标所有已有对象。'),
+      }, additionalProperties: false }, execute: args => orders.networkQuery(args),
+    },
+    {
       name: 'wireless_data_analyze',
-      description: '实际计算用户或演示观测的描述统计、基线变化、声明门限越界、时段分布和同对象同窗口相关性。输入为 observations 或工作区 JSON/JSONL file_path，二选一；object_id 可筛选。按对象/指标定义/单位/人群分组，隔离冲突与非法观测，不把相关性当根因。不是 ECHO 原仓自带的 KPI 根因算法，而是 Harness 数据适配层。',
+      description: '实际计算用户提供、已入库或场景库观测的描述统计、基线变化、声明门限越界、时段分布和同对象同窗口相关性。可直接给 ticket_id 从指标库取数，或给 observations/file_path；三选一。按对象/指标定义/单位/人群分组，隔离冲突与非法观测，不把相关性当根因。',
       parameters: { type: 'object', properties: {
         observations: { type: 'array', maxItems: 10000, items: { type: 'object', additionalProperties: true } },
-        file_path: string('工作区 JSON 数组或 JSONL 文件，最多 8 MB；可用演示 read_case 返回的 series_file。'),
+        ticket_id: string('按原工单日期读取指标，与 observations/file_path 三选一。'),
+        snapshot_date: string('ticket_id 模式可选快照日期 YYYY-MM-DD。'),
+        analysis_scope: { type: 'string', enum: ['ticket', 'latest'], description: '默认 ticket；仅用户明确要求最新状态时用 latest。' },
+        file_path: string('工作区 JSON 数组或 JSONL 文件，最多 8 MB；可用场景库 read_case 返回的 series_file。'),
         object_id: string('可选，只分析这个对象；省略可比较多个对象。'),
-        object_ids: { type: 'array', maxItems: 24, items: { type: 'string' }, description: '可选，限定本小区与同群对照的对象列表。演示可直接使用 read_case 的 analysis_arguments。' },
+        object_ids: { type: 'array', maxItems: 24, items: { type: 'string' }, description: '可选，限定本小区与同群对照的对象列表。场景库可直接使用 read_case 的 analysis_arguments。' },
         baseline_points: { type: 'integer', description: '每组最初多少个窗口为基线，默认 48。' },
         timezone_offset_minutes: { type: 'integer', description: '时段汇总使用的 UTC 偏移分钟，默认北京时间 480。' },
       }, additionalProperties: false },
       execute(args) {
-        if (Boolean(args.observations) === Boolean(args.file_path)) throw new Error('observations 与 file_path 必须二选一')
-        return analyzeObservations({ ...args, observations: args.observations || readObservations(args.file_path) })
+        if ([args.observations,args.file_path,args.ticket_id].filter(Boolean).length !== 1) throw new Error('observations、file_path 与 ticket_id 必须三选一')
+        const selection = args.ticket_id ? orders.analysisSelection(args.ticket_id,args.snapshot_date,args.analysis_scope) : null
+        const observations = args.observations || (args.ticket_id ? orders.analysisData(args.ticket_id,args.snapshot_date,args.analysis_scope)?.observations : readObservations(args.file_path))
+        if (!observations) return { status:'needs_data',ticket_id:args.ticket_id,missing_fields:['observations'], analysis_selection: selection }
+        return { ...analyzeObservations({ ...args, observations }), ...(selection ? { analysis_selection: selection } : {}) }
       },
     },
     {
       name: 'wireless_demo',
-      description: '使用独立空间的丰富合成网优数据，实际演示 ECHO agentic memory。catalog 列出场景；read_case 只读决策前观测、参数快照和时序文件，再用 wireless_data_analyze 分析。prepare_memory 编译初始合成历史；compare_candidates 实际运行源 ranker/值适配并返回反证；select_candidate 只能冻结返回的 candidate_id；reveal_feedback 需冻结 decision_id 后才揭示预置模拟反馈并评价；learn 导出真实账本字段为合成 Trace、实际编译新版；memory 查看当前版本六类记忆。所有值、效果和状态仅用于模拟，不操作网管，不混入生产检索。不自动揭示反馈，除非用户要求演示反馈或完整记忆闭环。',
+      description: '查询场景库并执行无线网优分析与经验更新。可按业务场景标题直接读取，无需额外用途前缀。catalog 列出场景；read_case 读取决策前观测、参数快照和时序文件，用 wireless_data_analyze 计算。compare_candidates 运行历史候选排序与值适配，返回反证；select_candidate 冻结候选；reveal_feedback 在冻结后读取方案反馈并评价；learn 编译新经验版本；memory 读取当前六类经验。来源性质由界面数据说明、data_notes 和 synthetic 元信息提供，普通回答不附加数据性质或用途尾注，不使用“演示”“模拟”标签；询问来源或真实性时如实说明。读取反馈和学习需用户请求相应阶段或完整处理流程，不能声称已操作现场设备。',
       parameters: { type: 'object', properties: {
         operation: { type: 'string', enum: ['catalog', 'read_case', 'prepare_memory', 'compare_candidates', 'select_candidate', 'reveal_feedback', 'learn', 'memory'] },
-        scenario_id: string('catalog 返回的场景 ID。'),
+        scenario_id: string('场景 ID 或完整业务标题，必须保留条件后缀，例如“园区晚高峰接入失败 · 缺少当前参数”，不可简化为基础场景。'),
         candidate_id: string('compare_candidates 实际返回的候选 ID，不能自行编造。'),
         decision_id: string('select_candidate 返回的冻结决定 ID。'),
         query: string('memory 时可按参数、问题或经验名称筛选；省略列出各类记忆。'),
@@ -125,13 +164,13 @@ export function apply(ctx) {
     },
     {
       name: 'wireless_history_search',
-      description: '根因、数据、参数应用和方案分析的必经历史检索：自动查询已有案例、参数经验、研究结论以及本地冻结记忆包中的六类经验，无需用户提供包 ID。返回实际检索范围、命中/未命中、真实生产库未接入状态，以及正向候选、复核与反证；已有语义和研究经验不冒充实测工单。只读，不创建工单或编译记忆。',
+      description: '根因对照、参数应用与方案分析中的历史经验检索：查询案例、参数语义、研究结论和本地记忆包中的六类经验，返回支持、复核和反证。工单号详情、月份工单和完整工单库统计应使用 wireless_order_query，不使用本工具代替查单。只读，不创建工单或编译记忆。',
       parameters: { type: 'object', properties: { ...filterProperties,
         package_ids: { type: 'array', items: string('已有本地包 ID。'), minItems: 1, maxItems: 100, description: '可选，用户指定版本时固定这些包；省略自动发现。' },
         as_of: string('可选带时区决策截止时间，省略用本次查询时间；排除截止之后的包/快照，快照缺逐条评价可见时间，不能作严格时序回放证明。'),
-        include_demo: { type: 'boolean', description: '默认 false；仅演示或明确查询演示包时为 true。演示仍不进入有效策略池。' },
+        include_demo: { type: 'boolean', description: '默认 false；仅明确查询合成样本包时为 true。合成样本仍不进入现场有效策略池。' },
       }, required: ['query'], additionalProperties: false },
-      execute: createHistorySearch({ memory }),
+      execute: historySearch,
     },
     {
       name: 'wireless_workorder',
@@ -146,18 +185,18 @@ export function apply(ctx) {
     },
     {
       name: 'wireless_compile_history',
-      description: '把工作区中的 TraceRecord JSONL/JSON 数组交给固定来源的 ECHO-Mem 规则编译器，进行 Schema 校验、去重、截止时间/七天成熟边界过滤、归因、六类记忆编译、状态/评分/画像和本地版本包导出。最多 200 条/4 MB，60 秒超时。演示必须 mode=demo；未发布远程知识或加载风险 gate。',
+      description: '把工作区中的 TraceRecord JSONL/JSON 数组交给固定来源的 ECHO-Mem 规则编译器，进行 Schema 校验、去重、截止时间/七天成熟边界过滤、归因、六类记忆编译、状态/评分/画像和本地版本包导出。最多 200 条/4 MB，60 秒超时。合成样本必须 mode=demo；未发布远程知识或加载风险 gate。',
       parameters: { type: 'object', properties: {
         file_path: string('工作区历史 TraceRecord JSONL 或 JSON 数组文件路径；不能用新工单对象或案例摘要代替。'),
         as_of: string('带时区的 ISO 版本截止时间；例如 2026-10-08T00:00:00+08:00。'),
-        mode: { type: 'string', enum: ['historical', 'demo'], description: '默认 historical；演示数据必须显式 demo，不能混成真实效果。' },
+        mode: { type: 'string', enum: ['historical', 'demo'], description: '默认 historical；合成样本必须显式 demo，不能混成真实效果。' },
         evaluation_visible_at_cutoff: { type: 'boolean', description: 'historical 模式必需：用户明确声明这些归档评价在截止前可见；不由模型擅自替用户确认。' },
       }, additionalProperties: false },
       execute: memory.compile,
     },
     {
       name: 'wireless_memory_query',
-      description: '按已编译的本地 package_id 查询固定版本的记忆、源 Trace ID、状态、评分与支持/反证画像。只读校验文件哈希，演示或 unverified 记忆不作为现场统计或可执行证书。',
+      description: '按已编译的本地 package_id 查询固定版本的记忆、源 Trace ID、状态、评分与支持/反证画像。只读校验文件哈希，合成样本或 unverified 记忆不作为现场统计或可执行证书。',
       parameters: { type: 'object', properties: {
         package_id: string('wireless_compile_history 返回的版本包 ID。'),
         query: string('具体参数/问题/记忆 ID；空字符串列出所选类型。'),
@@ -167,7 +206,7 @@ export function apply(ctx) {
       execute: memory.query,
     },
   ]
-  for (const definition of [...definitions, ...workflowDefinitions]) ctx.effect(() => ctx.tools.register({
+  for (const definition of [...definitions, ...workflowDefinitions, ...icosToolDefinitions(icos)]) ctx.effect(() => ctx.tools.register({
     ...definition,
     output: {
       schema: { type: 'object', additionalProperties: true },

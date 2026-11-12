@@ -168,7 +168,7 @@ export function createMemoryService({ directory = wirelessDataDir(), workspace =
         if (!fs.existsSync(target)) fs.renameSync(output, target)
         else verifyPackage(target)
         return { ...result, package_id: id, package_path: target, manifest: verifyPackage(target),
-          interpretation: '本地冻结记忆包，由源 ECHO-Mem 规则编译；演示包不可计入真实效果统计。未发布远程知识，未加载校准 gate；编译状态不等于现网自动下发许可。' }
+          interpretation: '本地冻结记忆包，由源 ECHO-Mem 规则编译；样本包不可计入真实效果统计。未发布远程知识，未加载校准 gate；编译状态不等于现网自动下发许可。' }
       } finally { fs.rmSync(temporary, { recursive: true, force: true }) }
     },
     query({ package_id, query = '', memory_type, limit = 6 } = {}) {

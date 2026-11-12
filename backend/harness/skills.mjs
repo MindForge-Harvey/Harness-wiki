@@ -24,3 +24,15 @@ export async function listProjectSkills(root) {
     finally { unregister(); await ctx.fiber.dispose() }
   }
 }
+
+export async function validateSelectedSkills(root, names) {
+  if (names === undefined) return []
+  if (!Array.isArray(names) || names.length > 30 || names.some(name => typeof name !== 'string')) {
+    throw Object.assign(new Error('所选 Skills 必须是名称数组'), { status: 400 })
+  }
+  const unique = [...new Set(names)]
+  if (!unique.length) return []
+  const available = new Set((await listProjectSkills(root)).map(skill => skill.name))
+  if (unique.some(name => !available.has(name))) throw Object.assign(new Error('所选 Skill 不在当前 Skills 库中'), { status: 400 })
+  return unique
+}

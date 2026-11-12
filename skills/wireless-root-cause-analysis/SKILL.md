@@ -1,10 +1,30 @@
 ---
 name: wireless-root-cause-analysis
-description: 按 ECHO-Mem 方法先查历史工单和根因/反证经验，再对照当前数据比较无线根因假设、支持与反对依据及区分检查；用于为什么异常和主辅原因判断。
+description: 复用原项目代码与提示词收敛工单根因，读取结论及六维原文并核对引用；结合当前观测和历史反证解释缺口，用于具体工单的根因分析。
 metadata:
+  code_source: network-ops-loop-v3/services/decision/cause_convergence.py; cause_dimensions.py
   method_source: wireless-root-cause-analysis/SKILL.md
   source_commit: e734ac032a7dc671878d05cd40d2b31b68d156fc
 ---
+
+具体工单默认按工单日期取数：wireless_network_query / wireless_icos_context / wireless_data_analyze(ticket_id=...) 使用同一时点，analysis_selection 给出选定日期及其他可用日期。仅用户明确要求最新状态时用 analysis_scope="latest"，明确指定日期时用 snapshot_date；不得为补齐证据自行跨期。其他日期快照不能解释原工单根因或原执行效果。工单期指标缺失仍可总结归档方案、执行与评价，并按原代码做条件性候选复核。旧会话先 context read 清除失效跨期结果；series 支持 his016 等原列名。
+
+
+## 分析时点与缺口
+
+以 analysis_selection/analysis_basis 的来源和日期解释诊断。默认复盘原工单时期；用户明确改为最新或指定日期重新诊断时，先说明原工单仅用于定位小区、本轮针对所选日期，不将两次状态拼成一次事件。缺少同日指标时保留根因未确认，仍交付归档已知事实和可完成的候选复核；只提确实影响结论的定向补证。异常判定用 declared_thresholds/anomaly_thresholds，优化目标用 evaluation_targets，不能混用。
+
+资料齐全时只交付本轮根因、支持证据与对当前方案的影响，不固定追加资料缺口或完整性提醒。不要借当前未采用某动作，反推归档那次动作一定错误或导致恶化。
+
+## ICOS 原文根因收敛
+
+具体工单默认使用原项目代码，不要求用户说“ICOS”。只有业务单号时先加载工单接入 Skill 并用 wireless_icos_context(ticket_id=...) 建立上下文；已有 run_id 则复用。按 [ICOS 契约](../wireless-workorder-orchestrator/references/icos-workflow.md) 调用 wireless_icos_root_cause，阅读 judgment_requests[].prompt，提交 judgment 与 judgment_token。cause/evidence 只来自结论与六维原文；代码验证逐字引用、分数和字段。这里的 0–100 confidence 是原文支撑强度，不是当前因果概率；其含义与下方开放式诊断、ECHO 历史可信度分别保留。新观测可用数据 Skill 独立分析，不声称源收敛算法已经消费 KPI。
+
+ICOS 单阶段测试先用 context read view=summary 核对输入。result.status=not_called 且 causes 为空时，表示已经完成原文缺口检查；没有 needs_judgment 就不提交判断或令牌，不调用候选/方案工具来代替根因结果。用户只请求这一阶段时交付原始现象、不能确认根因的原因和定向补证项，然后结束。参数机理或厂家触发公式未核实的方向，不扩写成“门限偏高导致未测量”等候选机制；只列需要核对的公式和观测。需要开放式假设比较时再单独执行下方方法，并保留未验证性质。
+
+## 补充历史与开放式诊断
+
+以下用于没有具体工单的开放问题，或作为原阶段结果的补充，不替代原代码的根因收敛。
 
 先读 [ECHO-Mem 分析契约](../wireless-workorder-orchestrator/references/echo-analysis-method.md)。调用 `wireless_history_search`，或复用仍适用的真实检索结果，读取历史案例、rca_memory、风险和反证。没有当前 KPI 或没有命中仍要完成检索并说明结果，保留可用参数机制与研究经验。
 

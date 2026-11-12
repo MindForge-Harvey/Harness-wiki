@@ -14,6 +14,12 @@ const sourceRef = name => ({ commit: source.commit, source_path: name,
 const nonempty = value => typeof value === 'string' && value.trim().length > 0
 const identities = memory => ['parameter_semantic_id', 'param_object', 'param_en_name', 'param_cn_name']
   .map(key => memory.content?.[key]).filter(nonempty)
+class CandidateEligibilityError extends Error {
+  constructor(candidate) {
+    super('只有 validated/reusable 策略或组合可以进入正向候选；其他经验保留作复核与反证')
+    this.candidate = candidate
+  }
+}
 
 function invoke(python, request, signal) {
   return new Promise((resolve, reject) => {
@@ -45,23 +51,33 @@ export function createDecisionService({ memory = createMemoryService(), python, 
     sets.set(candidate_set_id, set)
     return { candidate_set_id, set }
   }
-  function loadRefs(refs, context, as_of) {
+  function loadRefs(refs, context, as_of, rejected = null) {
     if (!Array.isArray(refs) || !refs.length || refs.length > 24) throw new Error('candidate_refs 需要 1 至 24 项')
-    const entries = refs.map(ref => load(ref, context, as_of))
-    if (new Set(entries.map(row => row.candidate_id)).size !== entries.length) throw new Error('候选引用重复')
+    if (new Set(refs.map(ref => `${ref?.package_id}:${ref?.memory_id}`)).size !== refs.length) throw new Error('候选引用重复')
+    const entries = []
+    for (const ref of refs) {
+      try { entries.push(load(ref, context, as_of)) }
+      catch (error) {
+        if (!rejected || !(error instanceof CandidateEligibilityError)) throw error
+        rejected.push(error.candidate)
+      }
+    }
     return entries
   }
   function load(ref, context, as_of) {
     if (!ref || !nonempty(ref.memory_id)) throw new Error('候选需要 package_id 和 memory_id')
     const result = memory.query({ package_id: ref.package_id, query: ref.memory_id, limit: 12 })
-    if (result.compiler.mode !== 'historical' && !(demoSandbox && result.compiler.mode === 'demo')) throw new Error('演示包不能用于候选择优或目标值适配')
+    if (result.compiler.mode !== 'historical' && !(demoSandbox && result.compiler.mode === 'demo')) throw new Error('样本包不能用于候选择优或目标值适配')
     if (!Number.isFinite(Date.parse(result.compiler.as_of))) throw new Error('候选包缺有效截止时间')
     if (Date.parse(result.compiler.as_of) > Date.parse(as_of)) throw new Error('候选包晚于决策截止时间')
     const row = result.memories.find(row => row.memory.memory_id === ref.memory_id)
     if (!row) throw new Error('memory_id 不在指定记忆包中')
     const m = row.memory
     if (!['strategy_memory', 'playbook_memory'].includes(m.memory_type) || !['validated', 'reusable'].includes(m.state)) {
-      throw new Error('只有 validated/reusable 策略或组合可以进入正向候选；其他经验保留作复核与反证')
+      throw new CandidateEligibilityError({ candidate_id: `${ref.package_id}:${ref.memory_id}`,
+        package_id: ref.package_id, memory_id: ref.memory_id, memory_type: m.memory_type, state: m.state,
+        reason: !['strategy_memory', 'playbook_memory'].includes(m.memory_type) ? 'not_a_strategy_or_playbook' : 'state_not_validated_or_reusable',
+        usage: 'background_or_review_only' })
     }
     const comparison = {}
     for (const [key, appKey, canonical] of [['vendor', 'vendors', vendorName], ['system', 'systems', systemName]]) {
@@ -83,7 +99,11 @@ export function createDecisionService({ memory = createMemoryService(), python, 
       if (!Array.isArray(refs) || refs.length > 24) throw new Error('candidate_refs 最多 24 项')
       if (!refs.length) return { status: 'no_candidates', candidates: [],
         interpretation: '没有可用历史正向候选；仍可按源 Skill 给有出处的条件性方向，不制造候选或实测统计。' }
-      const entries = loadRefs(refs, context, as_of)
+      const rejected_candidates = []
+      const entries = loadRefs(refs, context, as_of, rejected_candidates)
+      if (!entries.length) return { status: 'no_candidates', candidates: [], rejected_candidates,
+        algorithm_executed: false, calibrated_gate_loaded: false, automatic_accept_certificate: false,
+        interpretation: '给定记忆均未通过正向候选准入，未执行排序。case_memory/rca_memory 即使 validated 也不是可排序策略；未验证/受限/反证条目保留作背景与复核。' }
       const normalizedContext = { ...context,
         ...(context.vendor ? { vendor: vendorName(context.vendor) } : {}),
         ...(context.system ? { system: systemName(context.system) } : {}) }
@@ -92,7 +112,7 @@ export function createDecisionService({ memory = createMemoryService(), python, 
       const byId = new Map(entries.map(row => [row.candidate_id, row]))
       const candidates = output.ranked.map((ranked, index) => ({ ...byId.get(ranked.candidate_id), ...ranked, rank: index + 1 }))
       const { candidate_set_id } = freeze(candidates, context, as_of)
-      return { status: 'ranked_candidates', candidate_set_id, candidates, algorithm: output.algorithm, config: output.config,
+      return { status: 'ranked_candidates', candidate_set_id, candidates, rejected_candidates, algorithm_executed: true, algorithm: output.algorithm, config: output.config,
         source: sourceRef('pipeline/selection/plan_ranker.py'), context: normalizedContext, as_of,
         calibrated_gate_loaded: false, automatic_accept_certificate: false,
         interpretation: '源 ranker 实际执行；分数用于历史候选比较，不是当前成功概率。排序未执行校准 veto；未知条件和同 Trace 的多个版本分别保留。候选集在当前进程有效一小时。' }

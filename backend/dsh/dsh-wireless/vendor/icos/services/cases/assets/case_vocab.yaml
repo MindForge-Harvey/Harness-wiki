@@ -1,0 +1,98 @@
+# 决策案例知识库的归一词表（**手工维护**）。枚举本体在同目录 case_enums.yaml（由脚本从业务字段表生成）。
+#
+# 为什么要归一：同类案例按「参数 + 二级原因 + 问题类型」匹配，而两个来源的写法不一样 ——
+#   * 自闭环案例取自 ICOS 初案：一级 / 二级原因是 type1 / type2（如 覆盖 / 弱覆盖、参数通用 / 高负荷方案组），
+#     参数是规则库的中文名（各厂家写法不同：华为「最低接收电平」、中兴「小区选择所需的最小RSRP接收水平」）；
+#   * 人工精选案例是人填的：覆盖类 / 室内弱覆盖、qRxLevMin/最小接收电平 ……
+# 归一的目标键以 **ICOS 初案一侧**为准（案例最终要匹配的是本单的初案）。
+#
+# 改了这份文件：新入库的案例按新口径归一；已入库的案例键不会自动变（要重新导入那一批）。
+# 归一不上的写法不会丢：导入报告里列为「未归一」，按原文规范化后的字符串当键（只能精确匹配）。
+
+version: 1
+
+# 制式：原文（不分大小写）→ 键
+nettype:
+  4g: [4g, lte, eutran, fdd, tdd]
+  5g: [5g, nr, sa, nsa]
+
+# 厂家：原文（不分大小写）→ 标准名
+vendor:
+  华为: [华为, hw, huawei]
+  中兴: [中兴, zte]
+  诺基亚: [诺基亚, nokia, 上海贝尔, 贝尔]
+  爱立信: [爱立信, ericsson]
+  大唐: [大唐, datang]
+
+# 一级原因：先去掉结尾的「类」，再查别名；值为空串 = 不是根因（不参与一级原因匹配）
+cause1:
+  aliases:
+    容量: 资源
+    移动性: 参数
+    切换: 参数
+    结构: 邻区
+    参数通用: ""
+    其他: ""
+
+# 二级原因：先去掉 ICOS 方案组后缀，再查别名。键对齐 ICOS 初案 type2 去后缀后的写法。
+cause2:
+  strip_suffixes: [处理方案组, 方案组A, 方案组B, 方案组]
+  aliases:
+    室内弱覆盖: 弱覆盖
+    深度覆盖不足: 弱覆盖
+    忙时高负荷: 高负荷
+    容量拥塞: 高负荷
+    切换偏晚: 低切换
+    切换参数: 低切换
+    切换失败分析: 低切换
+    NR邻区缺失: 冗余漏配
+    邻区漏配: 冗余漏配
+    冗余漏配邻区: 冗余漏配
+    外部干扰或站内设备异常: 上行干扰
+    网外干扰: 上行干扰
+    其他: ""
+
+# 参数概念：跨厂家 / 跨写法的同一个参数归到同一个键。
+# 不在这里的参数：本身是规则库中文名的直接当键；只有 OMC 名的经规则库「OMC 名 → 中文名」回查
+# （plat_ret_para / paraomcname / dz_paraomcname / fc_paraomcname 四列；一名多义的取法见 vocab.py 模块文档），
+# 再用中文名规范化后的字符串当键。
+# ⚠ 只放确信是同一个参数的写法。形近而义不同的别并进来（例如「频内小区重选最小接收水平」是重选门限，
+#   不是小区选择的 qRxLevMin）—— 并错了会让两个参数的成败互相污染。
+params:
+  - key: qrxlevmin
+    name: 最小接收电平
+    aliases:
+      - qRxLevMin
+      - QRXLEVMIN
+      - SELQRXLEVMIN
+      - 最低接收电平
+      - 最小接收电平
+      - 最小接入电平
+      - 小区选择所需的最小RSRP接收水平
+      - 小区选择所需的最小接收电平
+  - key: p0nominalpusch
+    name: PUSCH 标称 P0
+    aliases:
+      - P0NominalPUSCH
+      - p0-NominalPUSCH
+      - PUSCH标称PO值
+      - PUSCH标称P0值
+      # 待业务确认：ICOS 初案里的「上行功率控制P0标称值」是否即 PUSCH 标称 P0。
+      - 上行功率控制P0标称值
+  - key: cio
+    name: 小区个体偏移
+    aliases:
+      - CIO
+      - cellIndividualOffset
+      # 中兴 EUtranRelation / EUtranRelationTDD 上的写法（客户 1017 汇总表 104 行）
+      - cellIndivOffset
+      - 小区个体偏移
+      - 小区个性偏移
+      - 小区偏移量
+  - key: loadbalancethreshold
+    name: 负载均衡触发门限
+    aliases:
+      - loadBalanceThreshold
+      - 负载均衡触发门限
+      # 待业务确认：华为「异频负载平衡门限」(InterFreqMlbThd) 是否与模板样例的负载均衡触发门限同义。
+      - 异频负载平衡门限

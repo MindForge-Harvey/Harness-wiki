@@ -31,7 +31,7 @@ async function chat(name, message, expected) {
 }
 
 const skills = await (await fetch(base + '/api/skills')).json()
-assert.equal(skills.skills.length, 13)
+assert.equal(skills.skills.length, 19)
 const answer = await chat('diagnosis', '以下为模拟工单，仅用于功能验证。小区 SIM-C1，华为 LTE，软件版本 sim-v1，室外。2026-10-07 10:00 到 11:00（+08:00）下载低速率。模拟指标：下行 PRB 利用率 95%，定义为该窗口下行占用 PRB/可用 PRB，1000 个样本；用户测试判据 >90% 为异常。下行用户吞吐 3 Mbps，定义为同窗口用户平均下行吞吐，1000 个样本，无已知异常门限。SINR 18 dB，定义为同窗口测量平均 SINR，1000 个样本，无已知异常门限。三项都来自本次模拟输入、同小区同窗口。请接入工单、分型、构建证据、给出有依据和区分检查的根因假设，再比对历史，给条件建议。最后明确列出保存的工单 ID；不要虚构参数当前值或 KPI 改善幅度。', ['skill', 'wireless_workorder', 'wireless_history_search'])
 const workorderId = String(answer).match(/wo_[a-f0-9]{24}/)?.[0]
 assert.ok(workorderId, 'missing persisted workorder ID')

@@ -40,3 +40,4 @@ backend/dsh/home/task-board/
 
 # dsh 运行时生成，不入库
 backend/dsh/home/.anonymous-user-id
+backend/dsh/home/runtime.cordis.patch.json

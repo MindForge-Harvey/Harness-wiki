@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   ArrowLeft,
@@ -12,6 +13,8 @@ import {
   CaretDown,
   CaretRight,
   CheckCircle,
+  Circle,
+  CircleNotch,
   CirclesThreePlus,
   ClockCounterClockwise,
   Copy,
@@ -27,7 +30,7 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react";
-import { toolLabel, taskProgress, visibleTool, groupTaskMessages } from "../lib/task-progress.mjs";
+import { toolLabel, taskProgress, visibleTool, groupTaskMessages, latestTaskPlan } from "../lib/task-progress.mjs";
 import { agents } from "../data/agents";
 import assistantHead from "../assets/assistant-head.webp";
 import {
@@ -42,7 +45,10 @@ import {
   renameSession,
 } from "../lib/api";
 import { Markdown } from "../lib/markdown";
-import DemoScenarios from './DemoScenarios';
+import SkillsLibrary from './SkillsLibrary';
+import { skillTitle } from '../lib/skill-catalog.mjs';
+import { assistantDelta, assistantComplete, safeToolDetails, isTruncatedToolResult } from '../lib/chat-stream.mjs';
+import { createChatSessions } from '../lib/chat-sessions.mjs';
 
 const kbAgent = agents[0];
 
@@ -202,7 +208,7 @@ function ToolCard({ card }) {
   const progress = taskProgress(card);
   const running = progress.status === "running";
   const json = card.resultJson;
-  const expandable = progress.summaries.length > 1;
+  const expandable = Boolean(card.calls?.length || card.args || card.resultJson || card.resultText);
   const Head = expandable ? "button" : "div";
   return (
     <article className={`chat-tool-card is-${progress.status}${expandable && open ? " is-open" : ""}`}>
@@ -221,6 +227,12 @@ function ToolCard({ card }) {
       {expandable && open ? (
         <div className="chat-tool-body">
           {progress.summaries.map(summary => <p key={summary}>{summary}</p>)}
+          {(card.calls || [card]).map((call, index) => <div className="chat-tool-detail" key={call.callId || index}>
+            <code>{call.name}</code>
+            {call.args && Object.keys(call.args).length ? <><p>输入</p><pre>{safeToolDetails(call.args)}</pre></> : null}
+            {call.resultJson ? <><p>结果</p><pre>{safeToolDetails(call.resultJson)}</pre></> : null}
+            {!call.resultJson && call.resultText ? <><p>结果</p><pre>{String(call.resultText).slice(0, 4000)}</pre></> : null}
+          </div>)}
         </div>
       ) : null}
     </article>
@@ -296,35 +308,10 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
 
   const fullText = message.content || "";
 
-  /** 打字机渐显：新回答整段到达后逐字展开（历史/错误消息 instant 直出）。 */
-  const [shown, setShown] = useState(() => (message.instant ? fullText.length : 0));
-  const timerRef = useRef(null);
-  useEffect(() => {
-    if (message.instant || pending) return undefined;
-    let cancelled = false;
-    let current = 0;
-    const total = fullText.length;
-    const tick = () => {
-      if (cancelled) return;
-      current = Math.min(total, current + Math.max(2, Math.ceil((total - current) / 90)));
-      setShown(current);
-      if (current < total) {
-        timerRef.current = window.setTimeout(tick, 16);
-      }
-    };
-    timerRef.current = window.setTimeout(tick, 16);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timerRef.current);
-    };
-    // 仅挂载时启动一次：整条消息的 content 到达后不会再变。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
-  const growing = shown < fullText.length;
+  const growing = Boolean(message.streaming);
   useEffect(() => {
     if (growing) onGrow?.();
-  }, [shown, growing, onGrow]);
+  }, [fullText, growing, onGrow]);
 
   const copyAnswer = async () => {
     try {
@@ -339,7 +326,7 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
   const shareAnswer = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: "无线网优助手回答", text: fullText });
+        await navigator.share({ title: "无忧侠 回答", text: fullText });
         return;
       }
       await navigator.clipboard?.writeText(fullText);
@@ -361,7 +348,7 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
       <RobotAvatar activity={pending ? "working" : "waiting"} compact />
       <div className="chat-message-stack">
         <div className="chat-message-meta">
-          <strong>无线网优助手</strong>
+          <strong>无忧侠</strong>
           <time>{message.time}</time>
         </div>
         <div className="chat-assistant-content">
@@ -377,7 +364,7 @@ function AssistantMessage({ message, onFeedback, onGrow, pending = false, activi
               </div>
             </div>
           ) : (
-            <Markdown className={growing ? "is-growing" : ""}>{fullText.slice(0, shown)}</Markdown>
+            <Markdown className={growing ? "is-growing" : ""}>{fullText}</Markdown>
           )}
         </div>
         {!pending && fullText && !growing ? (
@@ -437,6 +424,7 @@ function UserMessage({ message }) {
 /* ---------------------------------------------------------------- 执行过程抽屉 */
 
 function TimelineDrawer({ open, onClose, timeline, activity }) {
+  const tasks = latestTaskPlan([{ role: 'user' }, ...timeline.map(item => ({ ...item, role: item.kind }))]);
   const steps = groupTaskMessages(timeline.map(item => ({ ...item, role: item.kind === "tool" ? "tool" : item.kind })))
     .map(item => item.kind === "tool" ? { ...item, ...taskProgress(item), detail: taskProgress(item).summaries.join("；") } : item);
   const finished = activity !== "working" && steps.length > 0;
@@ -465,9 +453,19 @@ function TimelineDrawer({ open, onClose, timeline, activity }) {
       <section className={`planner-overview is-${activity}`} aria-label="执行概览">
         <div className="planner-overview-copy">
           <span>{finished ? "本轮回答已结束" : activity === "working" ? "正在分析" : "等待新任务"}</span>
-          <strong>{steps.length ? `${completed} 个阶段已完成${pending ? `，${pending} 个阶段需跟进` : ""}` : activity === "working" ? "正在整理问题与依据" : "发送工单或问题开始分析"}</strong>
+          <strong>{steps.length ? `${completed} 次调用已完成${pending ? `，${pending} 项需跟进` : ""}` : activity === "working" ? "正在整理问题与依据" : "发送工单或问题开始分析"}</strong>
         </div>
       </section>
+
+      {tasks.length ? <section className="chat-task-plan" aria-label="任务计划">
+        <h3>任务计划</h3>
+        <ol>{tasks.map(task => <li key={task.content} className={`is-${task.status}`}>
+          <span aria-label={{ completed: '已完成', in_progress: '进行中', pending: '待处理' }[task.status]}>
+            {task.status === 'completed' ? <CheckCircle size={15} weight="fill" />
+              : task.status === 'in_progress' ? <CircleNotch size={15} /> : <Circle size={15} />}
+          </span><span>{task.content}</span>
+        </li>)}</ol>
+      </section> : null}
 
       <ol className="chat-timeline" aria-label="执行时间线">
         {steps.length ? (
@@ -503,35 +501,29 @@ function clockTime() {
 
 export default function AgentChat() {
   const [sessions, setSessions] = useState(loadSessions);
-  const [sessionId, setSessionId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState("");
+  const chatStoreRef = useRef(null);
+  if (!chatStoreRef.current) chatStoreRef.current = createChatSessions();
+  const chatStore = chatStoreRef.current;
+  const { activeKey: conversationKey, views } = useSyncExternalStore(chatStore.subscribe, chatStore.getSnapshot);
+  const { sessionId, messages, draft, attachment, selectedSkills, isThinking, activityText, timeline, historyLoading } = views.get(conversationKey);
+  const { setSessionId, setMessages, setDraft, setAttachment, setSelectedSkills, setIsThinking, setActivityText, setTimeline } = chatStore.bind(conversationKey);
+  const { abortRef, assistantStreamRef, streamSerialRef, pendingUserTextRef, currentQueryIdRef, currentUserTextRef,
+    sessionSeqRef, timelineIdRef, timelineCallRef, timelineApprovalRef, historyRequestRef } = chatStore.refs(conversationKey);
   const [historyQuery, setHistoryQuery] = useState("");
-  const [attachment, setAttachment] = useState(null);
-  const [isThinking, setIsThinking] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
-  const [capabilityOpen, setCapabilityOpen] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [timeline, setTimeline] = useState([]);
-  const [activityText, setActivityText] = useState("");
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const messagesEndRef = useRef(null);
-  const abortRef = useRef(null);
   const fileInputRef = useRef(null);
   const composerInputRef = useRef(null);
-  const capabilityDialogRef = useRef(null);
-  const pendingUserTextRef = useRef(null);
-  const currentQueryIdRef = useRef(null);
-  const currentUserTextRef = useRef(null);
-  const sessionSeqRef = useRef(0);
 
   const activity = isThinking ? "working" : attachment ? "reading" : "waiting";
   const activityLabel = isThinking ? activityText || "正在执行" : attachment ? "附件已准备" : "在线，可以开始";
 
   const quickPrompts = [
     { title: "解读参数", prompt: "QRxLevMin 增大有什么作用？" },
-    { title: "查询历史案例", prompt: "找低接通工单的历史参数调整案例" },
+    { title: "查询工单", prompt: "6月的工单都有啥？" },
     { title: "分析网络问题", prompt: "低速率工单应怎样结合历史经验判断根因？" },
     { title: "比较优化方案", prompt: "结合历史工单比较参数调整方案，需要哪些数据？" },
   ];
@@ -540,14 +532,6 @@ export default function AgentChat() {
     const query = historyQuery.trim().toLowerCase();
     return query ? sessions.filter((item) => item.title.toLowerCase().includes(query)) : sessions;
   }, [sessions, historyQuery]);
-
-  useEffect(() => {
-    if (!capabilityOpen) return undefined;
-    const previous = document.activeElement;
-    const dialog = capabilityDialogRef.current;
-    dialog?.showModal();
-    return () => { dialog?.close(); previous?.focus?.(); };
-  }, [capabilityOpen]);
 
   useEffect(() => {
     if (!historyOpen && !plannerOpen) return undefined;
@@ -569,14 +553,14 @@ export default function AgentChat() {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "无线网优助手 | 对话工作台";
+    document.title = "无忧侠 | 对话工作台";
     return () => {
       document.title = previousTitle;
     };
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    messagesEndRef.current?.scrollIntoView({ behavior: messages.some(m => m.streaming) ? "auto" : "smooth", block: "end" });
   }, [messages, isThinking]);
 
   /** 打字机展开期间的跟随滚动（auto 平滑无效化，避免高频 smooth 抖动）。 */
@@ -600,25 +584,22 @@ export default function AgentChat() {
       if (event.key === "Escape") {
         setHistoryOpen(false);
         setPlannerOpen(false);
-        setCapabilityOpen(false);
+        setSkillsOpen(false);
       }
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, []);
 
-  useEffect(() => () => abortRef.current?.(), []);
+  useEffect(() => () => chatStore.dispose(), [chatStore]);
 
-  const timelineIdRef = useRef(0);
-  const timelineCallRef = useRef(new Map());
-  const timelineApprovalRef = useRef(new Map());
 
   /** 追加一条过程项（tool/approval/error），返回条目 id 供后续更新状态。 */
   const pushTimelineItem = useCallback((item) => {
     const id = `tl-${++timelineIdRef.current}`;
     setTimeline((items) => [...items.slice(-80), { id, time: clockTime(), ...item }]);
     return id;
-  }, []);
+  }, [conversationKey]);
 
   /** 审批决定：用 callId 匹配审批桥的 pending 记录再提交。 */
   const handleDecide = useCallback(async (card, decision) => {
@@ -637,7 +618,7 @@ export default function AgentChat() {
         items.map((it) => (it.id === tlId ? { ...it, status: decision === "allowed-once" ? "allowed" : "rejected" } : it)),
       );
     }
-  }, []);
+  }, [conversationKey]);
 
   /** 点赞/点踩：带本轮 query_id 落 feedback.jsonl。 */
   const handleFeedback = useCallback((message, rating) => {
@@ -652,6 +633,16 @@ export default function AgentChat() {
   }, []);
 
   const handleNotification = useCallback((notification) => {
+    if (notification.method === 'agent/assistant-delta') {
+      const { kind, text } = notification.params || {};
+      if (kind !== 'text' || !text) return;
+      assistantStreamRef.current ||= `stream-${sessionSeqRef.current}-${++streamSerialRef.current}`;
+      const id = assistantStreamRef.current;
+      setActivityText('正在输出分析结果');
+      setMessages(items => assistantDelta(items, id, text, { time: clockTime(),
+        queryId: currentQueryIdRef.current, question: currentUserTextRef.current || '' }));
+      return;
+    }
     if (notification.method === "session.status") {
       return;
     }
@@ -666,6 +657,14 @@ export default function AgentChat() {
 
     if (event.type === "step/start") {
       setActivityText("正在分析问题与已有依据");
+      assistantStreamRef.current = null;
+      return;
+    }
+
+    if (event.type === 'assistant/attempt') {
+      const id = assistantStreamRef.current;
+      if (id) setMessages(items => items.map(item => item.id === id ? { ...item, streaming: false } : item));
+      assistantStreamRef.current = null;
       return;
     }
 
@@ -675,18 +674,11 @@ export default function AgentChat() {
         .filter((b) => b && b.type === "text")
         .map((b) => b.text)
         .join("");
+      const id = assistantStreamRef.current || `assistant-${event.seq}`;
+      assistantStreamRef.current = null;
       if (!text) return;
-      setMessages((items) => [
-        ...items,
-        {
-          id: `assistant-${event.seq}`,
-          role: "assistant",
-          time: clockTime(),
-          content: text,
-          queryId: currentQueryIdRef.current,
-          question: currentUserTextRef.current || "",
-        },
-      ]);
+      setMessages(items => assistantComplete(items, id, text, { time: clockTime(),
+        queryId: currentQueryIdRef.current, question: currentUserTextRef.current || '' }));
       return;
     }
 
@@ -731,7 +723,7 @@ export default function AgentChat() {
       setMessages((items) =>
         items.map((m) =>
           m.role === "tool" && (!callId || m.callId === callId) && m.status === "running"
-            ? { ...m, status: isError ? "error" : "done", resultText: text, resultJson: json }
+            ? { ...m, status: isError ? "error" : "done", resultText: text, resultJson: json, resultTruncated: isTruncatedToolResult(text) }
             : m,
         ),
       );
@@ -739,7 +731,7 @@ export default function AgentChat() {
       if (tlId) {
         setTimeline((items) =>
           items.map((it) =>
-            it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json } : it,
+            it.id === tlId ? { ...it, status: isError ? "error" : "done", resultJson: json, resultText: text, resultTruncated: isTruncatedToolResult(text) } : it,
           ),
         );
       }
@@ -814,21 +806,24 @@ export default function AgentChat() {
   const resetTurnState = useCallback(() => {
     setIsThinking(false);
     setActivityText("");
-    setMessages(items => items.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
+    setMessages(items => items.map(item => item.role === "tool" && item.status === "running" ? { ...item, status: "interrupted" }
+      : item.streaming ? { ...item, streaming: false } : item));
     setTimeline(items => items.map(item => item.kind === "tool" && item.status === "running" ? { ...item, status: "interrupted" } : item));
     abortRef.current = null;
     pendingUserTextRef.current = null;
     currentQueryIdRef.current = null;
-  }, []);
+    assistantStreamRef.current = null;
+  }, [conversationKey]);
 
   const sendMessage = (preset) => {
     const typedContent = (typeof preset === "string" ? preset : draft).trim();
     if (!typedContent && !attachment) return;
-    if (isThinking) return;
+    if (chatStore.get(conversationKey).isThinking || historyLoading) return;
 
     const content = typedContent || `请处理附件：${attachment.name}`;
     const timestamp = Date.now();
 
+    historyRequestRef.current += 1;
     currentUserTextRef.current = content;
     pendingUserTextRef.current = content;
     currentQueryIdRef.current = null;
@@ -840,6 +835,8 @@ export default function AgentChat() {
     ]);
     setDraft("");
     setAttachment(null);
+    const skillsForTurn = selectedSkills;
+    setSelectedSkills([]);
     setIsThinking(true);
     setTimeline([]);
     timelineCallRef.current.clear();
@@ -850,13 +847,14 @@ export default function AgentChat() {
       : undefined;
 
     abortRef.current = streamChat(
-      { sessionId, message: content, attachments: attachmentPayload },
+      { sessionId, message: content, attachments: attachmentPayload, selectedSkills: skillsForTurn },
       {
         onStart: (id) => {
           setSessionId(id);
           setSessions(upsertSession(id, content));
         },
-        onRenamed: ({ from, to }) => {
+        onProgress: (progress) => setActivityText(progress.text || '正在准备分析'),
+        onRenamed: ({ from, to, restored }) => {
           setSessionId(to);
           setSessions(renameSession(from, to));
           setMessages((items) => [
@@ -865,15 +863,23 @@ export default function AgentChat() {
               id: `renamed-${to}`,
               role: "assistant",
               time: clockTime(),
-              content: "服务已重启，本会话已迁移到新会话继续。之前的上下文不会自动延续，如需引用请重新说明。",
+              content: restored ? "会话已恢复，可以沿用之前的工单继续。" : "服务已重启，本会话已迁移，可以继续提问。",
             },
           ]);
         },
         onNotification: handleNotification,
-        onDone: () => resetTurnState(),
+        onDone: (result) => {
+          if (result?.instant && result.finalResponse) {
+            setMessages((items) => [...items, {
+              id: `quick-${timestamp}`, role: "assistant", time: clockTime(),
+              content: result.finalResponse, instant: true,
+            }]);
+          }
+          resetTurnState();
+        },
         onError: (message) => {
           resetTurnState();
-          setMessages((items) => [
+          setMessages((items) => items.at(-1)?.content === `执行遇到问题：${message}` ? items : [
             ...items,
             {
               id: `error-${timestamp}`,
@@ -903,39 +909,21 @@ export default function AgentChat() {
   };
 
   const startNewChat = () => {
-    stopResponseSilently();
-    setSessionId(null);
-    setMessages([]);
-    setTimeline([]);
-    timelineCallRef.current.clear();
-    timelineApprovalRef.current.clear();
+    chatStore.newChat();
     setHistoryOpen(false);
-  };
-
-  const stopResponseSilently = () => {
-    abortRef.current?.();
-    resetTurnState();
   };
 
   const resumeSession = async (item) => {
-    stopResponseSilently();
-    setSessionId(item.sessionId);
-    setMessages([]);
-    setTimeline([]);
+    const targetKey = chatStore.create(item.sessionId);
+    chatStore.activate(targetKey);
     setHistoryOpen(false);
+    const target = chatStore.get(targetKey);
+    if (target.historyLoaded || target.isThinking || target.historyLoading) return;
+    const runtime = chatStore.refs(targetKey);
+    const request = ++runtime.historyRequestRef.current;
+    chatStore.patch(targetKey, { historyLoading: true });
     const events = await fetchChatHistory(item.sessionId);
-    if (!events.length) {
-      setMessages([
-        {
-          id: `resumed-${item.sessionId}`,
-          role: "assistant",
-          time: clockTime(),
-          content: `已切换到会话「${item.title}」，历史消息为空。继续提问即可开始。`,
-          instant: true,
-        },
-      ]);
-      return;
-    }
+    if (runtime.historyRequestRef.current !== request || chatStore.get(targetKey).isThinking) return;
     const wallTime = (ms) =>
       new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(ms));
     const restored = events.map((e) => {
@@ -963,6 +951,7 @@ export default function AgentChat() {
               argsText: e.argsText,
               status: e.status || "done",
               resultText: e.resultText || "",
+              resultTruncated: Boolean(e.resultTruncated),
               resultJson: e.resultJson || resultJsonOf(e.resultText),
               time,
             };
@@ -984,10 +973,14 @@ export default function AgentChat() {
             return null;
         }
       }).filter(Boolean);
-    setMessages(restored);
     const lastUser = restored.findLastIndex(message => message.role === "user");
-    setTimeline(restored.slice(lastUser + 1).filter(message => ["tool", "approval"].includes(message.role))
-      .map(message => ({ ...message, kind: message.role, title: message.role === "approval" ? "执行审批" : taskProgress(message).title })));
+    const restoredTimeline = restored.slice(lastUser + 1).filter(message => ["tool", "approval"].includes(message.role))
+      .map(message => ({ ...message, kind: message.role, title: message.role === "approval" ? "执行审批" : taskProgress(message).title }));
+    for (const message of restoredTimeline) {
+      if (message.callId) runtime.timelineCallRef.current.set(message.callId, message.id);
+      if (message.approvalKey) runtime.timelineApprovalRef.current.set(message.approvalKey, message.id);
+    }
+    chatStore.patch(targetKey, { messages: restored, timeline: restoredTimeline, historyLoaded: true, historyLoading: false });
   };
 
   const deleteSession = (item) => {
@@ -1031,13 +1024,18 @@ export default function AgentChat() {
             </button>
           </div>
         ) : null}
+        {selectedSkills.length ? <div className="chat-selected-skills" aria-label="已选 Skills">
+          {selectedSkills.map(name => <button type="button" key={name} aria-label={`移除 ${skillTitle(name)}`}
+            onClick={() => setSelectedSkills(items => items.filter(n => n !== name))}>{skillTitle(name)}<X size={12} /></button>)}
+        </div> : null}
         <textarea
           ref={composerInputRef}
           rows={2}
           value={draft}
           aria-label="输入你的问题"
           aria-describedby="chat-composer-hint"
-          placeholder="问参数、找历史案例，或粘贴一张网优工单…"
+          placeholder="输入工单号，或按月份查询工单、分析网络问题…"
+          disabled={historyLoading}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
         />
@@ -1055,7 +1053,7 @@ export default function AgentChat() {
           <button
             className={`chat-send-button${isThinking ? " is-stopping" : ""}`}
             type="button"
-            disabled={!isThinking && !draft.trim() && !attachment}
+            disabled={historyLoading || (!isThinking && !draft.trim() && !attachment)}
             aria-label={isThinking ? "停止接收" : "发送消息"}
             title={isThinking ? "停止接收" : "发送消息"}
             onClick={isThinking ? stopResponse : () => sendMessage()}
@@ -1084,7 +1082,7 @@ export default function AgentChat() {
           <div className="chat-sidebar-top">
             <a className="chat-sidebar-back" href="/" aria-label="返回首页">
               <ArrowLeft size={16} aria-hidden="true" />
-              <span>返回首页</span>
+              <span>无忧侠</span>
             </a>
             <button
               className="chat-sidebar-collapse"
@@ -1101,25 +1099,21 @@ export default function AgentChat() {
           </div>
 
           <nav className="chat-sidebar-tools" aria-label="工作区入口">
-            <button type="button" aria-current={!messages.length ? 'page' : undefined} onClick={startNewChat}>
+            <button className="chat-new-conversation" type="button" aria-current={!messages.length ? 'page' : undefined} onClick={startNewChat}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
-                <Plus size={18} weight="duotone" />
+                <Plus size={20} weight="bold" />
               </span>
               <span>
                 <strong>新对话</strong>
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
-            <button type="button" disabled={isThinking} aria-haspopup="dialog" aria-expanded={demoOpen} onClick={() => { setHistoryOpen(false); setDemoOpen(true); }}>
-              <span className="chat-sidebar-tool-icon" aria-hidden="true"><FileText size={18} /></span>
-              <span><strong>演示场景</strong></span>
-            </button>
-            <button type="button" aria-haspopup="dialog" aria-expanded={capabilityOpen} onClick={() => { setHistoryOpen(false); setCapabilityOpen(true); }}>
+            <button type="button" disabled={isThinking} aria-haspopup="dialog" aria-expanded={skillsOpen} onClick={() => { setHistoryOpen(false); setSkillsOpen(true); }}>
               <span className="chat-sidebar-tool-icon" aria-hidden="true">
                 <CirclesThreePlus size={18} weight="duotone" />
               </span>
               <span>
-                <strong>能力中心</strong>
+                <strong>Skills 库</strong>
               </span>
               <CaretRight size={15} weight="bold" aria-hidden="true" />
             </button>
@@ -1143,6 +1137,7 @@ export default function AgentChat() {
             {visibleHistory.map((item) => (
               <button
                 className={item.sessionId === sessionId ? "is-active" : ""}
+                data-running={views.get(chatStore.find(item.sessionId))?.isThinking || undefined}
                 type="button"
                 key={item.sessionId}
                 onClick={() => resumeSession(item)}
@@ -1152,6 +1147,7 @@ export default function AgentChat() {
                 </span>
                 <span className="chat-history-copy">
                   <strong>{item.title}</strong>
+                  {views.get(chatStore.find(item.sessionId))?.isThinking ? <span className="chat-history-running" role="status" aria-label="正在执行"><CircleNotch size={14} /></span> : null}
                   <small>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(item.time)}</small>
                 </span>
                 <Trash
@@ -1221,7 +1217,7 @@ export default function AgentChat() {
             {!messages.length ? (
               <section className="chat-welcome" aria-labelledby="chat-welcome-title">
                 <RobotAvatar activity={activity} hero />
-                <h2 id="chat-welcome-title">从一个网络问题开始</h2>
+                <h2 id="chat-welcome-title">你好，我是无忧侠</h2>
                 {composer}
                 <div className="chat-starter-grid" aria-label="快捷提问">
                   {quickPrompts.map(({ title, prompt }) => (
@@ -1251,7 +1247,7 @@ export default function AgentChat() {
                     />
                   );
                 })}
-                {isThinking ? (
+                {isThinking && !messages.some(message => message.streaming) ? (
                   <AssistantMessage pending activityText={activityText} message={{ id: "pending", time: clockTime() }} />
                 ) : null}
                 <div ref={messagesEndRef} />
@@ -1270,40 +1266,8 @@ export default function AgentChat() {
         />
       </div>
 
-      {capabilityOpen ? (
-          <dialog
-            ref={capabilityDialogRef}
-            className="chat-capability-dialog"
-            aria-labelledby="capability-dialog-title"
-            onCancel={event => { event.preventDefault(); setCapabilityOpen(false); }}
-            onClick={event => { if (event.target === capabilityDialogRef.current) setCapabilityOpen(false); }}
-          >
-            <header>
-              <div>
-                <h2 id="capability-dialog-title">能力中心</h2>
-              </div>
-              <button type="button" aria-label="关闭能力中心" onClick={() => setCapabilityOpen(false)}>
-                <X size={18} />
-              </button>
-            </header>
-            <div className="chat-capability-list">
-              {kbAgent.capabilities.map(([title, body]) => (
-                <article key={title}>
-                  <div>
-                    <strong>{title}</strong>
-                    <p>{body}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <footer>
-              <button type="button" onClick={() => setCapabilityOpen(false)}>
-                返回对话
-              </button>
-            </footer>
-          </dialog>
-      ) : null}
-      {demoOpen ? <DemoScenarios onClose={() => setDemoOpen(false)} onStart={prompt => sendMessage(prompt)} /> : null}
+      {skillsOpen ? <SkillsLibrary selected={selectedSkills} onSelect={setSelectedSkills}
+        onClose={() => { setSkillsOpen(false); requestAnimationFrame(() => composerInputRef.current?.focus()); }} /> : null}
     </main>
   );
 }

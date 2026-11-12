@@ -2,7 +2,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { buildEvidence, windowOf } from './workflow.js'
 
-const round = value => Number.isFinite(value) ? Math.round(value * 10000) / 10000 : null
+const round = value => {
+  if (!Number.isFinite(value)) return null
+  const rounded = Math.round(value * 10000) / 10000
+  return rounded === 0 ? 0 : rounded
+}
 const average = values => values.length ? values.reduce((a, b) => a + b, 0) / values.length : null
 const keyOf = row => JSON.stringify([row.object_id, row.metric, row.unit, row.definition, row.cohort || ''])
 const canonical = value => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
@@ -72,7 +76,8 @@ export function analyzeObservations({ observations, object_id, object_ids, basel
       if (!hourly.has(hour)) hourly.set(hour, []); hourly.get(hour).push(row.value) }
     const worstHour = [...hourly.entries()].map(([hour, v]) => ({ hour, mean: round(average(v)), observations: v.length }))
       .sort((a, b) => first.good_direction === 'higher' ? a.mean - b.mean : b.mean - a.mean)[0]
-    series.push({ object_id: first.object_id, metric: first.metric, unit: first.unit, definition: first.definition, cohort: first.cohort || null,
+    series.push({ object_id: first.object_id, metric: first.metric, source_column: first.source_column || null,
+      unit: first.unit, definition: first.definition, cohort: first.cohort || null,
       observation_count: rows.length, mean: comparable ? round(mean) : null, min: Math.min(...values), max: Math.max(...values), p50: round(quantile(values, 0.5)), p95: round(quantile(values, 0.95)),
       equal_duration_nonoverlapping_windows: comparable,
       missing_intervals: comparable ? rows.slice(1).reduce((n, row, i) => n + Math.max(0, Math.round((Date.parse(row.time_window.start) - Date.parse(rows[i].time_window.end)) / durations[0])), 0) : null,
@@ -80,7 +85,9 @@ export function analyzeObservations({ observations, object_id, object_ids, basel
       recent: { observations: recent.length, time_window: period(recent), mean: comparable ? round(recentMean) : null },
       change_from_baseline: comparable && base.length && recent.length ? { absolute: round(recentMean - baseMean), unit: first.unit === '%' ? 'percentage_points' : first.unit,
         relative_percent: baseMean ? round((recentMean - baseMean) / Math.abs(baseMean) * 100) : null } : null,
-      declared_threshold_breaches: declared.length, threshold_sources: [...new Set(rows.flatMap(row => row.threshold?.source_ref ? [row.threshold.source_ref] : []))],
+      declared_threshold_breaches: declared.length,
+      declared_thresholds: [...new Map(rows.filter(row => row.threshold).map(row => [canonical(row.threshold), row.threshold])).values()],
+      threshold_sources: [...new Set(rows.flatMap(row => row.threshold?.source_ref ? [row.threshold.source_ref] : []))],
       baseline_deviations_over_3sd: comparable && base.length >= 8 && std > 0 ? recent.filter(row => Math.abs(row.value - baseMean) > 3 * std).length : null,
       worst_hour_under_declared_direction: comparable && ['higher', 'lower'].includes(first.good_direction) ? worstHour : null,
       values: rows.slice(-96).map(row => ({ start: row.time_window.start, end: row.time_window.end, value: row.value })),
@@ -107,7 +114,7 @@ export function analyzeObservations({ observations, object_id, object_ids, basel
       pearson_r: round(pairs.reduce((n, p) => n + (p[0] - ax) * (p[1] - bx), 0) / denominator), interpretation: '描述性同步关系，不证明根因或参数作用' })
   }
   return { status: series.length ? 'analyzed' : 'needs_data', input_count: observations.length, scoped_count: scoped.length, usable_count: [...groups.values()].flat().filter(e => !e.conflict).length,
-    synthetic: observations.every(row => String(row?.source_ref).startsWith('synthetic://')),
+    synthetic: observations.every(row => row?.data_origin === 'constructed' || String(row?.source_ref).startsWith('synthetic://')),
     series: reported, series_count: series.length, truncated: series.length > 24, correlations: correlations.slice(0, 24), peer_comparisons: peerComparisons.slice(0, 24),
     quarantined, duplicate_rows: duplicates, source_count: allSources.size,
     method: { implementation: 'Harness 描述统计适配层；不是 ECHO 论文里的自动根因算法', baseline_points,

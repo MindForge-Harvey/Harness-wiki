@@ -95,7 +95,7 @@ before/after 使用上述观测字段。示例时间与判据不作默认值。s
 }
 ```
 
-数值只演示格式，不是当前厂家默认。current、target 和 constraints 未知时省略；工具保留缺口，不以历史范围填现场约束。保存 plan_id、每个 action_id 及原输入版本；方案状态为候选，不授予执行权限。
+数值仅用于说明输入格式，不是当前厂家默认。current、target 和 constraints 未知时省略；工具保留缺口，不以历史范围填现场约束。保存 plan_id、每个 action_id 及原输入版本；方案状态为候选，不授予执行权限。
 
 historical_case_ids 只接受固定快照检索返回的案例 ID。本地记忆包的依据在 source_refs 中保留 package_id、memory_id 与 trace_ids；不能将 memory_id 填入 historical_case_ids 或当前 evidence_ids。source_refs 是来源声明，不等于工具已校验这条历史出处。
 

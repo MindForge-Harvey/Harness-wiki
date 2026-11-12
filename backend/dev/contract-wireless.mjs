@@ -134,7 +134,7 @@ test('real SDK tool runtime registers and executes all wireless contracts and re
   assert.equal(noCandidates.status, 'no_candidates')
   assert.ok(decision.output.render({}, noCandidates)[0].text.includes('no_candidates'))
   assert.ok(searched.cases.some(row => row.case_id === 'real-low-access-bundle'))
-  assert.equal(searched.sources.production_workorder_connector.status, 'not_connected')
+  assert.equal(searched.sources.workorder_archive.query_tool, 'wireless_order_query')
   assert.deepEqual(JSON.parse(history.output.render({}, searched)[0].text), searched)
   assert.equal((await ctx.tools.get('wireless_parameter_check').execute({ parameter: 'QRxLevMin' }, execution)).status, 'needs_data')
   const aborted = new AbortController()
